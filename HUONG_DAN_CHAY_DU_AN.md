@@ -1,10 +1,32 @@
 # 🚀 HƯỚNG DẪN CHẠY DỰ ÁN CHO THÀNH VIÊN MỚI (N3-1)
 > **Dành cho:** Tất cả thành viên Nhóm 3 — TTCS (Truy xuất nguồn gốc & Chuỗi lạnh nông sản)  
-> **Mục tiêu:** Giúp mọi người tải code về và chạy thành công ứng dụng trên máy cá nhân chỉ sau 5 phút.
+> **Mục tiêu:** Giúp mọi người tải code về và chạy thành công ứng dụng trên máy cá nhân.
 
 ---
 
-## 🛠️ PHẦN 1: Chuẩn bị công cụ (Chỉ cần cài 1 lần đầu tiên)
+## ⚡ CÁCH 1: KHỞI CHẠY BẰNG 1 LỆNH DOCKER (Khuyên dùng khi demo / nghiệm thu)
+
+Nếu máy bạn đã cài sẵn **Docker Desktop**, bạn chỉ cần mở terminal tại thư mục dự án và chạy duy nhất **1 lệnh**:
+
+```bash
+docker compose up --build -d
+```
+
+Toàn bộ hệ thống sẽ tự động khởi động:
+- 🔌 **Backend API:** [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI)
+- 🌐 **Frontend Web:** [http://localhost:5173](http://localhost:5173)
+- 🗄️ **Database PostgreSQL:** Cổng `5432` (Database `ttcs_db`, User `admin`)
+
+*Dừng ứng dụng khi không dùng nữa:*
+```bash
+docker compose down
+```
+
+---
+
+## 💻 CÁCH 2: CHẠY TRỰC TIẾP (Dành cho máy không cài Docker hoặc lúc code hàng ngày)
+
+Nếu bạn không dùng Docker, hãy làm theo các bước truyền thống dưới đây:
 
 Nếu máy bạn chưa có các công cụ này, hãy tải và cài đặt theo link:
 

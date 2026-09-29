@@ -1,0 +1,17 @@
+# Bỏ qua các file rác và dependencies không cần đưa vào Docker context
+**/.git
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache
+**/.vscode
+**/.idea
+
+**/node_modules
+**/dist
+**/.env
+**/.env.local
+**/*.log

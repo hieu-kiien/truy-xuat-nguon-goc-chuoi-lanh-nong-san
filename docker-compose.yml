@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # 1. Cơ sở dữ liệu PostgreSQL
+  database:
+    image: postgres:15-alpine
+    container_name: ttcs_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: ttcs_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ttcs_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d ttcs_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Backend API (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ttcs_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_NAME=ttcs_db
+      - DB_USER=admin
+      - DB_PASSWORD=password123
+      - APP_ENV=development
+      - DEBUG=True
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - ttcs_network
+
+  # 3. Frontend Web (React + Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ttcs_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - ttcs_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  ttcs_network:
+    driver: bridge
