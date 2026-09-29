@@ -1,5 +1,9 @@
 # .gitignore — TTCS N3
 
+# ===== TÀI LIỆU HƯỚNG DẪN CÁ NHÂN (CHỈ LƯU TRÊN MÁY LOCAL) =====
+local_docs/
+*.local.md
+
 # ===== BACKEND (Python) =====
 backend/.env
 backend/__pycache__/
@@ -10,7 +14,6 @@ backend/venv/
 backend/.pytest_cache/
 backend/*.egg-info/
 backend/alembic/__pycache__/
-
 
 # ===== FRONTEND (Node/React) =====
 frontend/node_modules/
