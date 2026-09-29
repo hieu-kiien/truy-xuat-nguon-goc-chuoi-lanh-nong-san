@@ -26,4 +26,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "python -m app.bootstrap_db_role && alembic upgrade head && unset DB_ADMIN_PASSWORD MIGRATION_DATABASE_URL_ENV && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]

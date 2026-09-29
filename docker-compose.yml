@@ -31,8 +31,10 @@ services:
       - DB_HOST=database
       - DB_PORT=5432
       - DB_NAME=ttcs_db
-      - DB_USER=admin
-      - DB_PASSWORD=password123
+      - DB_USER=ttcs_app
+      - DB_PASSWORD=ttcs_app_dev_password
+      - DB_ADMIN_USER=admin
+      - DB_ADMIN_PASSWORD=password123
       - APP_ENV=development
       - DEBUG=True
       - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
