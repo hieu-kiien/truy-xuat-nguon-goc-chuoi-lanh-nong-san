@@ -1,15 +1,17 @@
-from logging.config import fileConfig
-import sys
 import os
+import sys
+from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
+
 from alembic import context
 
 # Đảm bảo Python tìm thấy module app/
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+import app.models  # noqa: E402,F401
 from app.core.config import settings  # noqa: E402
-from app.core.database import Base    # noqa: E402
+from app.core.database import Base  # noqa: E402
 
 config = context.config
 

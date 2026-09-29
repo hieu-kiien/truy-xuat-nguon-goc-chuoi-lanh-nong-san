@@ -1,14 +1,136 @@
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #172a21;
+  background: #f5f7f2;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   font-weight: 400;
-  color-scheme: light;
-  color: #213547;
-  background-color: #ffffff;
 }
+
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 13% 16%, rgba(199, 224, 183, .34), transparent 34%),
+    radial-gradient(ellipse at 90% 84%, rgba(237, 224, 176, .25), transparent 32%),
+    #f5f7f2;
+}
+
+button, input { font: inherit; }
+button { cursor: pointer; }
+
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px 20px;
+}
+
+.auth-card {
+  width: min(100%, 440px);
+  padding: 42px 44px 46px;
+  border: 1px solid #e3e9df;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 24px 70px rgba(34, 60, 44, .1);
+}
+
+.brand-mark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 16px;
+  background: #e9f3e5;
+  font-size: 25px;
+}
+
+.eyebrow {
+  margin: 22px 0 8px;
+  color: #66805f;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .13em;
+}
+
+h1, h2, p { margin-top: 0; }
+h1, h2, .brand { font-family: Manrope, system-ui, sans-serif; }
+h1 { margin-bottom: 8px; font-size: clamp(27px, 5vw, 34px); letter-spacing: -.04em; }
+.muted { color: #768179; line-height: 1.6; }
+.auth-card > .muted { margin-bottom: 28px; font-size: 14px; }
+
+.auth-form { display: grid; gap: 10px; }
+.auth-form label { margin-top: 8px; color: #35443b; font-size: 13px; font-weight: 600; }
+.auth-form input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid #dce4dc;
+  border-radius: 10px;
+  outline: none;
+  background: #fff;
+  color: #172a21;
+  transition: border-color .15s, box-shadow .15s;
+}
+.auth-form input:focus { border-color: #518758; box-shadow: 0 0 0 3px rgba(81, 135, 88, .13); }
+.primary-button {
+  min-height: 48px;
+  margin-top: 14px;
+  border: 0;
+  border-radius: 10px;
+  background: #28643d;
+  color: #fff;
+  font-weight: 700;
+  transition: background .15s, transform .15s;
+}
+.primary-button:hover:not(:disabled) { background: #1f5332; transform: translateY(-1px); }
+.primary-button:disabled { cursor: wait; opacity: .7; }
+.form-error { margin: 3px 0 0; color: #b33c36; font-size: 13px; }
+
+.app-shell { min-height: 100vh; }
+.topbar {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 max(24px, calc((100% - 1120px) / 2));
+  border-bottom: 1px solid #e6ebe3;
+  background: rgba(255, 255, 255, .82);
+}
+.brand { display: inline-flex; align-items: center; gap: 10px; color: #203b2b; font-size: 15px; font-weight: 800; text-decoration: none; }
+.brand span { font-size: 21px; }
+.user-menu { display: flex; align-items: center; gap: 18px; color: #49574d; font-size: 13px; }
+.quiet-button { border: 0; background: none; color: #47734f; font-size: 13px; font-weight: 700; }
+.quiet-button:hover { color: #1f5332; text-decoration: underline; }
+.content-panel { width: min(100% - 40px, 1000px); margin: 54px auto; }
+.content-panel .eyebrow { margin-top: 0; }
+.content-panel h1 { margin-bottom: 5px; }
+.content-panel > .muted { margin-bottom: 30px; }
+.empty-state {
+  display: grid;
+  min-height: 250px;
+  place-content: center;
+  justify-items: center;
+  padding: 28px;
+  border: 1px dashed #d6dfd4;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .68);
+  text-align: center;
+}
+.empty-icon { margin-bottom: 14px; font-size: 32px; }
+.empty-state h2 { margin-bottom: 5px; font-size: 18px; }
+.empty-state p { margin-bottom: 0; color: #768179; font-size: 14px; }
+.loading-screen { display: grid; min-height: 100vh; place-items: center; color: #69776e; font-size: 14px; }
+
+@media (max-width: 520px) {
+  .auth-card { padding: 32px 26px 34px; border-radius: 20px; }
+  .topbar { height: 64px; padding: 0 18px; }
+  .user-menu { gap: 10px; }
+  .user-menu > span { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .content-panel { margin-top: 36px; }
 }

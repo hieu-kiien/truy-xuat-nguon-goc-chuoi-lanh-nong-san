@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     SECRET_KEY: str = "change-me-in-production"
     DEBUG: bool = True
+    SESSION_TTL_MINUTES: int = 480
+    SESSION_COOKIE_NAME: str = "__Host-session"
     ALLOWED_ORIGINS: list[str] | str = [
         "http://localhost:5173",
         "http://localhost:3000",

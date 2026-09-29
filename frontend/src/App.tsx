@@ -1,48 +1,167 @@
-import { useState, useEffect } from 'react'
-import { checkHealth } from './services/api'
+import { useEffect, useState, type FormEvent } from 'react'
+import { getSessionUser, login, logout, type SessionUser } from './services/api'
 
-export default function App() {
-  const [healthStatus, setHealthStatus] = useState<string>('Đang kiểm tra kết nối Backend...')
-  const [isConnected, setIsConnected] = useState<boolean | null>(null)
+function safeReturnPath(path: string | null): string | null {
+  if (!path || !path.startsWith('/') || path.startsWith('//') || path.includes('\\')) {
+    return null
+  }
+  return path
+}
 
-  useEffect(() => {
-    checkHealth()
-      .then((res) => {
-        setHealthStatus(res.message || 'Kết nối thành công!')
-        setIsConnected(true)
-      })
-      .catch(() => {
-        setHealthStatus('Chưa kết nối được Backend (hãy đảm bảo Backend đang chạy ở port 8000)')
-        setIsConnected(false)
-      })
-  }, [])
+function initialReturnPath(): string {
+  const queryPath = safeReturnPath(new URLSearchParams(window.location.search).get('next'))
+  const currentPath = `${window.location.pathname}${window.location.search}`
+  if (queryPath) return queryPath
+  if (window.location.pathname === '/login' || window.location.pathname === '/') return '/lots'
+  return currentPath
+}
+
+function LoginForm({ onLogin }: { onLogin: (user: SessionUser) => void }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (pending) return
+    setPending(true)
+    setError('')
+    try {
+      onLogin(await login({ email, password }))
+    } catch {
+      setError('Email hoặc mật khẩu không đúng.')
+    } finally {
+      setPending(false)
+    }
+  }
 
   return (
-    <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', padding: '2rem', maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
-      <h1>🌾 TTCS — Nông Sản Chuỗi Lạnh</h1>
-      <p style={{ color: '#666', fontSize: '1.1rem' }}>Hệ thống quản lý và truy xuất nguồn gốc nông sản</p>
-
-      <div style={{
-        marginTop: '2rem',
-        padding: '1.5rem',
-        borderRadius: '8px',
-        backgroundColor: isConnected === true ? '#e6f7ed' : isConnected === false ? '#ffebe9' : '#f0f0f0',
-        border: `1px solid ${isConnected === true ? '#52c41a' : isConnected === false ? '#ff4d4f' : '#d9d9d9'}`
-      }}>
-        <h3>Trạng thái kết nối Hệ thống</h3>
-        <p style={{ fontWeight: '500', color: isConnected === true ? '#237804' : isConnected === false ? '#a8071a' : '#333' }}>
-          {healthStatus}
-        </p>
-      </div>
-
-      <div style={{ marginTop: '2rem', textAlign: 'left', backgroundColor: '#fafafa', padding: '1rem 1.5rem', borderRadius: '8px' }}>
-        <h4>📌 Hướng dẫn cho nhóm phát triển:</h4>
-        <ul style={{ lineHeight: '1.8' }}>
-          <li><strong>API Swagger Backend:</strong> <a href="http://localhost:8000/docs" target="_blank" rel="noreferrer">http://localhost:8000/docs</a></li>
-          <li><strong>Quy ước code & Git:</strong> Xem file <code>CONTRIBUTING.md</code></li>
-          <li><strong>Gọi API mới:</strong> Thêm hàm vào <code>src/services/api.ts</code></li>
-        </ul>
-      </div>
-    </div>
+    <main className="auth-page">
+      <section className="auth-card" aria-labelledby="login-title">
+        <div className="brand-mark" aria-hidden="true">🌾</div>
+        <p className="eyebrow">NÔNG SẢN · CHUỖI LẠNH</p>
+        <h1 id="login-title">Đăng nhập</h1>
+        <p className="muted">Đăng nhập vào không gian làm việc của tổ chức bạn.</p>
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            autoComplete="username"
+            type="email"
+            required
+            maxLength={320}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <label htmlFor="password">Mật khẩu</label>
+          <input
+            id="password"
+            autoComplete="current-password"
+            type="password"
+            required
+            maxLength={1024}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+          {error && <p className="form-error" role="alert">{error}</p>}
+          <button className="primary-button" disabled={pending} type="submit">
+            {pending ? 'Đang đăng nhập…' : 'Đăng nhập'}
+          </button>
+        </form>
+      </section>
+    </main>
   )
+}
+
+function LotsLanding({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <a className="brand" href="/lots"><span aria-hidden="true">🌾</span> Nông sản chuỗi lạnh</a>
+        <div className="user-menu">
+          <span>{user.full_name}</span>
+          <button className="quiet-button" onClick={onLogout} type="button">Đăng xuất</button>
+        </div>
+      </header>
+      <section className="content-panel">
+        <p className="eyebrow">{user.organization_name}</p>
+        <h1>Danh sách lô</h1>
+        <p className="muted">Bạn đã đăng nhập vào tổ chức của mình.</p>
+        <div className="empty-state">
+          <span className="empty-icon" aria-hidden="true">📦</span>
+          <h2>Chưa có lô nào</h2>
+          <p>Các lô nông sản của tổ chức sẽ hiển thị tại đây.</p>
+        </div>
+      </section>
+    </main>
+  )
+}
+
+export default function App() {
+  const [user, setUser] = useState<SessionUser | null>(null)
+  const [checkingSession, setCheckingSession] = useState(true)
+  const [returnPath, setReturnPath] = useState(initialReturnPath)
+
+  useEffect(() => {
+    let active = true
+    const requestedPath = initialReturnPath()
+
+    getSessionUser()
+      .then((sessionUser) => {
+        if (!active) return
+        setUser(sessionUser)
+        if (window.location.pathname === '/login' || window.location.pathname === '/') {
+          window.history.replaceState({}, '', requestedPath)
+        }
+      })
+      .catch(() => {
+        if (!active) return
+        window.history.replaceState({}, '', `/login?next=${encodeURIComponent(requestedPath)}`)
+      })
+      .finally(() => {
+        if (active) setCheckingSession(false)
+      })
+
+    const handleExpiredSession = () => {
+      const requested = `${window.location.pathname}${window.location.search}`
+      const safePath = safeReturnPath(requested) ?? '/lots'
+      setReturnPath(safePath)
+      setUser(null)
+      window.history.replaceState({}, '', `/login?next=${encodeURIComponent(safePath)}`)
+    }
+    window.addEventListener('auth:expired', handleExpiredSession)
+
+    return () => {
+      active = false
+      window.removeEventListener('auth:expired', handleExpiredSession)
+    }
+  }, [])
+
+  async function handleLogout() {
+    try {
+      await logout()
+    } finally {
+      setUser(null)
+      setReturnPath('/lots')
+      window.history.replaceState({}, '', '/login?next=%2Flots')
+    }
+  }
+
+  if (checkingSession) {
+    return <main className="loading-screen" role="status">Đang kiểm tra phiên đăng nhập…</main>
+  }
+
+  if (!user) {
+    return (
+      <LoginForm
+        onLogin={(sessionUser) => {
+          setUser(sessionUser)
+          window.history.replaceState({}, '', returnPath)
+        }}
+      />
+    )
+  }
+
+  return <LotsLanding user={user} onLogout={handleLogout} />
 }
