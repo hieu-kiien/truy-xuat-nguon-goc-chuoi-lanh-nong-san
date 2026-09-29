@@ -14,12 +14,14 @@
 ttcs_n3/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml               ← Pipeline CI tự động (Lint, Test, Docker Build)
+│       ├── ci.yml               ← Pipeline CI tự động (Lint, Test, Docker Build - N3-2)
+│       └── deploy-staging.yml   ← Pipeline CD tự động cập nhật Staging khi merge main (N3-3)
 ├── .dockerignore                ← Loại trừ file rác khi build Docker
 ├── .gitignore                   ← Chặn commit node_modules, .venv, .env
 ├── CONTRIBUTING.md              ← Quy định làm việc nhóm (Branch, Commit, PR)
-├── docker-compose.yml           ← Khởi động trọn gói Database + Backend + Frontend
+├── docker-compose.yml           ← Khởi động trọn gói Database + Backend + Frontend (N3-1)
 ├── Makefile                     ← Lệnh tắt tiện ích (make dev-backend, make test...)
+├── render.yaml                  ← Hạ tầng đám mây tự động hóa Staging (IaC - N3-3)
 ├── README.md                    ← Tài liệu tổng quan dự án
 │
 ├── backend/                     ← Dịch vụ Backend (FastAPI)
@@ -133,3 +135,16 @@ Nếu máy bạn có cài đặt `make`:
 
 Toàn bộ 10 thành viên nhóm tuân thủ nghiêm ngặt quy trình chia nhánh, format commit và tạo Pull Request tại file:  
 👉 **[CONTRIBUTING.md](./CONTRIBUTING.md)**
+
+---
+
+## 🌐 Môi trường Staging (Task N3-3)
+
+Dự án áp dụng mô hình **Continuous Deployment (CD)** tự động hóa 100%:
+- **Cơ chế:** Khi một Pull Request được duyệt và **Merge vào nhánh `main`**, hệ thống sẽ tự động kích hoạt:
+  1. Pipeline CD `.github/workflows/deploy-staging.yml` ghi nhận bản phát hành.
+  2. Cloud Platform (Render Blueprint `render.yaml`) tự động kéo code mới, chạy migration database và build lại Frontend/Backend.
+- **Địa chỉ Staging:**
+  - 🌐 Frontend Web: `https://ttcs-frontend-staging.onrender.com`
+  - 🔌 Backend API: `https://ttcs-backend-staging.onrender.com/docs`
+

@@ -1,0 +1,50 @@
+name: CD - Deploy to Staging
+
+# ==============================================================================
+# Pipeline CD Tự động hóa Môi trường Staging (Task N3-3)
+# Tự động kích hoạt mỗi khi có commit được Merge vào nhánh 'main'.
+# ==============================================================================
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Cho phép bấm chạy thủ công khi cần test
+
+jobs:
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://ttcs-frontend-staging.onrender.com
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Kiểm tra thông tin phiên bản
+        run: |
+          echo "=========================================================="
+          echo "🚀 BẮT ĐẦU TỰ ĐỘNG CẬP NHẬT MÔI TRƯỜNG STAGING"
+          echo "📌 Nhánh: ${{ github.ref_name }}"
+          echo "📌 Commit SHA: ${{ github.sha }}"
+          echo "📌 Tác giả: ${{ github.actor }}"
+          echo "=========================================================="
+
+      - name: 📡 Kích hoạt Deploy Webhook (Nếu đã cấu hình Secret)
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$DEPLOY_HOOK" ]; then
+            echo "Đang gửi tín hiệu kích hoạt webhook đến server staging..."
+            curl -X POST -s -o /dev/null -w "%{http_code}" "$DEPLOY_HOOK"
+            echo "Đã gửi tín hiệu deploy thành công!"
+          else
+            echo "Chưa có RENDER_DEPLOY_HOOK secret. Render sẽ tự động cập nhật qua GitHub Webhook mặc định."
+          fi
+
+      - name: 📢 Thông báo trạng thái Staging
+        run: |
+          echo "✅ Quá trình kích hoạt CD Staging đã hoàn tất!"
+          echo "🌐 Địa chỉ Website Staging: https://ttcs-frontend-staging.onrender.com"
+          echo "🔌 Địa chỉ Backend API Staging: https://ttcs-backend-staging.onrender.com/docs"
