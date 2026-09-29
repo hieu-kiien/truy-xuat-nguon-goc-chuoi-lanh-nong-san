@@ -1,7 +1,4 @@
-version: '3.8'
-
 services:
-  # 1. Cơ sở dữ liệu PostgreSQL
   database:
     image: postgres:15-alpine
     container_name: ttcs_postgres
@@ -22,7 +19,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. Backend API (FastAPI)
   backend:
     build:
       context: ./backend
@@ -46,7 +42,6 @@ services:
     networks:
       - ttcs_network
 
-  # 3. Frontend Web (React + Nginx)
   frontend:
     build:
       context: ./frontend

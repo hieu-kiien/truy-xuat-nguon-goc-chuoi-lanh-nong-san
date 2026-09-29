@@ -1,48 +1,61 @@
 import { useState, useEffect } from 'react'
-import { checkHealth } from './services/api'
+import { API_BASE_URL, checkHealth } from './services/api'
 
 export default function App() {
-  const [healthStatus, setHealthStatus] = useState<string>('Đang kiểm tra kết nối Backend...')
+  const [statusMessage, setStatusMessage] = useState<string>('Đang kiểm tra kết nối tới máy chủ...')
   const [isConnected, setIsConnected] = useState<boolean | null>(null)
 
   useEffect(() => {
     checkHealth()
       .then((res) => {
-        setHealthStatus(res.message || 'Kết nối thành công!')
+        setStatusMessage(res.message || 'Kết nối máy chủ thành công')
         setIsConnected(true)
       })
       .catch(() => {
-        setHealthStatus('Chưa kết nối được Backend (hãy đảm bảo Backend đang chạy ở port 8000)')
+        setStatusMessage('Không thể kết nối tới Backend API')
         setIsConnected(false)
       })
   }, [])
 
+  const statusClass =
+    isConnected === true
+      ? 'status-card status-online'
+      : isConnected === false
+        ? 'status-card status-offline'
+        : 'status-card status-pending'
+
   return (
-    <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', padding: '2rem', maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
-      <h1>🌾 TTCS — Nông Sản Chuỗi Lạnh</h1>
-      <p style={{ color: '#666', fontSize: '1.1rem' }}>Hệ thống quản lý và truy xuất nguồn gốc nông sản</p>
+    <main className="container">
+      <header className="header">
+        <h1>Hệ thống Truy xuất Nguồn gốc Chuỗi lạnh Nông sản</h1>
+        <p className="subtitle">Nền tảng quản lý lô hàng và giám sát bảo quản nông sản</p>
+      </header>
 
-      <div style={{
-        marginTop: '2rem',
-        padding: '1.5rem',
-        borderRadius: '8px',
-        backgroundColor: isConnected === true ? '#e6f7ed' : isConnected === false ? '#ffebe9' : '#f0f0f0',
-        border: `1px solid ${isConnected === true ? '#52c41a' : isConnected === false ? '#ff4d4f' : '#d9d9d9'}`
-      }}>
-        <h3>Trạng thái kết nối Hệ thống</h3>
-        <p style={{ fontWeight: '500', color: isConnected === true ? '#237804' : isConnected === false ? '#a8071a' : '#333' }}>
-          {healthStatus}
+      <section className={statusClass}>
+        <h2>Trạng thái kết nối Backend</h2>
+        <p className="status-text">{statusMessage}</p>
+        <p className="endpoint-info">
+          Endpoint: <code>{API_BASE_URL}</code>
         </p>
-      </div>
+      </section>
 
-      <div style={{ marginTop: '2rem', textAlign: 'left', backgroundColor: '#fafafa', padding: '1rem 1.5rem', borderRadius: '8px' }}>
-        <h4>📌 Hướng dẫn cho nhóm phát triển:</h4>
-        <ul style={{ lineHeight: '1.8' }}>
-          <li><strong>API Swagger Backend:</strong> <a href="http://localhost:8000/docs" target="_blank" rel="noreferrer">http://localhost:8000/docs</a></li>
-          <li><strong>Quy ước code & Git:</strong> Xem file <code>CONTRIBUTING.md</code></li>
-          <li><strong>Gọi API mới:</strong> Thêm hàm vào <code>src/services/api.ts</code></li>
+      <section className="info-panel">
+        <h3>Tài nguyên phát triển</h3>
+        <ul>
+          <li>
+            <strong>Tài liệu OpenAPI (Swagger):</strong>{' '}
+            <a href={`${API_BASE_URL}/docs`} target="_blank" rel="noreferrer">
+              {API_BASE_URL}/docs
+            </a>
+          </li>
+          <li>
+            <strong>Quy chuẩn đóng góp:</strong> Xem file <code>CONTRIBUTING.md</code> tại thư mục gốc
+          </li>
+          <li>
+            <strong>Tích hợp API:</strong> Định nghĩa các hàm gọi dữ liệu trong <code>src/services/api.ts</code>
+          </li>
         </ul>
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }

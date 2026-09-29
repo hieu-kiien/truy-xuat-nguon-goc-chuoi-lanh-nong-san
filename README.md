@@ -1,150 +1,123 @@
-# 🌾 Dự án TTCS (Nhóm 3) — Truy xuất nguồn gốc & Giám sát chuỗi lạnh nông sản
+# Hệ thống Truy xuất Nguồn gốc và Giám sát Chuỗi lạnh Nông sản
 
-Ứng dụng web toàn diện quản lý chuỗi cung ứng, truy xuất nguồn gốc lô hàng và giám sát nhiệt độ/độ ẩm chuỗi lạnh nông sản.
+Ứng dụng quản lý quy trình canh tác, theo dõi lô hàng và giám sát điều kiện bảo quản nông sản theo thời gian thực.
 
-- **Backend:** Python 3.12+ / FastAPI / SQLAlchemy 2.0 / Alembic / PostgreSQL
-- **Frontend:** React 19 / Vite / TypeScript
-- **Container & DevOps:** Docker & Docker Compose / Nginx / GitHub Actions CI
+## Công nghệ sử dụng
 
----
+- **Backend:** Python 3.12+, FastAPI, SQLAlchemy 2.0, Alembic, PostgreSQL
+- **Frontend:** React 19, TypeScript, Vite
+- **Hạ tầng & CI/CD:** Docker, Docker Compose, Nginx, GitHub Actions, Render
 
-## 📂 Cấu trúc thư mục dự án
+## Cấu trúc dự án
 
 ```text
-ttcs_n3/
-├── .github/
-│   └── workflows/
-│       ├── ci.yml               ← Pipeline CI tự động (Lint, Test, Docker Build - N3-2)
-│       └── deploy-staging.yml   ← Pipeline CD tự động cập nhật Staging khi merge main (N3-3)
-├── .dockerignore                ← Loại trừ file rác khi build Docker
-├── .gitignore                   ← Chặn commit node_modules, .venv, .env
-├── CONTRIBUTING.md              ← Quy định làm việc nhóm (Branch, Commit, PR)
-├── docker-compose.yml           ← Khởi động trọn gói Database + Backend + Frontend (N3-1)
-├── Makefile                     ← Lệnh tắt tiện ích (make dev-backend, make test...)
-├── render.yaml                  ← Hạ tầng đám mây tự động hóa Staging (IaC - N3-3)
-├── README.md                    ← Tài liệu tổng quan dự án
-│
-├── backend/                     ← Dịch vụ Backend (FastAPI)
-│   ├── alembic/                 ← Quản lý các phiên bản migration database
-│   ├── alembic.ini              ← Cấu hình Alembic
+.
+├── .github/workflows/       # Cấu hình CI/CD tự động (lint, test, build, deploy)
+├── backend/
+│   ├── alembic/             # Quản lý phiên bản migration cơ sở dữ liệu
 │   ├── app/
-│   │   ├── api/v1/endpoints/    ← Các route API (items, users, logs...)
-│   │   ├── api/v1/router.py     ← Gom các router API v1
-│   │   ├── core/                ← Config (Pydantic Settings), database engine
-│   │   ├── models/              ← SQLAlchemy ORM models
-│   │   ├── schemas/             ← Pydantic schemas (Request / Response validation)
-│   │   ├── services/            ← Business logic nghiệp vụ
-│   │   └── main.py              ← Điểm khởi chạy ứng dụng FastAPI
-│   ├── tests/                   ← Unit & Integration tests (Pytest + HTTPX)
-│   ├── Dockerfile               ← Multi-stage build image Backend
-│   ├── pyproject.toml           ← Cấu hình Ruff (Lint/Format) và Pytest
-│   ├── requirements.txt         ← Thư viện môi trường chạy thực tế (Production)
-│   ├── requirements-dev.txt     ← Thư viện bổ sung khi code / test (Dev-only)
-│   ├── .python-version          ← Phiên bản Python chuẩn
-│   └── .env.example             ← Mẫu biến môi trường Backend
-│
-├── frontend/                    ← Dịch vụ Frontend (React + Vite + TypeScript)
-│   ├── public/                  ← Tài nguyên tĩnh (favicon, icons)
+│   │   ├── api/v1/          # Định tuyến RESTful API (endpoints, router)
+│   │   ├── core/            # Cấu hình ứng dụng và kết nối cơ sở dữ liệu
+│   │   ├── models/          # Khai báo SQLAlchemy ORM models
+│   │   ├── schemas/         # Khai báo Pydantic schemas (validation & serialization)
+│   │   ├── services/        # Xử lý nghiệp vụ (business logic)
+│   │   └── main.py          # Điểm khởi chạy ứng dụng FastAPI
+│   ├── tests/               # Kiểm thử đơn vị và tích hợp (Pytest)
+│   ├── Dockerfile           # Đóng gói container Backend
+│   ├── pyproject.toml       # Cấu hình Ruff linter, formatter và Pytest
+│   ├── requirements.txt     # Thư viện môi trường production
+│   └── requirements-dev.txt # Thư viện môi trường phát triển
+├── frontend/
+│   ├── public/              # Tài nguyên tĩnh
 │   ├── src/
-│   │   ├── components/          ← UI components tái sử dụng
-│   │   ├── hooks/               ← Custom React hooks (useApi...)
-│   │   ├── pages/               ← Màn hình hoàn chỉnh
-│   │   ├── services/            ← Gọi API Backend tập trung (api.ts)
-│   │   ├── types/               ← TypeScript interfaces & types
-│   │   ├── utils/               ← Hàm tiện ích chung
-│   │   ├── App.tsx              ← Component gốc
-│   │   └── main.tsx             ← Điểm khởi chạy React
-│   ├── Dockerfile               ← Multi-stage build React + Nginx
-│   ├── nginx.conf               ← Cấu hình Web Server Nginx (SPA fallback)
-│   ├── package.json             ← Dependencies Node.js
-│   ├── tsconfig*.json           ← Cấu hình TypeScript
-│   ├── vite.config.ts           ← Cấu hình Vite bundler
-│   ├── .nvmrc                   ← Phiên bản Node.js chuẩn
-│   └── .env.example             ← Mẫu biến môi trường Frontend
-│
-└── docs/
-    └── api.md                   ← Tài liệu mô tả các API endpoint cho nhóm
+│   │   ├── components/      # Các thành phần giao diện tái sử dụng
+│   │   ├── hooks/           # Custom React hooks
+│   │   ├── pages/           # Các trang giao diện chính
+│   │   ├── services/        # Tầng giao tiếp API với Backend
+│   │   ├── types/           # Định nghĩa kiểu dữ liệu TypeScript
+│   │   └── utils/           # Các hàm tiện ích dùng chung
+│   ├── Dockerfile           # Đóng gói container Frontend (Node build + Nginx)
+│   ├── nginx.conf           # Cấu hình định tuyến SPA cho Nginx
+│   └── package.json         # Quản lý thư viện và script Frontend
+├── docs/                    # Tài liệu đặc tả kỹ thuật và API
+├── docker-compose.yml       # Khởi chạy toàn bộ hệ thống bằng Docker
+├── Makefile                 # Tập hợp các lệnh tắt phục vụ phát triển
+├── render.yaml              # Khai báo hạ tầng đám mây (Infrastructure as Code)
+└── CONTRIBUTING.md          # Quy chuẩn làm việc nhóm và đóng góp mã nguồn
 ```
 
----
+## Hướng dẫn cài đặt và khởi chạy
 
-## 🚀 Hướng dẫn khởi chạy ứng dụng
+### 1. Khởi chạy nhanh bằng Docker Compose
 
-### 👉 Cách 1: Khởi chạy bằng 1 lệnh Docker (Chuẩn task N3-1 / Demo)
+Yêu cầu máy tính đã cài đặt và bật **Docker Desktop**. Chạy lệnh sau tại thư mục gốc của dự án:
 
-*Yêu cầu:* Đã cài đặt và bật **Docker Desktop**.
-
-Tại thư mục gốc dự án, chạy đúng 1 lệnh:
 ```bash
 docker compose up --build -d
 ```
 
-Sau khi hoàn tất:
-- 🔌 **Backend Swagger API:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- 🌐 **Frontend Web:** [http://localhost:5173](http://localhost:5173)
-- 🗄️ **Database PostgreSQL:** Cổng `5432` (`ttcs_db`, user: `admin`, pass: `password123`)
+Sau khi các container khởi động hoàn tất:
+- **Giao diện Web:** http://localhost:5173
+- **Tài liệu API (Swagger UI):** http://localhost:8000/docs
+- **Cơ sở dữ liệu PostgreSQL:** `localhost:5432` (Database: `ttcs_db`, User: `admin`)
 
-*Tắt hệ thống:*
+Để dừng toàn bộ dịch vụ:
 ```bash
 docker compose down
 ```
 
----
+### 2. Khởi chạy trực tiếp trên máy (Môi trường phát triển)
 
-### 👉 Cách 2: Khởi chạy trực tiếp từng dịch vụ (Local Development)
+#### Backend (FastAPI)
 
-*Yêu cầu:* Cài đặt **Python 3.12+**, **Node.js 20+**, và **PostgreSQL 15+**.
-
-#### 1. Chạy Backend (FastAPI):
 ```bash
 cd backend
 python -m venv .venv
-.venv\Scripts\activate        # Windows (hoặc source .venv/bin/activate trên Linux/macOS)
-pip install -r requirements-dev.txt
 
-# Tạo file .env từ mẫu (sửa thông số kết nối DB nếu cần)
+# Kích hoạt môi trường ảo (Windows)
+.venv\Scripts\activate
+# Hoặc trên Linux/macOS: source .venv/bin/activate
+
+pip install -r requirements-dev.txt
 cp .env.example .env
 
-# Chạy server với hot-reload
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-#### 2. Chạy Frontend (React):
-Mở một cửa sổ Terminal mới:
+#### Frontend (React + Vite)
+
+Mở một cửa sổ terminal mới:
+
 ```bash
 cd frontend
 npm install
+cp .env.example .env.local
+
 npm run dev
 ```
 
----
+## Các lệnh hỗ trợ phát triển
 
-## 🛠️ Lệnh tắt tiện ích (Makefile)
+Dự án tích hợp sẵn `Makefile` để rút gọn các thao tác thường ngày:
 
-Nếu máy bạn có cài đặt `make`:
-- `make dev-backend`: Chạy nhanh Backend
-- `make dev-frontend`: Chạy nhanh Frontend
-- `make test`: Chạy toàn bộ test Pytest
-- `make lint`: Kiểm tra code style (Ruff + Oxlint)
-- `make lint-fix`: Tự động sửa lỗi code style
-- `make migrate`: Cập nhật schema database lên phiên bản mới nhất
+| Lệnh | Mô tả |
+|---|---|
+| `make install` | Cài đặt toàn bộ thư viện cho Backend và Frontend |
+| `make dev-backend` | Chạy máy chủ phát triển Backend |
+| `make dev-frontend` | Chạy máy chủ phát triển Frontend |
+| `make test` | Chạy bộ kiểm thử tự động với Pytest |
+| `make lint` | Kiểm tra quy chuẩn mã nguồn (Ruff & Oxlint) |
+| `make lint-fix` | Tự động định dạng mã nguồn và sửa lỗi lint |
+| `make migration msg="mô tả"` | Tự động sinh file migration mới từ thay đổi model |
+| `make migrate` | Áp dụng các bản migration mới nhất vào cơ sở dữ liệu |
 
----
+## Môi trường Staging
 
-## 🤝 Quy định làm việc & Đóng góp mã nguồn
+Hệ thống được thiết lập cơ chế triển khai liên tục (Continuous Deployment). Khi mã nguồn được gộp (merge) vào nhánh `main`, dịch vụ đám mây sẽ tự động cập nhật phiên bản mới nhất:
 
-Toàn bộ 10 thành viên nhóm tuân thủ nghiêm ngặt quy trình chia nhánh, format commit và tạo Pull Request tại file:  
-👉 **[CONTRIBUTING.md](./CONTRIBUTING.md)**
+- **Web Staging:** https://ttcs-frontend-staging.onrender.com
+- **API Staging:** https://ttcs-backend-staging.onrender.com/docs
 
----
+## Quy trình đóng góp
 
-## 🌐 Môi trường Staging (Task N3-3)
-
-Dự án áp dụng mô hình **Continuous Deployment (CD)** tự động hóa 100%:
-- **Cơ chế:** Khi một Pull Request được duyệt và **Merge vào nhánh `main`**, hệ thống sẽ tự động kích hoạt:
-  1. Pipeline CD `.github/workflows/deploy-staging.yml` ghi nhận bản phát hành.
-  2. Cloud Platform (Render Blueprint `render.yaml`) tự động kéo code mới, chạy migration database và build lại Frontend/Backend.
-- **Địa chỉ Staging:**
-  - 🌐 Frontend Web: `https://ttcs-frontend-staging.onrender.com`
-  - 🔌 Backend API: `https://ttcs-backend-staging.onrender.com/docs`
-
+Vui lòng đọc kỹ các quy định về phân nhánh, đặt tên commit và tạo Pull Request tại [CONTRIBUTING.md](./CONTRIBUTING.md) trước khi bắt đầu làm việc.

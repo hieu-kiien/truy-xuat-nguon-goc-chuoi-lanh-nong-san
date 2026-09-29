@@ -7,88 +7,79 @@ on:
     branches: [main]
 
 jobs:
-  # ----------------------------------------------------------------------------
-  # 1. Kiểm tra Backend (Python / FastAPI)
-  # ----------------------------------------------------------------------------
   backend-check:
     name: 🐍 Backend (Lint & Test)
     runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: ⚙️ Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: backend/requirements-dev.txt
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           cd backend
           pip install -r requirements-dev.txt
 
-      - name: 🧹 Run Ruff Linter
+      - name: Run linter (Ruff)
         run: |
           cd backend
           ruff check app/ tests/
 
-      - name: 🎨 Run Ruff Format Check
+      - name: Check formatting (Ruff)
         run: |
           cd backend
           ruff format --check app/ tests/
 
-      - name: 🧪 Run Pytest
+      - name: Run unit tests (Pytest)
         run: |
           cd backend
           pytest tests/ -v
 
-  # ----------------------------------------------------------------------------
-  # 2. Kiểm tra Frontend (React / TypeScript)
-  # ----------------------------------------------------------------------------
   frontend-check:
     name: ⚛️ Frontend (Lint & Build)
     runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: ⚙️ Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: |
           cd frontend
           npm ci
 
-      - name: 🧹 Run Linter
+      - name: Run linter
         run: |
           cd frontend
           npm run lint
 
-      - name: 🏗️ Run Build (Typecheck & Compile)
+      - name: Build production bundle
         run: |
           cd frontend
           npm run build
 
-  # ----------------------------------------------------------------------------
-  # 3. Kiểm tra Build Docker Image
-  # ----------------------------------------------------------------------------
   docker-check:
     name: 🐳 Docker Images Build Check
     runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐳 Build Backend Docker Image
+      - name: Build backend image
         run: docker build -t ttcs-backend:ci ./backend
 
-      - name: 🐳 Build Frontend Docker Image
+      - name: Build frontend image
         run: docker build -t ttcs-frontend:ci ./frontend

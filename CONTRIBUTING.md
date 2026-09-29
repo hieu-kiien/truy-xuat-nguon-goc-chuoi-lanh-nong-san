@@ -1,122 +1,88 @@
-# 📜 Quy định đóng góp & Làm việc nhóm — TTCS N3
+# Quy chuẩn Đóng góp và Làm việc Nhóm
 
-Tài liệu này là **luật làm việc chung** của dự án. Tất cả 10 thành viên nhóm đều phải đọc kỹ và tuân thủ để tránh xung đột mã nguồn (merge conflict) và đảm bảo chất lượng hệ thống.
+Tài liệu này quy định quy trình quản lý mã nguồn, tiêu chuẩn chất lượng và cách thức phối hợp giữa các thành viên trong dự án.
 
----
+## 1. Quy trình quản lý nhánh (Git Branching)
 
-## 1. Quy tắc đặt tên nhánh Git (Branching Convention)
+Nhánh `main` là nhánh chính thức, luôn đảm bảo trạng thái ổn định và đã được bảo vệ. Thành viên không đẩy (push) trực tiếp mã nguồn lên `main` mà thực hiện qua nhánh riêng theo định dạng:
 
-- **Tuyệt đối không push code trực tiếp lên nhánh `main`.**
-- Mỗi tính năng hoặc sửa lỗi phải được thực hiện trên một nhánh riêng biệt, đặt tên theo chuẩn:
-  `<type>/<ma-task-hoac-ten-tinh-nang>`
+```text
+<loại-nhánh>/<mô-tả-ngắn-gọn>
+```
 
-| Tiền tố | Mục đích sử dụng | Ví dụ thực tế trong dự án |
+| Tiền tố | Mục đích | Ví dụ |
 |---|---|---|
-| `feature/` | Phát triển tính năng mới | `feature/n3-5-login`, `feature/n3-7-khai-bao-dat` |
-| `fix/` | Sửa lỗi phát sinh | `fix/db-connection-timeout`, `fix/cors-origin-issue` |
-| `docs/` | Cập nhật tài liệu kỹ thuật | `docs/update-api-contract` |
-| `refactor/` | Tối ưu hoặc cấu trúc lại mã nguồn | `refactor/clean-auth-service` |
-| `chore/` | Cấu hình, nâng cấp thư viện | `chore/update-pydantic-config` |
+| `feature/` | Phát triển tính năng mới | `feature/auth-login`, `feature/farm-declaration` |
+| `fix/` | Sửa lỗi phát sinh | `fix/cors-headers`, `fix/sensor-timeout` |
+| `refactor/` | Tái cấu trúc mã nguồn, không đổi tính năng | `refactor/user-service` |
+| `docs/` | Cập nhật tài liệu kỹ thuật | `docs/api-specification` |
+| `chore/` | Cập nhật cấu hình, thư viện phụ thuộc | `chore/upgrade-dependencies` |
 
-> ❌ **Nghiêm cấm đặt tên nhánh:** `kien`, `nam-dev`, `test`, `fix1`, `nhanh-moi`
+*Lưu ý: Tên nhánh viết thường, không dấu, các từ nối với nhau bằng dấu gạch ngang (`-`). Không đặt tên nhánh theo tên cá nhân.*
 
----
+## 2. Quy chuẩn Commit Message
 
-## 2. Quy tắc viết Commit Message
-
-Format chuẩn: `<type>: <mô tả ngắn gọn bằng tiếng Việt>`
+Mỗi commit cần thể hiện rõ phạm vi thay đổi theo cấu trúc:
 
 ```text
-feat: thêm api đăng nhập bằng email và mật khẩu (n3-5)
-fix: sửa lỗi không nhận diện biến môi trường ALLOWED_ORIGINS
-test: bổ sung unit test cho endpoint truy xuất nông sản
-docs: cập nhật mô tả các api v1 trong docs/api.md
-refactor: tách hàm tính toán nhiệt độ chuỗi lạnh sang service riêng
+<type>: <mô tả ngắn gọn nội dung thay đổi>
 ```
 
-> ❌ **Không viết commit vô nghĩa:** `fix bug`, `update code`, `asdasd`, `done`
+Ví dụ:
+- `feat: thêm api khai báo vùng trồng và thửa đất`
+- `fix: xử lý lỗi kết nối cơ sở dữ liệu khi khởi động`
+- `test: bổ sung kiểm thử cho chức năng đăng nhập`
+- `refactor: tách xử lý truy vấn lô hàng sang tầng service`
 
----
+## 3. Luồng làm việc tiêu chuẩn
 
-## 3. Quy trình làm việc hàng ngày (Workflow)
-
-```text
-              main (nhánh chính — luôn chạy ổn định)
-                │
-                ├── feature/n3-5-login       (Bạn A)
-                ├── feature/n3-7-thua-dat    (Bạn B)
-                └── fix/sensor-data-parsing  (Bạn C)
-```
-
-### Các bước thực hiện:
-
-1. **Cập nhật code mới nhất từ `main` trước khi làm việc:**
+1. **Đồng bộ mã nguồn mới nhất từ nhánh chính:**
    ```bash
    git checkout main
    git pull origin main
    ```
 
-2. **Tạo nhánh mới từ `main`:**
+2. **Tạo nhánh làm việc mới:**
    ```bash
-   git checkout -b feature/n3-5-login
+   git checkout -b feature/ten-tinh-nang
    ```
 
-3. **Lập trình và commit thường xuyên:**
+3. **Kiểm tra chất lượng mã nguồn trước khi đẩy lên:**
+   - **Backend:**
+     ```bash
+     cd backend
+     ruff check --fix app/ tests/
+     ruff format app/ tests/
+     pytest tests/ -v
+     ```
+   - **Frontend:**
+     ```bash
+     cd frontend
+     npm run lint
+     npm run build
+     ```
+
+4. **Đẩy nhánh lên kho lưu trữ và tạo Pull Request:**
    ```bash
-   git add .
-   git commit -m "feat: xay dung form dang nhap frontend"
+   git push origin feature/ten-tinh-nang
    ```
 
-4. **Kiểm tra chất lượng trước khi push (Tránh làm đỏ CI):**
-   ```bash
-   # Kiểm tra lint và test của Backend
-   cd backend
-   ruff check app/ tests/
-   pytest tests/ -v
+## 4. Quy định về Pull Request (PR) và CI/CD
 
-   # Kiểm tra build của Frontend
-   cd ../frontend
-   npm run build
-   ```
+- **Mô tả rõ ràng:** Khi mở PR, ghi rõ mục tiêu thay đổi, các phần bị ảnh hưởng và cách thức kiểm tra.
+- **Kiểm tra tự động (CI):** Hệ thống GitHub Actions sẽ tự động chạy kiểm tra cú pháp (lint), kiểm thử (unit test) và đóng gói Docker. PR chỉ có thể được gộp khi toàn bộ các bước kiểm tra đều vượt qua.
+- **Đánh giá chéo (Code Review):** Mỗi PR cần tối thiểu 1 thành viên khác trong nhóm kiểm tra và phê duyệt (Approve) trước khi gộp vào `main`.
 
-5. **Đẩy nhánh lên GitHub:**
-   ```bash
-   git push origin feature/n3-5-login
-   ```
+## 5. Tổ chức mã nguồn và Nguyên tắc thiết kế
 
-6. **Mở Pull Request (PR) trên GitHub:**
-   - Chọn nhánh đích là `main`.
-   - Ghi rõ nội dung thay đổi, task liên quan trên Jira và cách kiểm thử.
+### Backend (`backend/app/`)
+- **`api/v1/endpoints/`:** Chỉ tiếp nhận HTTP request, kiểm tra quyền và trả về response. Không viết logic nghiệp vụ phức tạp hoặc truy vấn trực tiếp tại đây.
+- **`services/`:** Nơi xử lý toàn bộ nghiệp vụ của ứng dụng.
+- **`models/`:** Định nghĩa cấu trúc bảng cơ sở dữ liệu (SQLAlchemy). Mọi thay đổi trong thư mục này bắt buộc phải tạo file migration thông qua Alembic (`make migration msg="..."`).
+- **`schemas/`:** Định nghĩa cấu trúc dữ liệu đầu vào và đầu ra (Pydantic).
 
----
-
-## 4. Pipeline CI & Quy tắc xét duyệt (Task N3-2)
-
-Dự án đã tích hợp sẵn **GitHub Actions CI**. Mỗi khi một PR được tạo:
-* Hệ thống sẽ tự động chạy:
-  1. 🐍 **Backend:** Ruff Linter + Pytest
-  2. ⚛️ **Frontend:** Typecheck + Vite Build
-  3. 🐳 **Docker:** Build thử Docker Images
-* **Nếu có bất kỳ bước nào báo Đỏ ❌:** Nút **Merge sẽ bị khóa tự động**. Tác giả PR bắt buộc phải fix lỗi và push lại.
-* **Quy tắc phê duyệt:** Mỗi PR cần ít nhất **1 thành viên khác review và Approve** mới được phép gộp vào `main`.
-
----
-
-## 5. Cấu trúc mã nguồn — Đặt file ở đâu?
-
-Để tránh xáo trộn cấu trúc dự án, mọi người tuân thủ vị trí lưu file:
-
-### 🐍 Backend (`backend/app/`):
-- `api/v1/endpoints/`: Định nghĩa các API routes mới (ví dụ: `auth.py`, `farms.py`, `sensors.py`).
-- `models/`: Định nghĩa các bảng database bằng SQLAlchemy (ví dụ: `user.py`, `plot.py`).
-- `schemas/`: Định nghĩa định dạng dữ liệu đầu vào / đầu ra bằng Pydantic (ví dụ: `user.py`).
-- `services/`: Chứa các hàm xử lý logic nghiệp vụ phức tạp.
-- `alembic/versions/`: Tạo migration tự động bằng lệnh `make migration msg="ten_thay_doi"`.
-
-### ⚛️ Frontend (`frontend/src/`):
-- `components/`: Chứa các thành phần giao diện nhỏ dùng lại (Navbar, Footer, Button, Card...).
-- `pages/`: Chứa các màn hình hoàn chỉnh (LoginPage, FarmManagementPage, Dashboard...).
-- `services/api.ts`: Nơi duy nhất gọi các API Backend (tuyệt đối không `fetch` trực tiếp trong component).
-- `hooks/`: Chứa custom hooks xử lý dữ liệu chung (`useApi.ts`...).
-- `types/`: Khai báo các interface / type TypeScript.
-- `utils/`: Các hàm định dạng ngày tháng, số liệu tiện ích.
+### Frontend (`frontend/src/`)
+- **`components/`:** Các thành phần giao diện dùng chung, thiết kế độc lập và tái sử dụng được.
+- **`pages/`:** Các màn hình giao diện gắn với từng đường dẫn (route).
+- **`services/api.ts`:** Tập trung toàn bộ các hàm gọi HTTP API tới Backend. Không gọi `fetch` trực tiếp bên trong các component giao diện.
+- **`types/`:** Khai báo đầy đủ kiểu dữ liệu TypeScript, hạn chế tối đa việc sử dụng kiểu `any`.

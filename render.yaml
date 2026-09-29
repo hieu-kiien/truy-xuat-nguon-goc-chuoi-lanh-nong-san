@@ -1,13 +1,4 @@
-# ==============================================================================
-# Render Blueprint — Hạ tầng tự động cho Môi trường Staging (Task N3-3)
-# Tự động triển khai trọn gói: PostgreSQL + FastAPI Backend + React Frontend
-# Khi merge vào nhánh 'main', Render sẽ tự động build và cập nhật lại toàn bộ web.
-# ==============================================================================
-
 services:
-  # ----------------------------------------------------------------------------
-  # 1. Dịch vụ Backend API (FastAPI)
-  # ----------------------------------------------------------------------------
   - type: web
     name: ttcs-backend-staging
     runtime: python
@@ -15,43 +6,36 @@ services:
     plan: free
     branch: main
     autoDeploy: true
-    buildCommand: |
-      cd backend && pip install -r requirements.txt
-    startCommand: |
-      cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: APP_ENV
         value: staging
       - key: DEBUG
         value: "False"
       - key: ALLOWED_ORIGINS
-        value: "*"
-      - key: DATABASE_URL
+        value: https://ttcs-frontend-staging.onrender.com,http://localhost:5173,http://localhost:3000
+      - key: DATABASE_URL_ENV
         fromDatabase:
           name: ttcs-postgres-staging
           property: connectionString
 
-  # ----------------------------------------------------------------------------
-  # 2. Dịch vụ Frontend Web (React + Vite) — Static site không có plan và region
-  # ----------------------------------------------------------------------------
   - type: web
     name: ttcs-frontend-staging
     runtime: static
     branch: main
     autoDeploy: true
-    buildCommand: |
-      cd frontend && npm install && npm run build
+    buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/dist
     routes:
       - type: rewrite
         source: /*
         destination: /index.html
-
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://ttcs-backend-staging.onrender.com
 
 databases:
-  # ----------------------------------------------------------------------------
-  # 3. Cơ sở dữ liệu PostgreSQL (Môi trường Staging)
-  # ----------------------------------------------------------------------------
   - name: ttcs-postgres-staging
     region: singapore
     plan: free

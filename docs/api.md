@@ -1,45 +1,33 @@
-# Tài liệu API — TTCS N3
+# Tài liệu đặc tả API
 
-Tài liệu này mô tả các API endpoint của Backend.  
-Mọi thành viên frontend đều có thể đọc file này để biết cách gọi API.
-
-> 💡 **Tip:** Sau khi backend chạy, truy cập http://localhost:8000/docs để xem tài liệu API tương tác (do FastAPI tự sinh).
-
----
+Tài liệu kỹ thuật mô tả các RESTful API của hệ thống. Để thử nghiệm trực tiếp các endpoint, truy cập giao diện Swagger UI tại `/docs` khi máy chủ Backend đang hoạt động.
 
 ## Base URL
 
-| Môi trường | URL |
+| Môi trường | Địa chỉ |
 |---|---|
-| Development | `http://localhost:8000/api/v1` |
+| Local | `http://localhost:8000` |
+| Staging | `https://ttcs-backend-staging.onrender.com` |
 
 ---
 
 ## Endpoints
 
-### Health Check
-```
-GET /
-```
-**Response:**
+### 1. Health Check
+Kiểm tra trạng thái hoạt động của dịch vụ Backend.
+
+- **Method:** `GET`
+- **Path:** `/`
+- **Response `200 OK`:**
 ```json
-{ "status": "ok", "message": "TTCS Backend đang chạy ✅" }
+{
+  "status": "ok",
+  "message": "Backend service is online"
+}
 ```
 
----
+### 2. Items
+Ví dụ mẫu cho định tuyến API phiên bản v1.
 
-### Items (Ví dụ minh họa)
-
-#### Lấy tất cả items
-```
-GET /api/v1/items/
-```
-
-#### Lấy item theo ID
-```
-GET /api/v1/items/{item_id}
-```
-
----
-
-*Thêm endpoint mới vào đây khi team xây dựng thêm tính năng.*
+- **Lấy danh sách:** `GET /api/v1/items/`
+- **Chi tiết theo ID:** `GET /api/v1/items/{item_id}`

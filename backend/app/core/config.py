@@ -9,20 +9,20 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Database
     DB_HOST: str = "localhost"
     DB_PORT: int = 5432
     DB_NAME: str = "ttcs_db"
     DB_USER: str = "admin"
     DB_PASSWORD: str = "password123"
+    DATABASE_URL_ENV: str | None = None
 
-    # Application
     APP_ENV: str = "development"
     SECRET_KEY: str = "change-me-in-production"
     DEBUG: bool = True
     ALLOWED_ORIGINS: list[str] | str = [
         "http://localhost:5173",
         "http://localhost:3000",
+        "https://ttcs-frontend-staging.onrender.com",
     ]
 
     @field_validator("ALLOWED_ORIGINS", mode="after")
@@ -34,6 +34,13 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
+        if self.DATABASE_URL_ENV:
+            url = self.DATABASE_URL_ENV
+            if url.startswith("postgres://"):
+                return url.replace("postgres://", "postgresql+psycopg://", 1)
+            if url.startswith("postgresql://"):
+                return url.replace("postgresql://", "postgresql+psycopg://", 1)
+            return url
         return (
             f"postgresql+psycopg://{self.DB_USER}:{self.DB_PASSWORD}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"

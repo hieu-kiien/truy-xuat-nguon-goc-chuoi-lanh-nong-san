@@ -1,9 +1,3 @@
-/**
- * hooks/useApi.ts
- * Custom hook dùng chung để fetch dữ liệu — tránh lặp code loading/error.
- * Cách dùng:
- *   const { data, loading, error } = useApi(() => getItems())
- */
 import { useState, useEffect } from 'react'
 
 interface ApiState<T> {
