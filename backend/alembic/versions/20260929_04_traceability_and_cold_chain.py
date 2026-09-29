@@ -244,6 +244,34 @@ def upgrade() -> None:
 
     op.execute(
         """
+        CREATE FUNCTION public_trace_lot_ids(trace_code text)
+        RETURNS TABLE(lot_id uuid, depth integer)
+        LANGUAGE sql STABLE SECURITY DEFINER
+        SET search_path = pg_catalog, public
+        SET row_security = off
+        AS $$
+            WITH RECURSIVE trace_nodes(lot_id, depth, path) AS (
+                SELECT l.id, 0, ARRAY[l.id]
+                FROM public.lots l
+                WHERE l.public_code = trace_code
+                UNION ALL
+                SELECT edge.source_lot_id, node.depth + 1, node.path || edge.source_lot_id
+                FROM trace_nodes node
+                JOIN public.lot_lineage edge ON edge.target_lot_id = node.lot_id
+                WHERE node.depth < 25
+                  AND NOT edge.source_lot_id = ANY(node.path)
+            )
+            SELECT node.lot_id, min(node.depth)::integer
+            FROM trace_nodes node
+            GROUP BY node.lot_id
+        $$
+        """
+    )
+    op.execute("REVOKE ALL ON FUNCTION public_trace_lot_ids(text) FROM PUBLIC")
+    op.execute("GRANT EXECUTE ON FUNCTION public_trace_lot_ids(text) TO ttcs_app")
+
+    op.execute(
+        """
         CREATE POLICY users_context_read ON users FOR SELECT
         USING (
             organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid
@@ -314,7 +342,11 @@ def upgrade() -> None:
             OR EXISTS (
                 SELECT 1 FROM lots l
                 WHERE l.origin_farm_id = farms.id
-                  AND l.public_code = NULLIF(current_setting('app.public_trace_code', true), '')
+                  AND l.id IN (
+                      SELECT visible.lot_id FROM public_trace_lot_ids(
+                          NULLIF(current_setting('app.public_trace_code', true), '')
+                      ) visible
+                  )
             )
             OR EXISTS (
                 SELECT 1 FROM lots l
@@ -341,7 +373,11 @@ def upgrade() -> None:
             OR EXISTS (
                 SELECT 1 FROM lots l
                 WHERE l.product_id = products.id AND (
-                    l.public_code = NULLIF(current_setting('app.public_trace_code', true), '')
+                    l.id IN (
+                        SELECT visible.lot_id FROM public_trace_lot_ids(
+                            NULLIF(current_setting('app.public_trace_code', true), '')
+                        ) visible
+                    )
                     OR l.organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid
                 )
             )
@@ -356,7 +392,11 @@ def upgrade() -> None:
         USING (
             organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid
             OR current_setting('app.current_role', true) = 'inspector'
-            OR public_code = NULLIF(current_setting('app.public_trace_code', true), '')
+            OR id IN (
+                SELECT visible.lot_id FROM public_trace_lot_ids(
+                    NULLIF(current_setting('app.public_trace_code', true), '')
+                ) visible
+            )
             OR EXISTS (
                 SELECT 1 FROM shipments s WHERE s.lot_id = lots.id
                   AND s.receiver_organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid
@@ -377,9 +417,15 @@ def upgrade() -> None:
                 SELECT 1 FROM lots l WHERE l.id IN (lot_lineage.source_lot_id, lot_lineage.target_lot_id)
                   AND l.organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid
             )
-            OR EXISTS (
-                SELECT 1 FROM lots l WHERE l.id IN (lot_lineage.source_lot_id, lot_lineage.target_lot_id)
-                  AND l.public_code = NULLIF(current_setting('app.public_trace_code', true), '')
+            OR lot_lineage.source_lot_id IN (
+                SELECT visible.lot_id FROM public_trace_lot_ids(
+                    NULLIF(current_setting('app.public_trace_code', true), '')
+                ) visible
+            )
+            OR lot_lineage.target_lot_id IN (
+                SELECT visible.lot_id FROM public_trace_lot_ids(
+                    NULLIF(current_setting('app.public_trace_code', true), '')
+                ) visible
             )
         )
         """
@@ -395,9 +441,10 @@ def upgrade() -> None:
                 SELECT 1 FROM lots l WHERE l.id = lot_events.lot_id
                   AND l.organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid
             )
-            OR EXISTS (
-                SELECT 1 FROM lots l WHERE l.id = lot_events.lot_id
-                  AND l.public_code = NULLIF(current_setting('app.public_trace_code', true), '')
+            OR lot_events.lot_id IN (
+                SELECT visible.lot_id FROM public_trace_lot_ids(
+                    NULLIF(current_setting('app.public_trace_code', true), '')
+                ) visible
             )
         )
         """
@@ -439,6 +486,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute("DROP FUNCTION public_trace_lot_ids(text)")
     for table in (
         "cold_chain_alerts", "temperature_readings", "sensors", "shipments",
         "lot_events", "lot_lineage", "lots", "products",
