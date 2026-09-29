@@ -20,7 +20,10 @@ RUN npm run build
 # Stage 2: Web Server Nginx (Siêu nhẹ, ~20MB)
 FROM nginx:alpine AS final
 
-# Xóa cấu hình mặc định của Nginx và copy file đã build
+# Áp dụng cấu hình SPA fallback cho Nginx
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy build static files
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Mở cổng 80 trong container
