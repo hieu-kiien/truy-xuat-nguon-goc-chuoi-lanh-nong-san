@@ -1,0 +1,28 @@
+# Cấu hình Ruff — Linting + Formatting cho Python
+# Thay thế: flake8, black, isort chỉ bằng 1 công cụ
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+indent-width = 4
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (sắp xếp import tự động)
+    "B",   # flake8-bugbear (bắt bug phổ biến)
+    "UP",  # pyupgrade (dùng syntax Python mới hơn)
+]
+ignore = [
+    "E501", # Bỏ qua line too long (đã có line-length)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

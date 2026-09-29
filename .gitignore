@@ -1,0 +1,27 @@
+# .gitignore — TTCS N3
+
+# ===== BACKEND (Python) =====
+backend/.env
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/.venv/
+backend/venv/
+backend/.pytest_cache/
+backend/*.egg-info/
+backend/alembic/__pycache__/
+
+
+# ===== FRONTEND (Node/React) =====
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env
+
+# ===== CHUNG =====
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/settings.json
+*.suo
+*.user
