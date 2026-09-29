@@ -56,8 +56,8 @@ Yêu cầu máy tính đã cài đặt và bật **Docker Desktop**. Chạy lệ
 docker compose up --build -d
 ```
 
-Sau khi các container khởi động hoàn tất:
-- **Giao diện Web:** http://localhost:5173
+Sau khi hoàn tất:
+- **Giao diện Web:** http://localhost:3000 (hoặc http://localhost:5173 khi chạy npm run dev)
 - **Tài liệu API (Swagger UI):** http://localhost:8000/docs
 - **Cơ sở dữ liệu PostgreSQL:** `localhost:5432` (Database: `ttcs_db`, User: `admin`)
 
@@ -95,6 +95,7 @@ cp .env.example .env.local
 
 npm run dev
 ```
+Frontend dùng cổng `3000`; API mặc định tại `http://localhost:8000`.
 
 ## Các lệnh hỗ trợ phát triển
 

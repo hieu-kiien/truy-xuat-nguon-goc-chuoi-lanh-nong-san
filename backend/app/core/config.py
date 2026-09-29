@@ -1,3 +1,4 @@
+from sqlalchemy.engine import URL
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,13 +13,17 @@ class Settings(BaseSettings):
     DB_HOST: str = "localhost"
     DB_PORT: int = 5432
     DB_NAME: str = "ttcs_db"
-    DB_USER: str = "admin"
-    DB_PASSWORD: str = "password123"
+    DB_USER: str = "ttcs_app"
+    DB_PASSWORD: str = ""
+    DB_ADMIN_USER: str = "admin"
+    DB_ADMIN_PASSWORD: str = ""
     DATABASE_URL_ENV: str | None = None
 
     APP_ENV: str = "development"
     SECRET_KEY: str = "change-me-in-production"
     DEBUG: bool = True
+    SESSION_TTL_MINUTES: int = 480
+    SESSION_COOKIE_NAME: str = "__Host-session"
     ALLOWED_ORIGINS: list[str] | str = [
         "http://localhost:5173",
         "http://localhost:3000",
@@ -33,7 +38,7 @@ class Settings(BaseSettings):
         return v
 
     @property
-    def DATABASE_URL(self) -> str:
+    def DATABASE_URL(self) -> URL | str:
         if self.DATABASE_URL_ENV:
             url = self.DATABASE_URL_ENV
             if url.startswith("postgres://"):
@@ -41,9 +46,26 @@ class Settings(BaseSettings):
             if url.startswith("postgresql://"):
                 return url.replace("postgresql://", "postgresql+psycopg://", 1)
             return url
-        return (
-            f"postgresql+psycopg://{self.DB_USER}:{self.DB_PASSWORD}"
-            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        return URL.create(
+            "postgresql+psycopg",
+            username=self.DB_USER,
+            password=self.DB_PASSWORD,
+            host=self.DB_HOST,
+            port=self.DB_PORT,
+            database=self.DB_NAME,
+        )
+
+    @property
+    def MIGRATION_DATABASE_URL(self) -> URL | str:
+        if self.DATABASE_URL_ENV:
+            return self.DATABASE_URL
+        return URL.create(
+            "postgresql+psycopg",
+            username=self.DB_ADMIN_USER,
+            password=self.DB_ADMIN_PASSWORD,
+            host=self.DB_HOST,
+            port=self.DB_PORT,
+            database=self.DB_NAME,
         )
 
 
