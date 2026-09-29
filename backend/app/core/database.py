@@ -10,6 +10,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class Base(DeclarativeBase):
     """Base class cho tất cả SQLAlchemy models trong dự án."""
+
     pass
 
 
