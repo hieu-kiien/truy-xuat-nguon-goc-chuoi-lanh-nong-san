@@ -2,7 +2,7 @@
 # Thay thế: flake8, black, isort chỉ bằng 1 công cụ
 
 [tool.ruff]
-target-version = "py314"
+target-version = "py312"
 line-length = 88
 indent-width = 4
 

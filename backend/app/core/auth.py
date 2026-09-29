@@ -48,7 +48,8 @@ def get_current_principal(
 
     if result is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Phiên đăng nhập không hợp lệ."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Phiên đăng nhập không hợp lệ.",
         )
 
     auth_session, user, organization, role = result
@@ -57,7 +58,8 @@ def get_current_principal(
         db.delete(auth_session)
         db.commit()
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Phiên đăng nhập đã hết hạn."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Phiên đăng nhập đã hết hạn.",
         )
 
     return Principal(

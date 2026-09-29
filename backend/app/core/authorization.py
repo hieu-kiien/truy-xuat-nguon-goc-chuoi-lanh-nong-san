@@ -23,7 +23,9 @@ def has_permission(role: str, permission: str) -> bool:
     return permission in ROLE_PERMISSIONS.get(role, frozenset())
 
 
-def require_permission(permission: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def require_permission(
+    permission: str,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Declare the permission an API route requires; undeclared routes are denied."""
 
     def decorator(endpoint: Callable[..., Any]) -> Callable[..., Any]:
@@ -46,7 +48,12 @@ def enforce_route_permission(
 
     if permission is None:
         logger.warning(
-            "Denied API route without a declared permission",
+            "Denied API route without a declared permission "
+            "user_id=%s organization_id=%s method=%s path=%s",
+            principal.user_id,
+            principal.organization_id,
+            request.method,
+            request.url.path,
             extra={
                 "event": "authorization.route_missing_permission",
                 "user_id": str(principal.user_id),
@@ -62,7 +69,14 @@ def enforce_route_permission(
 
     if not has_permission(principal.role, permission):
         logger.warning(
-            "Denied API route due to insufficient permission",
+            "Denied API route due to insufficient permission "
+            "user_id=%s organization_id=%s role=%s permission=%s method=%s path=%s",
+            principal.user_id,
+            principal.organization_id,
+            principal.role,
+            permission,
+            request.method,
+            request.url.path,
             extra={
                 "event": "authorization.permission_denied",
                 "user_id": str(principal.user_id),

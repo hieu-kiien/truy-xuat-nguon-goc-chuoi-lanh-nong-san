@@ -7,10 +7,12 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
 export class ApiError extends Error {
   status: number
+  detail: unknown
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, detail?: unknown) {
     super(message)
     this.status = status
+    this.detail = detail
   }
 }
 
@@ -33,13 +35,16 @@ async function request<T>(
       window.dispatchEvent(new Event('auth:expired'))
     }
     let message = response.statusText
+    let detail: unknown
     try {
-      const body = (await response.json()) as { detail?: string }
-      if (body.detail) message = body.detail
+      const body = (await response.json()) as { detail?: unknown }
+      detail = body.detail
+      if (typeof body.detail === 'string') message = body.detail
+      else if (body.detail) message = 'Dữ liệu gửi lên chưa hợp lệ.'
     } catch {
       // Keep the HTTP status text when the response has no JSON body.
     }
-    throw new ApiError(response.status, `API ${response.status}: ${message}`)
+    throw new ApiError(response.status, `API ${response.status}: ${message}`, detail)
   }
 
   if (response.status === 204) return undefined as T
@@ -67,6 +72,23 @@ export const getSessionUser = () =>
 
 export const logout = () =>
   request<void>('/api/v1/auth/logout', { method: 'POST' })
+
+export interface Farm {
+  id: string
+  organization_id: string
+  name: string
+  area_ha: string | number
+  latitude: string | number
+  longitude: string | number
+}
+
+export type FarmInput = Omit<Farm, 'id' | 'organization_id'>
+
+export const getFarms = () => request<Farm[]>('/api/v1/farms/')
+export const createFarm = (farm: FarmInput) =>
+  request<Farm>('/api/v1/farms/', { method: 'POST', body: JSON.stringify(farm) })
+export const updateFarm = (id: string, farm: FarmInput) =>
+  request<Farm>(`/api/v1/farms/${id}`, { method: 'PUT', body: JSON.stringify(farm) })
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 export const checkHealth = () => request<{ status: string; message: string }>('/')

@@ -11,7 +11,9 @@ from app.core.auth import Principal
 logger = logging.getLogger(__name__)
 
 
-def tenant_select(model: Any, principal: Principal, *, allow_inspector_all_lots: bool = False):
+def tenant_select(
+    model: Any, principal: Principal, *, allow_inspector_all_lots: bool = False
+):
     """Build a DB-level organization filter for a tenant-owned model.
 
     Only lot-list callers should enable the inspector exception. Farm and other
@@ -45,7 +47,12 @@ def get_tenant_record(
     exists = db.scalar(select(model.id).where(model.id == record_id))
     if exists is not None:
         logger.warning(
-            "Denied cross-organization record access",
+            "Denied cross-organization record access "
+            "user_id=%s organization_id=%s resource_type=%s resource_id=%s",
+            principal.user_id,
+            principal.organization_id,
+            model.__tablename__,
+            record_id,
             extra={
                 "event": "authorization.cross_organization_access",
                 "user_id": str(principal.user_id),

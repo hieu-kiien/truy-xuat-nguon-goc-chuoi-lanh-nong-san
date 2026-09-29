@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { getSessionUser, login, logout, type SessionUser } from './services/api'
+import FarmManagementPage from './pages/FarmManagementPage'
 
 function safeReturnPath(path: string | null): string | null {
   if (!path || !path.startsWith('/') || path.startsWith('//') || path.includes('\\')) {
@@ -79,6 +80,10 @@ function LotsLanding({ user, onLogout }: { user: SessionUser; onLogout: () => vo
     <main className="app-shell">
       <header className="topbar">
         <a className="brand" href="/lots"><span aria-hidden="true">🌾</span> Nông sản chuỗi lạnh</a>
+        <nav className="main-nav" aria-label="Điều hướng chính">
+          <a className="active" href="/lots" aria-current="page">Lô hàng</a>
+          {user.role === 'grower' && <a href="/farms">Thửa đất</a>}
+        </nav>
         <div className="user-menu">
           <span>{user.full_name}</span>
           <button className="quiet-button" onClick={onLogout} type="button">Đăng xuất</button>
@@ -161,6 +166,10 @@ export default function App() {
         }}
       />
     )
+  }
+
+  if (window.location.pathname === '/farms') {
+    return <FarmManagementPage user={user} onLogout={handleLogout} />
   }
 
   return <LotsLanding user={user} onLogout={handleLogout} />
