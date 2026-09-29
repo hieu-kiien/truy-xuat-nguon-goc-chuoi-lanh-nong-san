@@ -22,6 +22,7 @@ frontend/.env.local
 frontend/.env
 
 # ===== CHUNG =====
+/.env
 .DS_Store
 Thumbs.db
 .idea/

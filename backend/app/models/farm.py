@@ -1,7 +1,14 @@
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Numeric, String
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -18,6 +25,7 @@ class Farm(Base):
         CheckConstraint(
             "longitude >= -180 AND longitude <= 180", name="ck_farms_longitude_range"
         ),
+        UniqueConstraint("id", "organization_id", name="uq_farms_id_organization"),
         Index("ix_farms_organization_id", "organization_id"),
     )
 

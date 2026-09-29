@@ -41,4 +41,4 @@ COPY . .
 EXPOSE 8000
 
 # Lệnh khởi động server
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "python -m app.bootstrap_db_role && alembic upgrade head && python -m app.seed_demo_admin && unset DB_ADMIN_PASSWORD DEMO_ADMIN_PASSWORD && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]

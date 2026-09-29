@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -61,6 +61,15 @@ def get_current_principal(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Phiên đăng nhập đã hết hạn.",
         )
+
+    db.info["organization_id"] = str(user.organization_id)
+    db.execute(
+        select(
+            func.set_config(
+                "app.current_organization", str(user.organization_id), True
+            )
+        )
+    )
 
     return Principal(
         user_id=user.id,

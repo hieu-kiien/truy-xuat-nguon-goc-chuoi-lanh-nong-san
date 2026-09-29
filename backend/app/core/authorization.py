@@ -14,7 +14,9 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "transporter": frozenset({"lots:read"}),
     "distributor": frozenset({"lots:read", "lots:write"}),
     "inspector": frozenset({"lots:read_all"}),
-    "organization_admin": frozenset({"lots:read"}),
+    "organization_admin": frozenset(
+        {"farms:read", "farms:write", "lots:read"}
+    ),
     "system_admin": frozenset(),
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ApiError, createFarm, getFarms, updateFarm, type Farm, type FarmInput, type SessionUser } from '../services/api'
+import Icon from '../Icon'
 
 const EMPTY_FORM: FarmInput = {
   name: '',
@@ -61,7 +62,7 @@ export default function FarmManagementPage({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
-  const canManageFarms = user.role === 'grower'
+  const canManageFarms = user.role === 'grower' || user.role === 'organization_admin'
 
   useEffect(() => {
     let active = true
@@ -148,7 +149,7 @@ export default function FarmManagementPage({
   return (
     <main className="app-shell">
       <header className="topbar">
-        <a className="brand" href="/lots"><span aria-hidden="true">🌾</span> Nông sản chuỗi lạnh</a>
+        <a className="brand" href="/lots"><span aria-hidden="true"><Icon name="sprout" size={21} /></span> Nông sản chuỗi lạnh</a>
         <nav className="main-nav" aria-label="Điều hướng chính">
           <a href="/lots">Lô hàng</a>
           {canManageFarms && <a className="active" href="/farms" aria-current="page">Thửa đất</a>}
@@ -176,7 +177,7 @@ export default function FarmManagementPage({
             <div className="list-message" role="alert">{listError}</div>
           ) : farms.length === 0 ? (
             <div className="farm-empty-state">
-              <span aria-hidden="true">🌱</span>
+              <span><Icon name="sprout" size={30} /></span>
               <h2>Chưa có thửa đất</h2>
               <p>Khai báo thửa đầu tiên để gắn thông tin vùng trồng của tổ chức.</p>
             </div>
@@ -185,15 +186,16 @@ export default function FarmManagementPage({
               {farms.map((farm) => (
                 <article className="farm-card" key={farm.id}>
                   <div className="farm-card-top">
-                    <div className="farm-avatar" aria-hidden="true">🌿</div>
+                    <div className="farm-avatar"><Icon name="leaf" size={20} /></div>
                     <button className="edit-button" onClick={() => startEditing(farm)} type="button">
+                      <Icon name="edit" size={14} />
                       Sửa thông tin
                     </button>
                   </div>
                   <h2>{farm.name}</h2>
                   <p className="farm-area">{formatNumber(farm.area_ha, 4)} <span>ha</span></p>
                   <div className="coordinates">
-                    <span aria-hidden="true">⌖</span>
+                    <span><Icon name="pin" size={16} /></span>
                     {formatNumber(farm.latitude, 6)}, {formatNumber(farm.longitude, 6)}
                   </div>
                 </article>
@@ -204,7 +206,7 @@ export default function FarmManagementPage({
 
         {canManageFarms ? <aside className="farm-form-card" aria-labelledby="farm-form-title">
           <div className="form-card-heading">
-            <span className="form-icon" aria-hidden="true">{editingId ? '✎' : '＋'}</span>
+            <span className="form-icon"><Icon name={editingId ? 'edit' : 'plus'} size={21} /></span>
             <div>
               <p className="eyebrow">THÔNG TIN VÙNG TRỒNG</p>
               <h2 id="farm-form-title">{editingId ? 'Cập nhật thửa đất' : 'Khai báo thửa đất'}</h2>
@@ -290,9 +292,9 @@ export default function FarmManagementPage({
             </div>
           </form>
         </aside> : <aside className="farm-form-card permission-message">
-          <span aria-hidden="true">🔒</span>
+          <span><Icon name="lock" size={24} /></span>
           <h2>Không có quyền khai báo thửa đất</h2>
-          <p>Chức năng này chỉ dành cho người dùng có vai trò nông hộ.</p>
+          <p>Chức năng này dành cho nông hộ và quản trị viên tổ chức.</p>
         </aside>}
       </div>
     </main>
