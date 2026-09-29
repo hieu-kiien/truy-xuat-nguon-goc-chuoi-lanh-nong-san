@@ -79,8 +79,8 @@ docker compose up --build -d
 
 Sau khi hoàn tất:
 - 🔌 **Backend Swagger API:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- 🌐 **Frontend Web:** [http://localhost:5173](http://localhost:5173)
-- 🗄️ **Database PostgreSQL:** Cổng `5432` (`ttcs_db`, user: `admin`, pass: `password123`)
+- 🌐 **Frontend Web:** [http://localhost:3000](http://localhost:3000)
+- 🗄️ **Database PostgreSQL:** chạy nội bộ trong Docker network, không mở cổng host.
 
 *Tắt hệ thống:*
 ```bash
@@ -114,6 +114,7 @@ cd frontend
 npm install
 npm run dev
 ```
+Frontend dùng cổng `3000`; API mặc định tại `http://localhost:8000`.
 
 ---
 

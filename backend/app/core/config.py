@@ -22,10 +22,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     SESSION_TTL_MINUTES: int = 480
     SESSION_COOKIE_NAME: str = "__Host-session"
-    ALLOWED_ORIGINS: list[str] | str = [
-        "http://localhost:5173",
-        "http://localhost:3000",
-    ]
+    ALLOWED_ORIGINS: list[str] | str = ["http://localhost:3000"]
 
     @field_validator("ALLOWED_ORIGINS", mode="after")
     @classmethod
