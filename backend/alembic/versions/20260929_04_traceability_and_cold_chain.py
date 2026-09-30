@@ -8,8 +8,11 @@ Create Date: 2026-09-29
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
+
+from app.core.db_identity import application_database_role
 
 revision: str = "20260929_04"
 down_revision: str | None = "20260929_03"
@@ -18,6 +21,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    app_role = application_database_role()
     op.create_unique_constraint(
         "uq_farms_id_organization", "farms", ["id", "organization_id"]
     )
@@ -153,6 +157,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["created_by_id"], ["users.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["received_by_id"], ["users.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("id", "sender_organization_id", name="uq_shipments_id_sender"),
     )
     op.create_index("ix_shipments_sender_status", "shipments", ["sender_organization_id", "status"])
     op.create_index("ix_shipments_receiver_status", "shipments", ["receiver_organization_id", "status"])
@@ -171,10 +176,16 @@ def upgrade() -> None:
         sa.Column("is_active", sa.Boolean(), server_default=sa.true(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="RESTRICT"),
-        sa.ForeignKeyConstraint(["shipment_id"], ["shipments.id"], ondelete="RESTRICT"),
+        sa.ForeignKeyConstraint(
+            ["shipment_id", "organization_id"],
+            ["shipments.id", "shipments.sender_organization_id"],
+            ondelete="RESTRICT",
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("organization_id", "device_code", name="uq_sensor_org_device"),
         sa.UniqueConstraint("id", "organization_id", name="uq_sensors_id_organization"),
+        sa.UniqueConstraint("id", "shipment_id", name="uq_sensors_id_shipment"),
+        sa.UniqueConstraint("id", "shipment_id", "organization_id", name="uq_sensors_id_shipment_org"),
     )
     op.create_index("ix_sensors_organization_id", "sensors", ["organization_id"])
 
@@ -190,10 +201,11 @@ def upgrade() -> None:
         sa.Column("received_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.CheckConstraint("temperature_c BETWEEN -100 AND 150", name="ck_temperature_reading_range"),
         sa.ForeignKeyConstraint(["shipment_id"], ["shipments.id"], ondelete="RESTRICT"),
-        sa.ForeignKeyConstraint(["sensor_id", "organization_id"], ["sensors.id", "sensors.organization_id"], ondelete="RESTRICT"),
+        sa.ForeignKeyConstraint(["sensor_id", "shipment_id", "organization_id"], ["sensors.id", "sensors.shipment_id", "sensors.organization_id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("sensor_id", "source_reading_id", name="uq_reading_source"),
         sa.UniqueConstraint("id", "organization_id", name="uq_readings_id_organization"),
+        sa.UniqueConstraint("id", "organization_id", "sensor_id", "shipment_id", name="uq_readings_id_org_sensor_shipment"),
     )
     op.create_index("ix_temperature_readings_shipment_time", "temperature_readings", ["shipment_id", "measured_at"])
     op.create_index("ix_temperature_readings_organization_time", "temperature_readings", ["organization_id", "measured_at"])
@@ -216,7 +228,8 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["shipment_id"], ["shipments.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["sensor_id"], ["sensors.id"], ondelete="RESTRICT"),
-        sa.ForeignKeyConstraint(["reading_id", "organization_id"], ["temperature_readings.id", "temperature_readings.organization_id"], ondelete="RESTRICT"),
+        sa.ForeignKeyConstraint(["sensor_id", "shipment_id"], ["sensors.id", "sensors.shipment_id"], ondelete="RESTRICT"),
+        sa.ForeignKeyConstraint(["reading_id", "organization_id", "sensor_id", "shipment_id"], ["temperature_readings.id", "temperature_readings.organization_id", "temperature_readings.sensor_id", "temperature_readings.shipment_id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["resolved_by_id"], ["users.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("reading_id", name="uq_cold_chain_alert_reading"),
@@ -224,7 +237,7 @@ def upgrade() -> None:
     op.create_index("ix_cold_chain_alerts_organization_status", "cold_chain_alerts", ["organization_id", "status", "created_at"])
 
     # Event and lineage records are append-only at the DB role boundary.
-    op.execute("REVOKE UPDATE, DELETE ON lot_events, lot_lineage FROM ttcs_app")
+    op.execute(f"REVOKE UPDATE, DELETE ON lot_events, lot_lineage FROM {app_role}")
 
     # Identity tables are available only for the active login/session context.
     op.execute("ALTER TABLE users ENABLE ROW LEVEL SECURITY")
@@ -241,34 +254,6 @@ def upgrade() -> None:
     ):
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
         op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
-
-    op.execute(
-        """
-        CREATE FUNCTION public_trace_lot_ids(trace_code text)
-        RETURNS TABLE(lot_id uuid, depth integer)
-        LANGUAGE sql STABLE SECURITY DEFINER
-        SET search_path = pg_catalog, public
-        SET row_security = off
-        AS $$
-            WITH RECURSIVE trace_nodes(lot_id, depth, path) AS (
-                SELECT l.id, 0, ARRAY[l.id]
-                FROM public.lots l
-                WHERE l.public_code = trace_code
-                UNION ALL
-                SELECT edge.source_lot_id, node.depth + 1, node.path || edge.source_lot_id
-                FROM trace_nodes node
-                JOIN public.lot_lineage edge ON edge.target_lot_id = node.lot_id
-                WHERE node.depth < 25
-                  AND NOT edge.source_lot_id = ANY(node.path)
-            )
-            SELECT node.lot_id, min(node.depth)::integer
-            FROM trace_nodes node
-            GROUP BY node.lot_id
-        $$
-        """
-    )
-    op.execute("REVOKE ALL ON FUNCTION public_trace_lot_ids(text) FROM PUBLIC")
-    op.execute("GRANT EXECUTE ON FUNCTION public_trace_lot_ids(text) TO ttcs_app")
 
     op.execute(
         """
@@ -342,11 +327,8 @@ def upgrade() -> None:
             OR EXISTS (
                 SELECT 1 FROM lots l
                 WHERE l.origin_farm_id = farms.id
-                  AND l.id IN (
-                      SELECT visible.lot_id FROM public_trace_lot_ids(
-                          NULLIF(current_setting('app.public_trace_code', true), '')
-                      ) visible
-                  )
+                  AND (l.public_code = NULLIF(current_setting('app.public_trace_code', true), '')
+                       OR l.id::text = ANY(string_to_array(NULLIF(current_setting('app.public_trace_lot_ids', true), ''), ',')))
             )
             OR EXISTS (
                 SELECT 1 FROM lots l
@@ -373,11 +355,8 @@ def upgrade() -> None:
             OR EXISTS (
                 SELECT 1 FROM lots l
                 WHERE l.product_id = products.id AND (
-                    l.id IN (
-                        SELECT visible.lot_id FROM public_trace_lot_ids(
-                            NULLIF(current_setting('app.public_trace_code', true), '')
-                        ) visible
-                    )
+                    l.public_code = NULLIF(current_setting('app.public_trace_code', true), '')
+                    OR l.id::text = ANY(string_to_array(NULLIF(current_setting('app.public_trace_lot_ids', true), ''), ','))
                     OR l.organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid
                 )
             )
@@ -392,11 +371,8 @@ def upgrade() -> None:
         USING (
             organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid
             OR current_setting('app.current_role', true) = 'inspector'
-            OR id IN (
-                SELECT visible.lot_id FROM public_trace_lot_ids(
-                    NULLIF(current_setting('app.public_trace_code', true), '')
-                ) visible
-            )
+            OR public_code = NULLIF(current_setting('app.public_trace_code', true), '')
+            OR id::text = ANY(string_to_array(NULLIF(current_setting('app.public_trace_lot_ids', true), ''), ','))
             OR EXISTS (
                 SELECT 1 FROM shipments s WHERE s.lot_id = lots.id
                   AND s.receiver_organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid
@@ -417,16 +393,8 @@ def upgrade() -> None:
                 SELECT 1 FROM lots l WHERE l.id IN (lot_lineage.source_lot_id, lot_lineage.target_lot_id)
                   AND l.organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid
             )
-            OR lot_lineage.source_lot_id IN (
-                SELECT visible.lot_id FROM public_trace_lot_ids(
-                    NULLIF(current_setting('app.public_trace_code', true), '')
-                ) visible
-            )
-            OR lot_lineage.target_lot_id IN (
-                SELECT visible.lot_id FROM public_trace_lot_ids(
-                    NULLIF(current_setting('app.public_trace_code', true), '')
-                ) visible
-            )
+            OR lot_lineage.source_lot_id::text = ANY(string_to_array(NULLIF(current_setting('app.public_trace_lot_ids', true), ''), ','))
+            OR lot_lineage.target_lot_id::text = ANY(string_to_array(NULLIF(current_setting('app.public_trace_lot_ids', true), ''), ','))
         )
         """
     )
@@ -441,11 +409,7 @@ def upgrade() -> None:
                 SELECT 1 FROM lots l WHERE l.id = lot_events.lot_id
                   AND l.organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid
             )
-            OR lot_events.lot_id IN (
-                SELECT visible.lot_id FROM public_trace_lot_ids(
-                    NULLIF(current_setting('app.public_trace_code', true), '')
-                ) visible
-            )
+            OR lot_events.lot_id::text = ANY(string_to_array(NULLIF(current_setting('app.public_trace_lot_ids', true), ''), ','))
         )
         """
     )
@@ -468,25 +432,25 @@ def upgrade() -> None:
     op.execute("CREATE POLICY sensors_tenant_all ON sensors FOR ALL USING (organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid OR current_setting('app.current_role', true) = 'inspector') WITH CHECK (organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid)")
     op.execute("CREATE POLICY readings_tenant_read ON temperature_readings FOR SELECT USING (organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid OR current_setting('app.current_role', true) = 'inspector' OR EXISTS (SELECT 1 FROM shipments s WHERE s.id = temperature_readings.shipment_id AND (s.sender_organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid OR s.receiver_organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid)))")
     op.execute("CREATE POLICY readings_tenant_insert ON temperature_readings FOR INSERT WITH CHECK (organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid)")
-    op.execute("CREATE POLICY alerts_tenant_read ON cold_chain_alerts FOR SELECT USING (organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid OR current_setting('app.current_role', true) = 'inspector')")
+    op.execute("CREATE POLICY alerts_tenant_read ON cold_chain_alerts FOR SELECT USING (organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid OR current_setting('app.current_role', true) = 'inspector' OR EXISTS (SELECT 1 FROM shipments s WHERE s.id = cold_chain_alerts.shipment_id AND (s.sender_organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid OR s.receiver_organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid)))")
     op.execute("CREATE POLICY alerts_tenant_insert ON cold_chain_alerts FOR INSERT WITH CHECK (organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid)")
     op.execute("CREATE POLICY alerts_tenant_update ON cold_chain_alerts FOR UPDATE USING (organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid) WITH CHECK (organization_id = NULLIF(current_setting('app.current_organization', true), '')::uuid)")
 
     # Shipment reception needs these specific columns; unrestricted DELETE remains revoked.
-    op.execute("REVOKE DELETE ON shipments, products, lots, lot_lineage, lot_events, sensors, temperature_readings, cold_chain_alerts FROM ttcs_app")
-    op.execute("GRANT SELECT, INSERT, UPDATE ON products TO ttcs_app")
-    op.execute("GRANT SELECT, INSERT ON lots, shipments, sensors, cold_chain_alerts TO ttcs_app")
-    op.execute("GRANT SELECT, INSERT ON lot_lineage, lot_events, temperature_readings TO ttcs_app")
-    op.execute("GRANT UPDATE (status, organization_id) ON lots TO ttcs_app")
-    op.execute("GRANT UPDATE (status, received_at, received_by_id, organization_id, temperature_min_c, temperature_max_c) ON shipments TO ttcs_app")
-    op.execute("GRANT UPDATE (is_active) ON sensors TO ttcs_app")
-    op.execute("GRANT UPDATE (status, resolved_at, resolved_by_id) ON cold_chain_alerts TO ttcs_app")
-    op.execute("GRANT SELECT, INSERT, UPDATE ON users TO ttcs_app")
-    op.execute("GRANT SELECT, INSERT, UPDATE ON sessions TO ttcs_app")
+    op.execute(f"REVOKE DELETE ON shipments, products, lots, lot_lineage, lot_events, sensors, temperature_readings, cold_chain_alerts FROM {app_role}")
+    op.execute(f"GRANT SELECT, INSERT, UPDATE ON products TO {app_role}")
+    op.execute(f"GRANT SELECT, INSERT ON lots, shipments, sensors, cold_chain_alerts TO {app_role}")
+    op.execute(f"GRANT SELECT, INSERT ON lot_lineage, lot_events, temperature_readings TO {app_role}")
+    op.execute(f"GRANT UPDATE (status, organization_id) ON lots TO {app_role}")
+    op.execute(f"GRANT UPDATE (status, received_at, received_by_id, organization_id, temperature_min_c, temperature_max_c) ON shipments TO {app_role}")
+    op.execute(f"GRANT UPDATE (is_active) ON sensors TO {app_role}")
+    op.execute(f"GRANT UPDATE (status, resolved_at, resolved_by_id) ON cold_chain_alerts TO {app_role}")
+    op.execute(f"GRANT SELECT, INSERT, UPDATE ON users TO {app_role}")
+    op.execute(f"GRANT SELECT, INSERT, UPDATE ON sessions TO {app_role}")
 
 
 def downgrade() -> None:
-    op.execute("DROP FUNCTION public_trace_lot_ids(text)")
+    app_role = application_database_role()
     for table in (
         "cold_chain_alerts", "temperature_readings", "sensors", "shipments",
         "lot_events", "lot_lineage", "lots", "products",

@@ -10,12 +10,12 @@ from sqlalchemy import (
     Index,
     Numeric,
     String,
-    Text,
     UniqueConstraint,
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgreSQLUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -42,6 +42,7 @@ class Lot(Base):
             ondelete="RESTRICT",
             name="fk_lots_farm_origin_organization",
         ),
+        UniqueConstraint("id", "organization_id", name="uq_lots_id_organization"),
         UniqueConstraint(
             "origin_organization_id", "lot_number", name="uq_lots_origin_lot_number"
         ),
@@ -65,7 +66,9 @@ class Lot(Base):
         ForeignKey("organizations.id", ondelete="RESTRICT"),
         nullable=False,
     )
-    product_id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=False)
+    product_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True), nullable=False
+    )
     origin_farm_id: Mapped[UUID] = mapped_column(
         PostgreSQLUUID(as_uuid=True), nullable=False
     )
@@ -87,11 +90,28 @@ class LotLineage(Base):
     __tablename__ = "lot_lineage"
     __table_args__ = (
         UniqueConstraint("source_lot_id", "target_lot_id", name="uq_lot_lineage_pair"),
-        CheckConstraint("source_lot_id <> target_lot_id", name="ck_lot_lineage_no_self"),
+        CheckConstraint(
+            "source_lot_id <> target_lot_id", name="ck_lot_lineage_no_self"
+        ),
         CheckConstraint(
             "relation_type IN ('split', 'merge')", name="ck_lot_lineage_type"
         ),
         CheckConstraint("source_quantity > 0", name="ck_lot_lineage_quantity_positive"),
+        # A lineage edge may only reference lots owned by the same organization
+        # as the edge itself, so provenance cannot be forged across tenants even
+        # by a client holding the application database role.
+        ForeignKeyConstraint(
+            ["source_lot_id", "organization_id"],
+            ["lots.id", "lots.organization_id"],
+            ondelete="RESTRICT",
+            name="fk_lot_lineage_source_organization",
+        ),
+        ForeignKeyConstraint(
+            ["target_lot_id", "organization_id"],
+            ["lots.id", "lots.organization_id"],
+            ondelete="RESTRICT",
+            name="fk_lot_lineage_target_organization",
+        ),
         Index("ix_lot_lineage_source", "source_lot_id"),
         Index("ix_lot_lineage_target", "target_lot_id"),
     )
@@ -131,6 +151,14 @@ class LotEvent(Base):
             "'temperature_excursion')",
             name="ck_lot_events_type",
         ),
+        # The event is always recorded against the organization that currently
+        # custodies the lot, so one lot's history never splits across tenants.
+        ForeignKeyConstraint(
+            ["lot_id", "organization_id"],
+            ["lots.id", "lots.organization_id"],
+            ondelete="RESTRICT",
+            name="fk_lot_events_lot_organization",
+        ),
         Index("ix_lot_events_lot_time", "lot_id", "occurred_at", "id"),
         Index("ix_lot_events_organization_time", "organization_id", "occurred_at"),
     )
@@ -152,7 +180,9 @@ class LotEvent(Base):
         PostgreSQLUUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT")
     )
     event_type: Mapped[str] = mapped_column(String(32), nullable=False)
-    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     public_note: Mapped[str | None] = mapped_column(String(500))
     details: Mapped[dict] = mapped_column(
         JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")

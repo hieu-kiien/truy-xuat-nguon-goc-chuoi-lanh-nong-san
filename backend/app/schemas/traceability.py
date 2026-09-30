@@ -30,10 +30,6 @@ class ProductCreate(BaseModel):
         return self
 
 
-class ProductUpdate(ProductCreate):
-    pass
-
-
 class ProductRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -218,6 +214,17 @@ class TemperatureBatchResult(BaseModel):
     alerts_created: int
 
 
+class TemperatureReadingRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    shipment_id: UUID
+    sensor_id: UUID
+    temperature_c: Decimal
+    measured_at: datetime
+    received_at: datetime
+
+
 class ColdChainAlertRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -257,6 +264,27 @@ class UserRead(BaseModel):
     role_code: str
     email: EmailStr
     full_name: str
+    is_active: bool
+
+
+class UserActiveUpdate(BaseModel):
+    is_active: bool
+
+
+class OrganizationProvisioned(BaseModel):
+    id: UUID
+    name: str
+    organization_type: str
+    is_active: bool
+    admin_user: UserRead
+
+
+class OrganizationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    organization_type: str
     is_active: bool
 
 

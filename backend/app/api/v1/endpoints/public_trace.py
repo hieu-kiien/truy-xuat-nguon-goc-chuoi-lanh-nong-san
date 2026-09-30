@@ -1,8 +1,8 @@
 from collections import defaultdict
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select, text
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -29,23 +29,49 @@ def get_public_trace(
     if not 24 <= len(public_code) <= 80:
         raise HTTPException(status_code=404, detail="Không tìm thấy mã truy xuất.")
 
-    db.execute(
-        select(func.set_config("app.public_trace_code", public_code, True))
-    )
-    visible_ids = db.execute(
-        text(
-            "SELECT lot_id, depth FROM public_trace_lot_ids(:trace_code) "
-            "ORDER BY depth DESC, lot_id"
-        ),
-        {"trace_code": public_code},
-    ).all()
-    if not visible_ids:
+    db.execute(select(func.set_config("app.public_trace_code", public_code, True)))
+    root = db.scalar(select(Lot).where(Lot.public_code == public_code))
+    if root is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy mã truy xuất.")
 
-    depth_by_id = {lot_id: depth for lot_id, depth in visible_ids}
+    depth_by_id = {root.id: 0}
+    frontier = {root.id}
+    for depth in range(1, 26):
+        db.execute(
+            select(
+                func.set_config(
+                    "app.public_trace_lot_ids",
+                    ",".join(str(lot_id) for lot_id in depth_by_id),
+                    True,
+                )
+            )
+        )
+        edges = db.execute(
+            select(LotLineage.source_lot_id, LotLineage.target_lot_id).where(
+                LotLineage.target_lot_id.in_(frontier)
+            )
+        ).all()
+        next_frontier = {
+            source_id for source_id, _ in edges if source_id not in depth_by_id
+        }
+        for source_id in next_frontier:
+            depth_by_id[source_id] = depth
+        if not next_frontier:
+            break
+        frontier = next_frontier
+
+    db.execute(
+        select(
+            func.set_config(
+                "app.public_trace_lot_ids",
+                ",".join(str(lot_id) for lot_id in depth_by_id),
+                True,
+            )
+        )
+    )
     lot_ids = list(depth_by_id)
     lots = list(db.scalars(select(Lot).where(Lot.id.in_(lot_ids))).all())
-    root = next((lot for lot in lots if lot.public_code == public_code), None)
+    root = next((lot for lot in lots if lot.id == root.id), None)
     if root is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy mã truy xuất.")
 
