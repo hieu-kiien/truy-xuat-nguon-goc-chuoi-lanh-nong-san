@@ -1,7 +1,3 @@
-/* ==========================================================================
-   TypeUI Classroom Mint & Forest Green Design System (08_anime_port3007)
-   ========================================================================== */
-
 :root,
 html.light {
   --font-dynapuff: 'DynaPuff', cursive, sans-serif;
@@ -45,14 +41,8 @@ html.light {
   --section-pattern-base: #edf5e9;
   --pattern-dot-large: #19573614;
   --pattern-line: #1957360f;
-  --pattern-diagonal: #1957360d;
-  --pattern-dot-small: #1957361a;
   --pattern-dot-large-size: 40px;
   --pattern-grid-size: 20px;
-  --pattern-dot-small-size: 60px;
-  --pattern-diagonal-opacity: 0.8;
-  --pattern-dot-small-opacity: 0.6;
-  --pattern-diagonal-stripe: 10px;
 
   --sticker-shadow-color: #195736;
   --sticker-shadow-offset: -2px 3px 0px 0px;
@@ -86,8 +76,6 @@ html.dark {
   --section-pattern-base: #0d1a14;
   --pattern-dot-large: #ffffff0d;
   --pattern-line: #ffffff08;
-  --pattern-diagonal: #ffffff08;
-  --pattern-dot-small: #ffffff12;
 
   --heading: #e3fff0;
   --body: #c0f0d6;
@@ -148,10 +136,7 @@ code {
   border-radius: 6px;
 }
 
-/* ==========================================================================
-   Pattern Surface & Tactile Sticker Panels
-   ========================================================================== */
-
+/* Surfaces & Panels */
 .section-pattern {
   background-color: var(--section-pattern-base);
   background-image:
@@ -173,23 +158,42 @@ code {
   color: var(--body);
 }
 
-.stat-card,
-.interactive-card {
+.panel-box {
+  padding: 24px;
+}
+
+.panel-head {
+  margin-bottom: 16px;
+}
+
+.panel-head h2 {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.panel-sub {
+  font-size: 13px;
+  color: var(--body-subtle);
+}
+
+.section-title {
+  font-size: 20px;
+  margin-bottom: 2px;
+}
+
+.stat-card {
+  padding: 20px;
   transition:
     transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
     box-shadow 0.2s ease;
 }
 
-.stat-card:hover,
-.interactive-card:hover {
+.stat-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(25, 87, 54, 0.16);
 }
 
-/* ==========================================================================
-   Buttons (.ds-button)
-   ========================================================================== */
-
+/* Buttons */
 .ds-button {
   display: inline-flex;
   align-items: center;
@@ -244,16 +248,6 @@ code {
   background-color: var(--brand-softer);
 }
 
-.ds-button-ghost {
-  background: transparent;
-  color: var(--heading);
-  border: 2px solid transparent;
-}
-
-.ds-button-ghost:hover:not(:disabled) {
-  background: var(--neutral-secondary-soft);
-}
-
 .ds-button-sm {
   padding: 6px 14px;
   font-size: 13px;
@@ -263,10 +257,13 @@ code {
   width: 100%;
 }
 
-/* ==========================================================================
-   Application Dashboard Shell (from 08_anime_port3007/application.ts)
-   ========================================================================== */
+.action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 
+/* Dashboard Layout */
 .application-shell {
   flex: 1;
   width: 100%;
@@ -348,6 +345,7 @@ code {
   font-size: 14px;
   font-weight: 600;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
   transition: background 0.15s ease;
   display: flex;
@@ -418,6 +416,11 @@ code {
   gap: 12px;
 }
 
+.topbar-title {
+  font-size: 24px;
+  margin-bottom: 2px;
+}
+
 .topbar-actions {
   display: flex;
   gap: 10px;
@@ -432,7 +435,8 @@ code {
   cursor: pointer;
   border-radius: 8px;
   padding: 8px 12px;
-  font-size: 18px;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1;
   display: none;
 }
@@ -463,18 +467,11 @@ code {
   margin: 0 auto;
 }
 
-/* ==========================================================================
-   Stats Grid & Chart Bars
-   ========================================================================== */
-
+/* Metrics & Chart Bars */
 .stats-grid {
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 20px;
   display: grid;
-}
-
-.stat-card {
-  padding: 20px;
 }
 
 .stat-label {
@@ -491,10 +488,18 @@ code {
   line-height: 1.15;
 }
 
+.stat-value-compact {
+  font-size: 22px;
+}
+
 .stat-trend {
   font-size: 12px;
   font-weight: 600;
   color: var(--fg-success-strong);
+}
+
+.stat-trend-danger {
+  color: var(--fg-danger);
 }
 
 .dashboard-panels {
@@ -508,11 +513,6 @@ code {
   .dashboard-panels {
     grid-template-columns: 1fr;
   }
-}
-
-.chart-panel,
-.activity-panel {
-  padding: 24px;
 }
 
 .chart-bars {
@@ -532,6 +532,13 @@ code {
   height: 100%;
   display: flex;
   min-width: 0;
+}
+
+.chart-bar-value {
+  font-size: 11px;
+  font-family: var(--font-geist-mono);
+  font-weight: 700;
+  color: var(--heading);
 }
 
 .chart-bar {
@@ -562,10 +569,43 @@ code {
   white-space: nowrap;
 }
 
-/* ==========================================================================
-   Data Table & Status Badges
-   ========================================================================== */
+.empty-message {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--body-subtle);
+}
 
+/* Info Stack & Badges */
+.info-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.info-item {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--neutral-primary-soft);
+}
+
+.info-item-label {
+  display: block;
+  font-size: 12px;
+  color: var(--body-subtle);
+  margin-bottom: 2px;
+}
+
+.info-item-value {
+  font-weight: 700;
+}
+
+.badge-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+/* Data Table */
 .data-table-wrapper {
   overflow: hidden;
 }
@@ -577,6 +617,14 @@ code {
   gap: 12px;
   padding: 20px 24px 16px;
   flex-wrap: wrap;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table-alert {
+  margin: 0 24px 16px;
 }
 
 .data-table {
@@ -616,8 +664,32 @@ code {
   border-bottom: none;
 }
 
+.cell-strong {
+  font-weight: 700;
+}
+
+.cell-center {
+  text-align: center;
+}
+
+.coord-stack {
+  display: grid;
+  gap: 2px;
+}
+
+.map-external-link {
+  font-size: 12px;
+  color: var(--heading);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 .row-editing {
   background: var(--brand-softer) !important;
+}
+
+.row-danger {
+  background: var(--danger-soft) !important;
 }
 
 .status-badge {
@@ -636,26 +708,32 @@ code {
   color: var(--fg-success-strong);
 }
 
-.status-in-progress {
-  background: var(--brand-softer);
-  color: var(--heading);
+.status-danger {
+  background: var(--danger-soft);
+  color: var(--fg-danger);
 }
 
-.status-todo {
-  background: var(--neutral-secondary-soft);
-  color: var(--body-subtle);
-}
-
-/* ==========================================================================
-   Login View & Stacked Cards
-   ========================================================================== */
-
+/* Login & Auth Views */
 .login-hero {
   min-height: 100vh;
   padding: 36px 24px 96px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+.init-screen {
+  align-items: center;
+  text-align: center;
+}
+
+.init-card {
+  padding: 32px 48px;
+}
+
+.init-card h2 {
+  font-size: 22px;
+  margin-bottom: 6px;
 }
 
 .login-container {
@@ -682,6 +760,11 @@ code {
   color: var(--heading);
   margin-bottom: 14px;
   box-shadow: -1px 2px 0px var(--sticker-shadow-color);
+}
+
+.pill-link {
+  color: inherit;
+  text-decoration: underline;
 }
 
 .login-banner h1 {
@@ -713,10 +796,13 @@ code {
   padding: 28px;
 }
 
-/* ==========================================================================
-   Forms & Input Validation (:user-invalid)
-   ========================================================================== */
+.security-footnote {
+  font-size: 12px;
+  color: var(--body-subtle);
+  margin-top: 4px;
+}
 
+/* Forms */
 .form-stack {
   display: grid;
   gap: 16px;
@@ -784,10 +870,7 @@ code {
   display: block;
 }
 
-/* ==========================================================================
-   Demo Account Cards
-   ========================================================================== */
-
+/* Demo Account Selector */
 .demo-cards-stack {
   display: grid;
   gap: 14px;
@@ -845,10 +928,7 @@ code {
   color: var(--body-subtle);
 }
 
-/* ==========================================================================
-   Alerts & Preset Chips
-   ========================================================================== */
-
+/* Alerts & Presets */
 .alert-box {
   padding: 12px 16px;
   border-radius: 12px;
@@ -856,6 +936,11 @@ code {
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 16px;
+}
+
+.alert-spaced {
+  margin-top: 16px;
+  margin-bottom: 0;
 }
 
 .alert-error {
@@ -875,10 +960,7 @@ code {
   margin-bottom: 16px;
 }
 
-/* ==========================================================================
-   Floating Bottom Switcher Bar & Spring Toast (from switcher.css)
-   ========================================================================== */
-
+/* Switcher Bar & Toast */
 .sc-switcher-bar {
   position: fixed;
   bottom: 20px;
@@ -934,7 +1016,7 @@ code {
   border-color: #ffffff !important;
 }
 
-.anime-toast {
+.toast-banner {
   position: fixed;
   bottom: 76px;
   right: 24px;
@@ -957,7 +1039,7 @@ code {
   pointer-events: none;
 }
 
-.anime-toast.show {
+.toast-banner.show {
   transform: translateY(0);
   opacity: 1;
   pointer-events: auto;

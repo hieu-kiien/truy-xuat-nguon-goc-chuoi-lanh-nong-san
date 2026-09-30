@@ -4,6 +4,8 @@ import { LoginView } from './components/LoginView'
 import { checkHealth, getCurrentUser, logout } from './services/api'
 import type { SessionUser } from './types'
 
+const THEME_STORAGE_KEY = 'ttcs_theme'
+
 export default function App() {
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null)
   const [currentUser, setCurrentUser] = useState<SessionUser | null>(null)
@@ -11,7 +13,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('overview')
   const [isDark, setIsDark] = useState<boolean>(() => {
     try {
-      return localStorage.getItem('anime-theme') === 'dark'
+      return localStorage.getItem(THEME_STORAGE_KEY) === 'dark'
     } catch {
       return false
     }
@@ -42,7 +44,7 @@ export default function App() {
       root.classList.add('light')
     }
     try {
-      localStorage.setItem('anime-theme', isDark ? 'dark' : 'light')
+      localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light')
     } catch {
       // Ignore storage errors
     }
@@ -88,15 +90,10 @@ export default function App() {
   return (
     <>
       {initializing ? (
-        <div
-          className="login-hero section-pattern"
-          style={{ alignItems: 'center', textAlign: 'center' }}
-        >
-          <div className="sticker-panel" style={{ padding: '32px 48px' }}>
-            <h2 style={{ fontSize: '22px', marginBottom: '6px' }}>
-              AgroChain đang khởi tạo...
-            </h2>
-            <p style={{ fontSize: '14px', color: 'var(--body-subtle)' }}>
+        <div className="login-hero section-pattern init-screen">
+          <div className="sticker-panel init-card">
+            <h2>AgroChain đang khởi tạo...</h2>
+            <p className="panel-sub">
               Đang đồng bộ trạng thái phiên làm việc với máy chủ
             </p>
           </div>
@@ -165,22 +162,21 @@ export default function App() {
             setIsDark((prev) => !prev)
             notify(
               !isDark
-                ? 'Đã chuyển sang giao diện Tối (Dark Forest)'
-                : 'Đã chuyển sang giao diện Sáng (Classroom Mint)'
+                ? 'Đã chuyển sang giao diện Tối'
+                : 'Đã chuyển sang giao diện Sáng'
             )
           }}
           aria-label="Chuyển đổi giao diện Sáng / Tối"
         >
-          {isDark ? '☀ Sáng' : '☾ Tối'}
+          {isDark ? 'Giao diện Sáng' : 'Giao diện Tối'}
         </button>
       </nav>
 
       <div
-        className={`anime-toast ${toastVisible ? 'show' : ''}`}
+        className={`toast-banner ${toastVisible ? 'show' : ''}`}
         role="status"
         aria-live="polite"
       >
-        <span>✦</span>
         <span>{toastMessage}</span>
       </div>
     </>

@@ -106,17 +106,17 @@ export function LoginView({
           <div className="pill-tag">
             <span>
               {backendOnline === true
-                ? '● Backend Online'
+                ? 'Backend Online'
                 : backendOnline === false
-                  ? '○ Backend Offline'
-                  : '◌ Đang kết nối máy chủ'}
+                  ? 'Backend Offline'
+                  : 'Đang kết nối máy chủ'}
             </span>
             <span>&bull;</span>
             <a
               href={`${API_BASE_URL}/docs`}
               target="_blank"
               rel="noreferrer"
-              style={{ color: 'inherit', textDecoration: 'underline' }}
+              className="pill-link"
             >
               OpenAPI Swagger
             </a>
@@ -130,11 +130,9 @@ export function LoginView({
 
         <div className="auth-grid">
           <section className="sticker-panel auth-panel">
-            <div style={{ marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '24px', marginBottom: '4px' }}>
-                Đăng nhập hệ thống
-              </h2>
-              <p style={{ fontSize: '14px', color: 'var(--body-subtle)' }}>
+            <div className="panel-head">
+              <h2>Đăng nhập hệ thống</h2>
+              <p className="panel-sub">
                 Xác thực phiên làm việc theo đơn vị thành viên trong chuỗi cung ứng
               </p>
             </div>
@@ -206,13 +204,7 @@ export function LoginView({
                 {submitting ? 'Đang xác thực phiên...' : 'Đăng nhập vào Không gian làm việc'}
               </button>
 
-              <p
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--body-subtle)',
-                  marginTop: '4px',
-                }}
-              >
+              <p className="security-footnote">
                 Bảo mật Argon2id &amp; chống dò mật khẩu: Tự động khóa 15 phút nếu nhập
                 sai 5 lần liên tiếp.
               </p>
@@ -220,11 +212,9 @@ export function LoginView({
           </section>
 
           <aside className="sticker-panel auth-panel">
-            <div style={{ marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '22px', marginBottom: '4px' }}>
-                Chọn nhanh Tài khoản Demo
-              </h2>
-              <p style={{ fontSize: '14px', color: 'var(--body-subtle)' }}>
+            <div className="panel-head">
+              <h2>Chọn nhanh Tài khoản Demo</h2>
+              <p className="panel-sub">
                 Bấm vào một thẻ bên dưới để điền tự động và kiểm thử các kịch bản phân quyền
               </p>
             </div>
