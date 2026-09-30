@@ -4,9 +4,9 @@ services:
     container_name: ttcs_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: ttcs_db
+      POSTGRES_USER: ${DB_ADMIN_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD:?Set DB_ADMIN_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:-ttcs_db}
     ports:
       - "5432:5432"
     volumes:
@@ -28,16 +28,17 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DB_HOST=database
-      - DB_PORT=5432
-      - DB_NAME=ttcs_db
-      - DB_USER=ttcs_app
-      - DB_PASSWORD=ttcs_app_dev_password
-      - DB_ADMIN_USER=admin
-      - DB_ADMIN_PASSWORD=password123
-      - APP_ENV=development
-      - DEBUG=True
-      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+      DB_HOST: database
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-ttcs_db}
+      DB_USER: ${DB_USER:-ttcs_app}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      DB_ADMIN_USER: ${DB_ADMIN_USER:-admin}
+      DB_ADMIN_PASSWORD: ${DB_ADMIN_PASSWORD:?Set DB_ADMIN_PASSWORD in .env}
+      APP_ENV: ${APP_ENV:-development}
+      DEBUG: ${DEBUG:-true}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
     depends_on:
       database:
         condition: service_healthy

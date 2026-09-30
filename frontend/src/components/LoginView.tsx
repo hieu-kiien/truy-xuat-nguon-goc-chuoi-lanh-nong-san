@@ -8,49 +8,13 @@ interface LoginViewProps {
   onNotify: (message: string) => void
 }
 
-interface DemoAccount {
-  label: string
-  organization: string
-  roleText: string
-  email: string
-  password: string
-  description: string
-}
-
-const DEMO_ACCOUNTS: DemoAccount[] = [
-  {
-    label: 'Nông hộ Cầu Đất (Tổ chức A)',
-    organization: 'Nông trại Cầu Đất Đà Lạt',
-    roleText: 'grower · Quyền đọc & ghi vùng trồng (farms:read, farms:write)',
-    email: 'grower@caudat.vn',
-    password: 'Password123!',
-    description: 'Quản lý danh mục thửa đất và nhật ký canh tác tại Đà Lạt.',
-  },
-  {
-    label: 'Quản trị HTX Mộc Châu (Tổ chức B)',
-    organization: 'Hợp tác xã Nông sản Mộc Châu',
-    roleText: 'organization_admin · Cô lập dữ liệu đa tổ chức (RLS)',
-    email: 'admin@mocchau.vn',
-    password: 'Password123!',
-    description: 'Kiểm chứng PostgreSQL Row-Level Security (chỉ hiển thị dữ liệu Mộc Châu).',
-  },
-  {
-    label: 'Thanh tra viên (Cơ quan kiểm tra)',
-    organization: 'Chi cục Quản lý Chất lượng Nông lâm sản',
-    roleText: 'inspector · Chỉ đọc lô hàng (lots:read_all)',
-    email: 'inspector@chicuc.gov.vn',
-    password: 'Password123!',
-    description: 'Kiểm chứng cơ chế RBAC chặn truy cập trái phép (403 Forbidden).',
-  },
-]
-
 export function LoginView({
   backendOnline,
   onLoginSuccess,
   onNotify,
 }: LoginViewProps) {
-  const [email, setEmail] = useState('grower@caudat.vn')
-  const [password, setPassword] = useState('Password123!')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -90,13 +54,6 @@ export function LoginView({
     } finally {
       setSubmitting(false)
     }
-  }
-
-  const applyDemoAccount = (account: DemoAccount) => {
-    setEmail(account.email)
-    setPassword(account.password)
-    setErrorMessage(null)
-    onNotify(`Đã chọn tài khoản mẫu: ${account.email}`)
   }
 
   return (
@@ -213,33 +170,22 @@ export function LoginView({
 
           <aside className="sticker-panel auth-panel">
             <div className="panel-head">
-              <h2>Chọn nhanh Tài khoản Demo</h2>
+              <h2>Bảo vệ phiên đăng nhập</h2>
               <p className="panel-sub">
-                Bấm vào một thẻ bên dưới để điền tự động và kiểm thử các kịch bản phân quyền
+                Phiên làm việc được xác thực bằng cookie HttpOnly; mã phiên không được
+                đưa vào JavaScript hoặc lưu trong Web Storage.
               </p>
             </div>
 
             <div className="demo-cards-stack">
-              {DEMO_ACCOUNTS.map((account) => {
-                const isSelected = email === account.email
-                return (
-                  <button
-                    key={account.email}
-                    type="button"
-                    onClick={() => applyDemoAccount(account)}
-                    className={`demo-sticker-btn ${
-                      isSelected ? 'demo-sticker-active' : ''
-                    }`}
-                  >
-                    <div className="demo-sticker-header">
-                      <span className="demo-sticker-title">{account.label}</span>
-                      <code>{account.email}</code>
-                    </div>
-                    <div className="demo-sticker-role">{account.roleText}</div>
-                    <p className="demo-sticker-desc">{account.description}</p>
-                  </button>
-                )
-              })}
+              <p className="demo-sticker-role">
+                Mật khẩu được kiểm tra bằng Argon2id. Sau năm lần đăng nhập sai liên
+                tiếp, tài khoản tạm khóa trong 15 phút.
+              </p>
+              <p className="demo-sticker-desc">
+                Quyền truy cập và cách ly tổ chức được áp dụng phía máy chủ và
+                PostgreSQL.
+              </p>
             </div>
           </aside>
         </div>

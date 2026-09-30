@@ -1,4 +1,4 @@
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
 
@@ -28,9 +28,9 @@ class Settings(BaseSettings):
     DATABASE_URL_ENV: str | None = None
     MIGRATION_DATABASE_URL_ENV: str | None = None
 
-    APP_ENV: str = "development"
-    SECRET_KEY: str = "change-me-in-production"
-    DEBUG: bool = True
+    APP_ENV: str = "production"
+    DEBUG: bool = False
+    DEMO_PASSWORD: str | None = None
     SESSION_TTL_MINUTES: int = Field(default=480, ge=1, le=10080)
     SESSION_COOKIE_NAME: str = "__Host-session"
     ALLOWED_ORIGINS: list[str] | str = [
@@ -43,8 +43,18 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors_origins(cls, value: list[str] | str) -> list[str]:
         if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
-        return value
+            origins = [origin.strip() for origin in value.split(",") if origin.strip()]
+        else:
+            origins = value
+        if "*" in origins:
+            raise ValueError("ALLOWED_ORIGINS cannot include a wildcard origin")
+        return origins
+
+    @model_validator(mode="after")
+    def require_separate_database_roles(self) -> "Settings":
+        if self.DB_USER == self.DB_ADMIN_USER:
+            raise ValueError("DB_USER and DB_ADMIN_USER must be different")
+        return self
 
     @property
     def DATABASE_URL(self) -> URL:
@@ -75,13 +85,13 @@ class Settings(BaseSettings):
             return url
 
         if self.DATABASE_URL_ENV:
-            url = _normalize_postgres_url(self.DATABASE_URL_ENV)
             if self.DB_ADMIN_PASSWORD:
+                url = _normalize_postgres_url(self.DATABASE_URL_ENV)
                 return url.set(
                     username=self.DB_ADMIN_USER,
                     password=self.DB_ADMIN_PASSWORD,
                 )
-            return url
+            return self.DATABASE_URL
 
         return URL.create(
             "postgresql+psycopg",

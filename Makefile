@@ -16,7 +16,7 @@ install:
 	cd frontend && npm install
 
 dev-backend:
-	cd backend && .venv/Scripts/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	cd backend && .venv/Scripts/python -m app.startup
 
 dev-frontend:
 	cd frontend && npm run dev
@@ -25,11 +25,11 @@ test:
 	cd backend && .venv/Scripts/pytest tests/ -v
 
 lint:
-	cd backend && .venv/Scripts/ruff check app/ tests/
+	cd backend && .venv/Scripts/ruff check app/ tests/ alembic/
 	cd frontend && npm run lint
 
 lint-fix:
-	cd backend && .venv/Scripts/ruff check --fix app/ tests/ && .venv/Scripts/ruff format app/ tests/
+	cd backend && .venv/Scripts/ruff check --fix app/ tests/ alembic/ && .venv/Scripts/ruff format app/ tests/ alembic/
 
 migrate:
 	cd backend && .venv/Scripts/alembic upgrade head

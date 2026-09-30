@@ -71,12 +71,17 @@ export const ORG_TYPE_LABELS: Record<OrganizationType, string> = {
 }
 
 export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
-  grower: ['auth:session', 'farms:read', 'farms:write'],
-  cooperative: ['auth:session'],
-  transporter: ['auth:session'],
-  distributor: ['auth:session'],
+  grower: ['auth:session', 'farms:read', 'farms:write', 'lots:read'],
+  cooperative: ['auth:session', 'lots:read'],
+  transporter: ['auth:session', 'lots:read'],
+  distributor: ['auth:session', 'lots:read'],
   inspector: ['auth:session', 'lots:read_all'],
-  organization_admin: ['auth:session', 'farms:read', 'farms:write'],
+  organization_admin: [
+    'auth:session',
+    'farms:read',
+    'farms:write',
+    'lots:read',
+  ],
   system_admin: ['auth:session'],
 }
 

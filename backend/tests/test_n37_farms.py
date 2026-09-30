@@ -3,7 +3,7 @@ from uuid import UUID
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -133,7 +133,17 @@ def test_farm_rls_filters_rows_without_api_filter(identity_factory, admin_sessio
 
     with SessionLocal() as db:
         assert list(db.scalars(select(Farm)).all()) == []
-        set_db_context(db, organization_id=owner.organization_id)
+        set_db_context(
+            db,
+            session_token_hash=owner.session_token_hash,
+        )
+        db.execute(
+            text(
+                "SELECT set_config('app.current_organization', :organization, true), "
+                "set_config('app.current_role', 'inspector', true)"
+            ),
+            {"organization": str(other.organization_id)},
+        )
         assert [row.id for row in db.scalars(select(Farm)).all()] == [own_farm.id]
 
 
@@ -142,6 +152,7 @@ def test_farm_rls_filters_rows_without_api_filter(identity_factory, admin_sessio
     [
         {"area_ha": Decimal("0")},
         {"area_ha": Decimal("NaN")},
+        {"name": "   "},
         {"latitude": Decimal("90.000001")},
         {"longitude": Decimal("-180.000001")},
     ],

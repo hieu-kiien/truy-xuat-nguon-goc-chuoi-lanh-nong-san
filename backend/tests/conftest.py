@@ -1,5 +1,6 @@
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -7,9 +8,10 @@ from sqlalchemy import create_engine, delete
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.security import hash_password
+from app.core.security import hash_password, hash_session_token
 from app.models.farm import Farm
 from app.models.identity import AuthSession, Organization, Role, User
+from app.models.lot import Lot
 
 
 @dataclass(frozen=True)
@@ -18,6 +20,7 @@ class IdentityFixture:
     user_id: UUID
     email: str
     password: str
+    session_token_hash: str
 
 
 @pytest.fixture(scope="session")
@@ -67,6 +70,18 @@ def identity_factory(
             is_active=True,
         )
         admin_session.add(user)
+        admin_session.flush()
+
+        session_token_hash = hash_session_token(f"rls-test-{suffix}")
+        now = datetime.now(UTC)
+        admin_session.add(
+            AuthSession(
+                user_id=user.id,
+                token_hash=session_token_hash,
+                created_at=now,
+                expires_at=now + timedelta(hours=1),
+            )
+        )
         admin_session.commit()
 
         created_organizations.append(organization.id)
@@ -76,6 +91,7 @@ def identity_factory(
             user_id=user.id,
             email=user.email,
             password=password,
+            session_token_hash=session_token_hash,
         )
 
     yield create_identity
@@ -86,6 +102,9 @@ def identity_factory(
         )
         admin_session.execute(delete(User).where(User.id.in_(created_users)))
     if created_organizations:
+        admin_session.execute(
+            delete(Lot).where(Lot.organization_id.in_(created_organizations))
+        )
         admin_session.execute(
             delete(Farm).where(Farm.organization_id.in_(created_organizations))
         )
