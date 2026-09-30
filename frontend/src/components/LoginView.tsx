@@ -1,9 +1,11 @@
 import { useState, type FormEvent, type FocusEvent } from 'react'
-import { login } from '../services/api'
+import { API_BASE_URL, login } from '../services/api'
 import type { SessionUser } from '../types'
 
 interface LoginViewProps {
+  backendOnline: boolean | null
   onLoginSuccess: (user: SessionUser) => void
+  onNotify: (message: string) => void
 }
 
 interface DemoAccount {
@@ -19,30 +21,34 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
   {
     label: 'Nông hộ Cầu Đất (Tổ chức A)',
     organization: 'Nông trại Cầu Đất Đà Lạt',
-    roleText: 'grower — Quyền đọc/ghi vùng trồng',
+    roleText: 'grower · Quyền đọc & ghi vùng trồng (farms:read, farms:write)',
     email: 'grower@caudat.vn',
     password: 'Password123!',
-    description: 'Quản lý thửa đất thuộc Nông trại Cầu Đất Đà Lạt.',
+    description: 'Quản lý danh mục thửa đất và nhật ký canh tác tại Đà Lạt.',
   },
   {
     label: 'Quản trị HTX Mộc Châu (Tổ chức B)',
     organization: 'Hợp tác xã Nông sản Mộc Châu',
-    roleText: 'organization_admin — Cô lập dữ liệu RLS',
+    roleText: 'organization_admin · Cô lập dữ liệu đa tổ chức (RLS)',
     email: 'admin@mocchau.vn',
     password: 'Password123!',
-    description: 'Kiểm chứng cô lập dữ liệu đa tổ chức (chỉ thấy vùng trồng Mộc Châu).',
+    description: 'Kiểm chứng PostgreSQL Row-Level Security (chỉ hiển thị dữ liệu Mộc Châu).',
   },
   {
     label: 'Thanh tra viên (Cơ quan kiểm tra)',
     organization: 'Chi cục Quản lý Chất lượng Nông lâm sản',
-    roleText: 'inspector — Chỉ đọc lô hàng (lots:read_all)',
+    roleText: 'inspector · Chỉ đọc lô hàng (lots:read_all)',
     email: 'inspector@chicuc.gov.vn',
     password: 'Password123!',
-    description: 'Kiểm chứng phân quyền RBAC chặn truy cập trái phép (403 Forbidden).',
+    description: 'Kiểm chứng cơ chế RBAC chặn truy cập trái phép (403 Forbidden).',
   },
 ]
 
-export function LoginView({ onLoginSuccess }: LoginViewProps) {
+export function LoginView({
+  backendOnline,
+  onLoginSuccess,
+  onNotify,
+}: LoginViewProps) {
   const [email, setEmail] = useState('grower@caudat.vn')
   const [password, setPassword] = useState('Password123!')
   const [submitting, setSubmitting] = useState(false)
@@ -75,6 +81,7 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
 
     try {
       const user = await login({ email: email.trim(), password })
+      onNotify(`Đăng nhập thành công: ${user.full_name}`)
       onLoginSuccess(user)
     } catch (err) {
       setErrorMessage(
@@ -89,116 +96,164 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
     setEmail(account.email)
     setPassword(account.password)
     setErrorMessage(null)
+    onNotify(`Đã chọn tài khoản mẫu: ${account.email}`)
   }
 
   return (
-    <div className="auth-layout">
-      <section className="card auth-card">
-        <div className="card-header">
-          <h2>Đăng nhập hệ thống</h2>
-          <p className="text-muted">
-            Xác thực phiên làm việc bảo mật theo tổ chức và vai trò chuỗi cung ứng
-          </p>
-        </div>
-
-        {errorMessage && (
-          <div className="alert alert-error" role="alert">
-            <strong>Lỗi xác thực:</strong> {errorMessage}
+    <div className="login-hero section-pattern">
+      <div className="login-container">
+        <header className="login-banner">
+          <div className="pill-tag">
+            <span>
+              {backendOnline === true
+                ? '● Backend Online'
+                : backendOnline === false
+                  ? '○ Backend Offline'
+                  : '◌ Đang kết nối máy chủ'}
+            </span>
+            <span>&bull;</span>
+            <a
+              href={`${API_BASE_URL}/docs`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: 'inherit', textDecoration: 'underline' }}
+            >
+              OpenAPI Swagger
+            </a>
           </div>
-        )}
+          <h1>AgroChain — Truy xuất Nguồn gốc Chuỗi lạnh</h1>
+          <p>
+            Nền tảng quản lý vùng trồng, giám sát nhiệt độ bảo quản và xác thực toàn vẹn
+            chuỗi sự kiện nông sản
+          </p>
+        </header>
 
-        <form onSubmit={handleSubmit} className="form-stack" noValidate>
-          <div className="form-field">
-            <label htmlFor="login-email">
-              Địa chỉ Email <span className="required-mark">*</span>
-            </label>
-            <input
-              id="login-email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onBlur={handleBlur}
-              onChange={(e) => {
-                setEmail(e.target.value)
-                if (e.currentTarget.checkValidity()) {
-                  e.currentTarget.removeAttribute('aria-invalid')
-                }
-              }}
-              placeholder="ten@tochuc.vn"
-              aria-errormessage="login-email-error"
-            />
-            <div id="login-email-error" className="field-error">
-              <span aria-hidden="true">[!]</span> Vui lòng nhập địa chỉ email hợp lệ.
+        <div className="auth-grid">
+          <section className="sticker-panel auth-panel">
+            <div style={{ marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '24px', marginBottom: '4px' }}>
+                Đăng nhập hệ thống
+              </h2>
+              <p style={{ fontSize: '14px', color: 'var(--body-subtle)' }}>
+                Xác thực phiên làm việc theo đơn vị thành viên trong chuỗi cung ứng
+              </p>
             </div>
-          </div>
 
-          <div className="form-field">
-            <label htmlFor="login-password">
-              Mật khẩu <span className="required-mark">*</span>
-            </label>
-            <input
-              id="login-password"
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={password}
-              onBlur={handleBlur}
-              onChange={(e) => {
-                setPassword(e.target.value)
-                if (e.currentTarget.checkValidity()) {
-                  e.currentTarget.removeAttribute('aria-invalid')
-                }
-              }}
-              placeholder="Nhập mật khẩu"
-              aria-errormessage="login-password-error"
-            />
-            <div id="login-password-error" className="field-error">
-              <span aria-hidden="true">[!]</span> Mật khẩu không được để trống.
-            </div>
-          </div>
+            {errorMessage && (
+              <div className="alert-box alert-error" role="alert">
+                {errorMessage}
+              </div>
+            )}
 
-          <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
-            {submitting ? 'Đang xác thực...' : 'Đăng nhập'}
-          </button>
-
-          <p className="security-note">
-            Bảo mật Argon2id &amp; chống dò mật khẩu: Tài khoản tự động khóa tạm thời 15 phút nếu nhập sai 5 lần liên tiếp.
-          </p>
-        </form>
-      </section>
-
-      <aside className="card demo-accounts-card">
-        <div className="card-header">
-          <h3>Tài khoản kiểm thử nhanh</h3>
-          <p className="text-muted">
-            Chọn một tài khoản bên dưới để điền sẵn thông tin và kiểm tra phân quyền đa tổ chức
-          </p>
-        </div>
-
-        <div className="demo-list">
-          {DEMO_ACCOUNTS.map((account) => {
-            const isSelected = email === account.email
-            return (
-              <button
-                key={account.email}
-                type="button"
-                onClick={() => applyDemoAccount(account)}
-                className={`demo-item ${isSelected ? 'demo-item-active' : ''}`}
-              >
-                <div className="demo-item-top">
-                  <strong>{account.label}</strong>
-                  <span className="badge badge-neutral">{account.email}</span>
+            <form onSubmit={handleSubmit} className="form-stack" noValidate>
+              <div className="form-field">
+                <label htmlFor="login-email">
+                  Địa chỉ Email <span className="required-mark">*</span>
+                </label>
+                <input
+                  id="login-email"
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onBlur={handleBlur}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (e.currentTarget.checkValidity()) {
+                      e.currentTarget.removeAttribute('aria-invalid')
+                    }
+                  }}
+                  placeholder="ten@tochuc.vn"
+                  aria-errormessage="login-email-error"
+                />
+                <div id="login-email-error" className="field-error">
+                  [!] Vui lòng nhập địa chỉ email hợp lệ.
                 </div>
-                <div className="demo-item-role">{account.roleText}</div>
-                <p className="demo-item-desc">{account.description}</p>
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="login-password">
+                  Mật khẩu <span className="required-mark">*</span>
+                </label>
+                <input
+                  id="login-password"
+                  name="password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onBlur={handleBlur}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    if (e.currentTarget.checkValidity()) {
+                      e.currentTarget.removeAttribute('aria-invalid')
+                    }
+                  }}
+                  placeholder="Nhập mật khẩu"
+                  aria-errormessage="login-password-error"
+                />
+                <div id="login-password-error" className="field-error">
+                  [!] Mật khẩu không được để trống.
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="ds-button ds-button-brand ds-button-block"
+                disabled={submitting}
+              >
+                {submitting ? 'Đang xác thực phiên...' : 'Đăng nhập vào Không gian làm việc'}
               </button>
-            )
-          })}
+
+              <p
+                style={{
+                  fontSize: '12px',
+                  color: 'var(--body-subtle)',
+                  marginTop: '4px',
+                }}
+              >
+                Bảo mật Argon2id &amp; chống dò mật khẩu: Tự động khóa 15 phút nếu nhập
+                sai 5 lần liên tiếp.
+              </p>
+            </form>
+          </section>
+
+          <aside className="sticker-panel auth-panel">
+            <div style={{ marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '22px', marginBottom: '4px' }}>
+                Chọn nhanh Tài khoản Demo
+              </h2>
+              <p style={{ fontSize: '14px', color: 'var(--body-subtle)' }}>
+                Bấm vào một thẻ bên dưới để điền tự động và kiểm thử các kịch bản phân quyền
+              </p>
+            </div>
+
+            <div className="demo-cards-stack">
+              {DEMO_ACCOUNTS.map((account) => {
+                const isSelected = email === account.email
+                return (
+                  <button
+                    key={account.email}
+                    type="button"
+                    onClick={() => applyDemoAccount(account)}
+                    className={`demo-sticker-btn ${
+                      isSelected ? 'demo-sticker-active' : ''
+                    }`}
+                  >
+                    <div className="demo-sticker-header">
+                      <span className="demo-sticker-title">{account.label}</span>
+                      <code>{account.email}</code>
+                    </div>
+                    <div className="demo-sticker-role">{account.roleText}</div>
+                    <p className="demo-sticker-desc">{account.description}</p>
+                  </button>
+                )
+              })}
+            </div>
+          </aside>
         </div>
-      </aside>
+      </div>
     </div>
   )
 }

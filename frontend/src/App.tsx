@@ -1,13 +1,52 @@
-import { useState, useEffect } from 'react'
-import { FarmWorkspace } from './components/FarmWorkspace'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { FarmWorkspace, type WorkspaceTab } from './components/FarmWorkspace'
 import { LoginView } from './components/LoginView'
-import { API_BASE_URL, checkHealth, getCurrentUser, logout } from './services/api'
-import { ROLE_LABELS, type SessionUser } from './types'
+import { checkHealth, getCurrentUser, logout } from './services/api'
+import type { SessionUser } from './types'
 
 export default function App() {
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null)
   const [currentUser, setCurrentUser] = useState<SessionUser | null>(null)
   const [initializing, setInitializing] = useState(true)
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>('overview')
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('anime-theme') === 'dark'
+    } catch {
+      return false
+    }
+  })
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [toastVisible, setToastVisible] = useState(false)
+  const toastTimerRef = useRef<number | null>(null)
+
+  const notify = useCallback((message: string) => {
+    setToastMessage(message)
+    setToastVisible(true)
+    if (toastTimerRef.current !== null) {
+      window.clearTimeout(toastTimerRef.current)
+    }
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastVisible(false)
+    }, 2600)
+  }, [])
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (isDark) {
+      root.classList.remove('light')
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+      root.classList.add('light')
+    }
+    try {
+      localStorage.setItem('anime-theme', isDark ? 'dark' : 'light')
+    } catch {
+      // Ignore storage errors
+    }
+  }, [isDark])
 
   useEffect(() => {
     let active = true
@@ -43,70 +82,107 @@ export default function App() {
   const handleLogout = async () => {
     await logout()
     setCurrentUser(null)
+    notify('Đã đăng xuất khỏi phiên làm việc')
   }
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div className="topbar-inner">
-          <div className="brand">
-            <h1>Hệ thống Truy xuất Nguồn gốc Chuỗi lạnh Nông sản</h1>
-            <div className="brand-meta">
-              <span
-                className={`status-dot ${
-                  backendOnline === true
-                    ? 'dot-online'
-                    : backendOnline === false
-                      ? 'dot-offline'
-                      : 'dot-pending'
-                }`}
-              />
-              <span>
-                API:{' '}
-                <a href={`${API_BASE_URL}/docs`} target="_blank" rel="noreferrer">
-                  {API_BASE_URL}/docs
-                </a>
-              </span>
-            </div>
+    <>
+      {initializing ? (
+        <div
+          className="login-hero section-pattern"
+          style={{ alignItems: 'center', textAlign: 'center' }}
+        >
+          <div className="sticker-panel" style={{ padding: '32px 48px' }}>
+            <h2 style={{ fontSize: '22px', marginBottom: '6px' }}>
+              AgroChain đang khởi tạo...
+            </h2>
+            <p style={{ fontSize: '14px', color: 'var(--body-subtle)' }}>
+              Đang đồng bộ trạng thái phiên làm việc với máy chủ
+            </p>
           </div>
-
-          {currentUser && (
-            <div className="user-bar">
-              <div className="user-info">
-                <div className="user-name">{currentUser.full_name}</div>
-                <div className="user-sub">
-                  {currentUser.organization_name} &bull;{' '}
-                  {ROLE_LABELS[currentUser.role]}
-                </div>
-              </div>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => void handleLogout()}
-              >
-                Đăng xuất
-              </button>
-            </div>
-          )}
         </div>
-      </header>
+      ) : currentUser ? (
+        <FarmWorkspace
+          key={currentUser.id}
+          user={currentUser}
+          activeTab={activeTab}
+          onTabChange={(tab) => setActiveTab(tab)}
+          onLogout={() => void handleLogout()}
+          onNotify={notify}
+        />
+      ) : (
+        <LoginView
+          backendOnline={backendOnline}
+          onLoginSuccess={(user) => {
+            setCurrentUser(user)
+            setActiveTab('overview')
+          }}
+          onNotify={notify}
+        />
+      )}
 
-      <main className="main-content">
-        {backendOnline === false && (
-          <div className="alert alert-error" role="alert">
-            Không thể kết nối tới máy chủ Backend tại <code>{API_BASE_URL}</code>. Vui
-            lòng kiểm tra lại trạng thái máy chủ.
-          </div>
-        )}
-
-        {initializing ? (
-          <div className="loading-panel">Đang khởi tạo phiên làm việc...</div>
-        ) : currentUser ? (
-          <FarmWorkspace key={currentUser.id} user={currentUser} />
+      <nav className="sc-switcher-bar" aria-label="Điều hướng nhanh và giao diện">
+        {currentUser ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setActiveTab('overview')}
+              className={`sc-switcher__btn ${
+                activeTab === 'overview' ? 'sc-switcher__btn--active' : ''
+              }`}
+            >
+              Vùng trồng
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('security')}
+              className={`sc-switcher__btn ${
+                activeTab === 'security' ? 'sc-switcher__btn--active' : ''
+              }`}
+            >
+              Phân quyền RLS
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('integrity')}
+              className={`sc-switcher__btn ${
+                activeTab === 'integrity' ? 'sc-switcher__btn--active' : ''
+              }`}
+            >
+              Chuỗi Hash
+            </button>
+          </>
         ) : (
-          <LoginView onLoginSuccess={(user) => setCurrentUser(user)} />
+          <span className="sc-switcher__btn sc-switcher__btn--active">
+            Xác thực phiên
+          </span>
         )}
-      </main>
-    </div>
+
+        <button
+          type="button"
+          className="sc-switcher__btn"
+          onClick={() => {
+            setIsDark((prev) => !prev)
+            notify(
+              !isDark
+                ? 'Đã chuyển sang giao diện Tối (Dark Forest)'
+                : 'Đã chuyển sang giao diện Sáng (Classroom Mint)'
+            )
+          }}
+          aria-label="Chuyển đổi giao diện Sáng / Tối"
+        >
+          {isDark ? '☀ Sáng' : '☾ Tối'}
+        </button>
+      </nav>
+
+      <div
+        className={`anime-toast ${toastVisible ? 'show' : ''}`}
+        role="status"
+        aria-live="polite"
+      >
+        <span>✦</span>
+        <span>{toastMessage}</span>
+      </div>
+    </>
   )
 }
