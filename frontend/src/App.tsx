@@ -99,7 +99,7 @@ export default function App() {
     <>
       {initializing ? (
         <div className="login-hero section-pattern init-screen">
-          <div className="sticker-panel init-card">
+          <div className="panel-card init-card">
             <h2>AgroChain đang khởi tạo...</h2>
             <p className="panel-sub">
               Đang đồng bộ trạng thái phiên làm việc với máy chủ

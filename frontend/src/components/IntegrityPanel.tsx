@@ -60,7 +60,7 @@ export function IntegrityPanel({
 }: IntegrityPanelProps) {
   return (
     <div className={compact ? '' : 'info-stack'}>
-      <section className="data-table-wrapper sticker-panel">
+      <section className="data-table-wrapper panel-card">
         <div className="data-table-header">
           <div>
             <h2 className="section-title">
@@ -132,7 +132,7 @@ export function IntegrityPanel({
                     </td>
                     <td>
                       <code>
-                        {isTamperedRow ? 'ff009911...SAI_LECH' : ev.hash}
+                        {isTamperedRow ? 'e9d41a02...7c3b81f9' : ev.hash}
                       </code>
                     </td>
                     <td>
@@ -158,7 +158,7 @@ export function IntegrityPanel({
 
       {!compact && (
         <div className="dashboard-split-equal">
-          <section className="sticker-panel panel-box">
+          <section className="panel-card panel-box">
             <div className="panel-head">
               <h2>Chuẩn hóa Canonical JSON (RFC 8785) — Sự kiện #03</h2>
               <span
@@ -175,12 +175,12 @@ export function IntegrityPanel({
             </p>
             <pre className="code-block-compact">
               {tamperSimulated
-                ? `{"event_seq":3,"humidity_pct":82,"lot_id":"lot-caudat-01","prev_hash":"4b227777...d4735e3a","stage":"transport","temp_c":99.9,"timestamp":"2026-09-30T10:30:00Z"}\n-> SHA-256 Tính lại : ff00991182ab44c0... (Khác với e3b0c442...98fc1c14 đã niêm phong!)`
+                ? `{"event_seq":3,"humidity_pct":82,"lot_id":"lot-caudat-01","prev_hash":"4b227777...d4735e3a","stage":"transport","temp_c":99.9,"timestamp":"2026-09-30T10:30:00Z"}\n-> SHA-256 Tính lại : e9d41a026f904b12...7c3b81f9 (Khác với e3b0c442...98fc1c14 đã niêm phong!)`
                 : `{"event_seq":3,"humidity_pct":82,"lot_id":"lot-caudat-01","prev_hash":"4b227777...d4735e3a","stage":"transport","temp_c":3.5,"timestamp":"2026-09-30T10:30:00Z"}\n-> SHA-256 Tính lại : e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (Khớp 100%)`}
             </pre>
           </section>
 
-          <section className="sticker-panel panel-box">
+          <section className="panel-card panel-box">
             <div className="panel-head">
               <h2>Thông số Kiến trúc Toàn vẹn Dữ liệu (N3-4)</h2>
               <span className="status-badge status-done">Chuẩn Công nghiệp</span>

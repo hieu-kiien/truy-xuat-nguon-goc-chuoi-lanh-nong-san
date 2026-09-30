@@ -1,23 +1,18 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
+import { createFarm, getFarms, login, updateFarm } from '../services/api'
 import {
-  API_BASE_URL,
-  createFarm,
-  getFarms,
-  login,
-  updateFarm,
-} from '../services/api'
-import {
-  DEMO_ACCOUNTS,
   hasPermission,
-  ORG_TYPE_LABELS,
   ROLE_LABELS,
   ROLE_PERMISSIONS,
   type DemoAccount,
   type Farm,
   type SessionUser,
 } from '../types'
+import { FarmFormPanel } from './FarmFormPanel'
 import { IntegrityPanel } from './IntegrityPanel'
 import { SecurityPanel } from './SecurityPanel'
+import { WorkspaceSidebar } from './WorkspaceSidebar'
+import { WorkspaceTopbar } from './WorkspaceTopbar'
 
 export type WorkspaceTab = 'overview' | 'security' | 'integrity'
 
@@ -31,38 +26,6 @@ interface FarmWorkspaceProps {
   onLogout: () => void
   onNotify: (message: string) => void
 }
-
-interface PresetLocation {
-  label: string
-  name: string
-  area_ha: string
-  latitude: string
-  longitude: string
-}
-
-const PRESET_LOCATIONS: PresetLocation[] = [
-  {
-    label: 'Mẫu Đà Lạt',
-    name: 'Phân khu Rau hữu cơ Trại Mát',
-    area_ha: '3.2500',
-    latitude: '11.924850',
-    longitude: '108.497210',
-  },
-  {
-    label: 'Mẫu Mộc Châu',
-    name: 'Đồi Dâu tây Bản Áng Khu B',
-    area_ha: '4.5000',
-    latitude: '20.828640',
-    longitude: '104.661520',
-  },
-  {
-    label: 'Mẫu Tiền Giang',
-    name: 'Vùng trồng Xoài Cát Hòa Lộc Cái Bè',
-    area_ha: '6.1000',
-    latitude: '10.334910',
-    longitude: '106.028450',
-  },
-]
 
 export function FarmWorkspace({
   user,
@@ -181,15 +144,6 @@ export function FarmWorkspace({
     onNotify(`Đang chỉnh sửa: ${farm.name}`)
   }
 
-  const applyPreset = (preset: PresetLocation) => {
-    setName(preset.name)
-    setAreaHa(preset.area_ha)
-    setLatitude(preset.latitude)
-    setLongitude(preset.longitude)
-    setFormFeedback(null)
-    onNotify(`Đã điền mẫu: ${preset.name}`)
-  }
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSaving(true)
@@ -284,222 +238,34 @@ export function FarmWorkspace({
       )}
 
       <div className="dashboard-layout">
-        <aside
-          className={`dashboard-sidebar ${
-            sidebarOpen ? 'dashboard-sidebar-open' : ''
-          }`}
-          aria-label="Điều hướng chính"
-        >
-          <div>
-            <div className="sidebar-brand">
-              <div className="sidebar-brand-row">
-                <div className="sidebar-brand-title">AgroChain</div>
-                <span className="sidebar-brand-badge">N3-4..7</span>
-              </div>
-              <p className="sidebar-brand-sub" title={user.organization_name}>
-                {user.organization_name}
-              </p>
-            </div>
-
-            <nav className="sidebar-nav">
-              <div>
-                <div className="sidebar-section-label">Phân hệ Nghiệp vụ</div>
-                <ul className="sidebar-nav-list">
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onTabChange('overview')
-                        setSidebarOpen(false)
-                      }}
-                      className={`dashboard-nav-item ${
-                        activeTab === 'overview'
-                          ? 'dashboard-nav-item-active'
-                          : ''
-                      }`}
-                    >
-                      <span>Tổng quan &amp; Vùng trồng</span>
-                      <span className="nav-tag">N3-7</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onTabChange('security')
-                        setSidebarOpen(false)
-                      }}
-                      className={`dashboard-nav-item ${
-                        activeTab === 'security'
-                          ? 'dashboard-nav-item-active'
-                          : ''
-                      }`}
-                    >
-                      <span>Phân quyền &amp; RLS</span>
-                      <span className="nav-tag">N3-6</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onTabChange('integrity')
-                        setSidebarOpen(false)
-                      }}
-                      className={`dashboard-nav-item ${
-                        activeTab === 'integrity'
-                          ? 'dashboard-nav-item-active'
-                          : ''
-                      }`}
-                    >
-                      <span>Chuỗi Hash Sự kiện</span>
-                      <span className="nav-tag">N3-4</span>
-                    </button>
-                  </li>
-                  <li>
-                    <a
-                      href={`${API_BASE_URL}/docs`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="dashboard-nav-item"
-                    >
-                      <span>OpenAPI Swagger</span>
-                      <span className="nav-tag">API</span>
-                    </a>
-                  </li>
-                </ul>
-              </div>
-
-              <div>
-                <div className="sidebar-section-label">Trạng thái Hạ tầng</div>
-                <div className="sidebar-specs-box">
-                  <div className="sidebar-spec-row">
-                    <span className="sidebar-spec-key">PostgreSQL RLS</span>
-                    <span className="sidebar-spec-val">FORCE ON</span>
-                  </div>
-                  <div className="sidebar-spec-row">
-                    <span className="sidebar-spec-key">Tenant ID</span>
-                    <span className="sidebar-spec-val">
-                      {user.organization_id.slice(0, 8)}...
-                    </span>
-                  </div>
-                  <div className="sidebar-spec-row">
-                    <span className="sidebar-spec-key">Session Auth</span>
-                    <span className="sidebar-spec-val">SHA-256</span>
-                  </div>
-                  <div className="sidebar-spec-row">
-                    <span className="sidebar-spec-key">Hash Chain</span>
-                    <span className="sidebar-spec-val">RFC 8785</span>
-                  </div>
-                </div>
-              </div>
-            </nav>
-          </div>
-
-          <div className="sidebar-footer">
-            <div className="sidebar-user-card">
-              <div className="sidebar-user-name">{user.full_name}</div>
-              <div className="sidebar-user-meta" title={user.email}>
-                {user.email}
-              </div>
-              <div className="sidebar-user-meta">
-                Vai trò: <strong>{ROLE_LABELS[user.role]}</strong>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="ds-button ds-button-secondary ds-button-sm ds-button-block"
-              onClick={onLogout}
-            >
-              Đăng xuất phiên
-            </button>
-          </div>
-        </aside>
+        <WorkspaceSidebar
+          user={user}
+          activeTab={activeTab}
+          sidebarOpen={sidebarOpen}
+          onCloseSidebar={() => setSidebarOpen(false)}
+          onTabChange={onTabChange}
+          onLogout={onLogout}
+        />
 
         <div className="dashboard-main">
-          <header className="dashboard-topbar">
-            <div className="topbar-left">
-              <button
-                type="button"
-                className="dashboard-menu-btn"
-                aria-label="Mở thanh điều hướng"
-                onClick={() => setSidebarOpen((prev) => !prev)}
-              >
-                Menu
-              </button>
-              <h1 className="topbar-title">
-                {activeTab === 'overview'
-                  ? 'Bảng điều khiển Vùng trồng & Giám sát Chuỗi lạnh'
-                  : activeTab === 'security'
-                    ? 'Ma trận Phân quyền RBAC & Cô lập Đa tổ chức (RLS)'
-                    : 'Kiểm chứng Toàn vẹn Chuỗi Sự kiện (SHA-256 + RFC 8785)'}
-              </h1>
-              <span className="topbar-divider">|</span>
-              <span className="status-badge status-done">
-                {ORG_TYPE_LABELS[user.organization_type]}
-              </span>
-            </div>
-
-            <div className="topbar-actions">
-              <div
-                className="tenant-switcher-group"
-                role="group"
-                aria-label="Chuyển đổi nhanh tài khoản Demo"
-              >
-                <span className="tenant-switcher-label">Đổi nhanh phiên:</span>
-                {DEMO_ACCOUNTS.map((acc) => {
-                  const isCurrent = acc.email === user.email
-                  return (
-                    <button
-                      key={acc.email}
-                      type="button"
-                      disabled={switchingAccount}
-                      onClick={() => void handleQuickSwitch(acc)}
-                      className={`tenant-pill-btn ${
-                        isCurrent ? 'tenant-pill-btn-active' : ''
-                      }`}
-                      title={`Chuyển sang ${acc.label} (${acc.email})`}
-                    >
-                      {acc.shortName}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {activeTab === 'overview' && canReadFarms && (
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Lọc tên thửa, UUID, GPS..."
-                  className="dashboard-search"
-                  aria-label="Tìm kiếm vùng trồng"
-                />
-              )}
-
-              <button
-                type="button"
-                className="ds-button ds-button-secondary ds-button-sm"
-                onClick={() => void refreshFarms()}
-              >
-                Làm mới
-              </button>
-
-              <button
-                type="button"
-                className="ds-button ds-button-secondary ds-button-sm"
-                onClick={onToggleTheme}
-              >
-                {isDark ? 'Sáng' : 'Tối'}
-              </button>
-            </div>
-          </header>
+          <WorkspaceTopbar
+            user={user}
+            activeTab={activeTab}
+            canReadFarms={canReadFarms}
+            searchQuery={searchQuery}
+            switchingAccount={switchingAccount}
+            isDark={isDark}
+            onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+            onSearchChange={setSearchQuery}
+            onQuickSwitch={(acc) => void handleQuickSwitch(acc)}
+            onRefresh={() => void refreshFarms()}
+            onToggleTheme={onToggleTheme}
+          />
 
           <main className="dashboard-content">
             <section aria-label="Chỉ số vận hành tổng hợp">
               <div className="stats-grid">
-                <article className="stat-card sticker-panel">
+                <article className="stat-card panel-card">
                   <p className="stat-label">Đơn vị thành viên (Tenant)</p>
                   <p
                     className="stat-value stat-value-sans"
@@ -512,7 +278,7 @@ export function FarmWorkspace({
                   </p>
                 </article>
 
-                <article className="stat-card sticker-panel">
+                <article className="stat-card panel-card">
                   <p className="stat-label">Vùng trồng thuộc đơn vị</p>
                   <p className="stat-value">
                     {canReadFarms ? `${farms.length} vùng` : 'Chặn (403)'}
@@ -524,7 +290,7 @@ export function FarmWorkspace({
                   </p>
                 </article>
 
-                <article className="stat-card sticker-panel">
+                <article className="stat-card panel-card">
                   <p className="stat-label">Tổng diện tích canh tác</p>
                   <p className="stat-value">
                     {canReadFarms ? `${totalAreaHa.toFixed(2)} ha` : '—'}
@@ -536,7 +302,7 @@ export function FarmWorkspace({
                   </p>
                 </article>
 
-                <article className="stat-card sticker-panel">
+                <article className="stat-card panel-card">
                   <p className="stat-label">Vai trò &amp; Quyền RBAC</p>
                   <p className="stat-value stat-value-sans">
                     {ROLE_LABELS[user.role]}
@@ -546,7 +312,7 @@ export function FarmWorkspace({
                   </p>
                 </article>
 
-                <article className="stat-card sticker-panel">
+                <article className="stat-card panel-card">
                   <p className="stat-label">Chuỗi băm sự kiện (N3-4)</p>
                   <p className="stat-value">
                     {tamperSimulated ? 'Lỗi Hash!' : '4/4 Hợp lệ'}
@@ -562,7 +328,7 @@ export function FarmWorkspace({
                   </p>
                 </article>
 
-                <article className="stat-card sticker-panel">
+                <article className="stat-card panel-card">
                   <p className="stat-label">Bảo mật phiên (N3-5)</p>
                   <p className="stat-value stat-value-sans">Argon2id + Cookie</p>
                   <p className="stat-trend">Khóa 15p nếu sai mật khẩu 5 lần</p>
@@ -574,7 +340,7 @@ export function FarmWorkspace({
               <>
                 <div className="dashboard-split-main">
                   {!canReadFarms ? (
-                    <section className="sticker-panel panel-box">
+                    <section className="panel-card panel-box">
                       <div className="panel-head">
                         <h2>
                           Chặn Truy cập Danh mục Vùng trồng theo RBAC (N3-6)
@@ -618,7 +384,7 @@ export function FarmWorkspace({
                     </section>
                   ) : (
                     <section
-                      className="data-table-wrapper sticker-panel"
+                      className="data-table-wrapper panel-card"
                       aria-labelledby="farms-table-title"
                     >
                       <div className="data-table-header">
@@ -750,202 +516,35 @@ export function FarmWorkspace({
                     </section>
                   )}
 
-                  <div className="info-stack">
-                    {canWriteFarms && (
-                      <section
-                        className="panel-box sticker-panel"
-                        aria-labelledby="form-title"
-                      >
-                        <div className="panel-head">
-                          <h2 id="form-title">
-                            {editingFarm
-                              ? 'Cập nhật Vùng trồng'
-                              : 'Khai báo Vùng trồng mới (N3-7)'}
-                          </h2>
-                          {editingFarm && (
-                            <code title={editingFarm.id}>
-                              ID: {editingFarm.id.slice(0, 8)}...
-                            </code>
-                          )}
-                        </div>
-
-                        {!editingFarm && (
-                          <div className="preset-strip">
-                            <span className="preset-label">Mẫu nhanh:</span>
-                            {PRESET_LOCATIONS.map((preset) => (
-                              <button
-                                key={preset.label}
-                                type="button"
-                                className="ds-button ds-button-secondary ds-button-xs"
-                                onClick={() => applyPreset(preset)}
-                              >
-                                {preset.label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {formFeedback && (
-                          <div
-                            className={`alert-box ${
-                              formFeedback.type === 'success'
-                                ? 'alert-success'
-                                : 'alert-error'
-                            }`}
-                            role="status"
-                          >
-                            {formFeedback.message}
-                          </div>
-                        )}
-
-                        <form onSubmit={handleSubmit} className="form-stack">
-                          <div className="form-row-2">
-                            <div className="form-field">
-                              <label htmlFor="farm-name">
-                                Tên vùng trồng / thửa đất{' '}
-                                <span className="required-mark">*</span>
-                              </label>
-                              <input
-                                id="farm-name"
-                                type="text"
-                                required
-                                maxLength={200}
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="VD: Khu nhà kính Dâu tây A1"
-                              />
-                            </div>
-
-                            <div className="form-field">
-                              <label htmlFor="farm-area">
-                                Diện tích (ha &gt; 0){' '}
-                                <span className="required-mark">*</span>
-                              </label>
-                              <input
-                                id="farm-area"
-                                type="number"
-                                step="0.0001"
-                                min="0.0001"
-                                required
-                                value={areaHa}
-                                onChange={(e) => setAreaHa(e.target.value)}
-                                placeholder="VD: 2.4500"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="form-row-2">
-                            <div className="form-field">
-                              <label htmlFor="farm-lat">
-                                Vĩ độ (-90..90){' '}
-                                <span className="required-mark">*</span>
-                              </label>
-                              <input
-                                id="farm-lat"
-                                type="number"
-                                step="0.000001"
-                                min="-90"
-                                max="90"
-                                required
-                                value={latitude}
-                                onChange={(e) => setLatitude(e.target.value)}
-                                placeholder="11.862450"
-                              />
-                            </div>
-
-                            <div className="form-field">
-                              <label htmlFor="farm-lng">
-                                Kinh độ (-180..180){' '}
-                                <span className="required-mark">*</span>
-                              </label>
-                              <input
-                                id="farm-lng"
-                                type="number"
-                                step="0.000001"
-                                min="-180"
-                                max="180"
-                                required
-                                value={longitude}
-                                onChange={(e) => setLongitude(e.target.value)}
-                                placeholder="108.538120"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="action-row">
-                            <button
-                              type="submit"
-                              className="ds-button ds-button-brand ds-button-sm"
-                              disabled={saving}
-                            >
-                              {saving
-                                ? 'Đang lưu...'
-                                : editingFarm
-                                  ? 'Lưu cập nhật'
-                                  : 'Thêm vùng trồng'}
-                            </button>
-                            {editingFarm && (
-                              <button
-                                type="button"
-                                className="ds-button ds-button-secondary ds-button-sm"
-                                onClick={resetForm}
-                              >
-                                Hủy
-                              </button>
-                            )}
-                          </div>
-                        </form>
-                      </section>
-                    )}
-
-                    {canReadFarms && farms.length > 0 && (
-                      <section
-                        className="panel-box sticker-panel"
-                        aria-labelledby="chart-title"
-                      >
-                        <div className="panel-head">
-                          <h2 id="chart-title">Tương quan diện tích các lô (ha)</h2>
-                          <span className="panel-sub">
-                            Tổng: {totalAreaHa.toFixed(2)} ha
-                          </span>
-                        </div>
-
-                        <div
-                          className="chart-bars"
-                          role="img"
-                          aria-label="Biểu đồ diện tích các vùng trồng"
-                        >
-                          {farms.map((farm, idx) => {
-                            const area = Number(farm.area_ha) || 0
-                            const heightPct = Math.max(
-                              18,
-                              Math.min(100, (area / maxAreaHa) * 100)
-                            )
-                            return (
-                              <div key={farm.id} className="chart-bar-col">
-                                <span className="chart-bar-value">
-                                  {area.toFixed(1)}
-                                </span>
-                                <div
-                                  className="chart-bar"
-                                  style={{ height: `${heightPct}%` }}
-                                  title={`${farm.name}: ${area.toFixed(2)} ha`}
-                                  onClick={() =>
-                                    onNotify(
-                                      `${farm.name} — Diện tích: ${area.toFixed(2)} ha`
-                                    )
-                                  }
-                                />
-                                <span className="chart-bar-caption">
-                                  Lô #{idx + 1}
-                                </span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </section>
-                    )}
-                  </div>
+                  <FarmFormPanel
+                    canReadFarms={canReadFarms}
+                    canWriteFarms={canWriteFarms}
+                    farms={farms}
+                    totalAreaHa={totalAreaHa}
+                    maxAreaHa={maxAreaHa}
+                    editingFarm={editingFarm}
+                    name={name}
+                    areaHa={areaHa}
+                    latitude={latitude}
+                    longitude={longitude}
+                    saving={saving}
+                    formFeedback={formFeedback}
+                    onNameChange={setName}
+                    onAreaChange={setAreaHa}
+                    onLatChange={setLatitude}
+                    onLngChange={setLongitude}
+                    onApplyPreset={(preset) => {
+                      setName(preset.name)
+                      setAreaHa(preset.area_ha)
+                      setLatitude(preset.latitude)
+                      setLongitude(preset.longitude)
+                      setFormFeedback(null)
+                      onNotify(`Đã điền mẫu: ${preset.name}`)
+                    }}
+                    onSubmit={handleSubmit}
+                    onCancelEdit={resetForm}
+                    onNotify={onNotify}
+                  />
                 </div>
 
                 <div className="dashboard-split-equal">
@@ -962,7 +561,7 @@ export function FarmWorkspace({
                     }}
                   />
 
-                  <section className="sticker-panel panel-box">
+                  <section className="panel-card panel-box">
                     <div className="panel-head">
                       <h2>
                         Trạng thái Cô lập Đa tổ chức (RLS) &amp; Phân quyền RBAC (N3-6)

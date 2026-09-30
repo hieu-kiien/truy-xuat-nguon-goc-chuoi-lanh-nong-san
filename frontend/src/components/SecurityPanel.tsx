@@ -31,7 +31,7 @@ export function SecurityPanel({
 
   return (
     <div className="dashboard-split-equal">
-      <section className="sticker-panel panel-box">
+      <section className="panel-card panel-box">
         <div className="panel-head">
           <h2>Ngữ cảnh Phiên &amp; Cô lập Đa tổ chức (PostgreSQL RLS)</h2>
           <span className="status-badge status-done">FORCE RLS: BẬT</span>
@@ -103,7 +103,7 @@ CREATE POLICY farms_tenant_isolation ON farms
         )}
       </section>
 
-      <section className="data-table-wrapper sticker-panel">
+      <section className="data-table-wrapper panel-card">
         <div className="data-table-header">
           <div>
             <h2 className="section-title">

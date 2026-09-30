@@ -117,7 +117,7 @@ export function LoginView({
 
         <div className="auth-grid">
           <div className="info-stack">
-            <section className="sticker-panel auth-panel">
+            <section className="panel-card auth-panel">
               <div className="panel-head">
                 <h2>Đăng nhập Phiên Làm việc (N3-5)</h2>
                 <span className="status-badge status-done">Argon2id + Cookie</span>
@@ -199,7 +199,7 @@ export function LoginView({
               </form>
             </section>
 
-            <section className="sticker-panel auth-panel">
+            <section className="panel-card auth-panel">
               <div className="panel-head">
                 <h2>Thông số Kỹ thuật Các Phân hệ Đã Tích hợp</h2>
               </div>
@@ -224,7 +224,7 @@ export function LoginView({
             </section>
           </div>
 
-          <aside className="sticker-panel auth-panel">
+          <aside className="panel-card auth-panel">
             <div className="panel-head">
               <h2>Kịch bản Kiểm thử Nhanh (3 Tổ chức Demo)</h2>
               <span className="panel-sub">Bấm để điền hoặc vào thẳng</span>
@@ -236,17 +236,17 @@ export function LoginView({
                 return (
                   <div
                     key={account.email}
-                    className={`demo-sticker-card ${
-                      isSelected ? 'demo-sticker-active' : ''
+                    className={`account-card ${
+                      isSelected ? 'account-card-active' : ''
                     }`}
                   >
-                    <div className="demo-sticker-header">
-                      <span className="demo-sticker-title">{account.label}</span>
+                    <div className="account-card-header">
+                      <span className="account-card-title">{account.label}</span>
                       <code>{account.email}</code>
                     </div>
-                    <div className="demo-sticker-role">{account.roleText}</div>
-                    <p className="demo-sticker-desc">{account.description}</p>
-                    <div className="demo-sticker-actions">
+                    <div className="account-card-role">{account.roleText}</div>
+                    <p className="account-card-desc">{account.description}</p>
+                    <div className="account-card-actions">
                       <span className="panel-sub">
                         Đơn vị: <strong>{account.organization}</strong>
                       </span>
