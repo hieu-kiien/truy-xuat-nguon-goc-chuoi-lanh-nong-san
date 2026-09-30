@@ -21,6 +21,7 @@ if config.config_file_name is not None:
 # Trỏ tới Base.metadata để alembic autogenerate tự phát hiện thay đổi model
 target_metadata = Base.metadata
 
+
 def run_migrations_offline() -> None:
     context.configure(
         url=settings.MIGRATION_DATABASE_URL.render_as_string(hide_password=True),

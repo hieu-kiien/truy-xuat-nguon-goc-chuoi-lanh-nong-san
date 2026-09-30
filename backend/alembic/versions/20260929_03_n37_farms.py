@@ -7,15 +7,28 @@ Revises: 20260929_02
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 from app.core.config import settings
 
 revision: str = "20260929_03"
 down_revision: str | None = "20260929_02"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
+
+def _has_application_role() -> bool:
+    bind = op.get_bind()
+    return bool(
+        bind.execute(
+            sa.text(
+                "SELECT 1 FROM pg_catalog.pg_roles "
+                "WHERE rolname = :role AND :role <> current_user"
+            ),
+            {"role": settings.DB_USER},
+        ).scalar()
+    )
 
 
 def _application_role() -> str:
@@ -63,13 +76,15 @@ def upgrade() -> None:
         )
         """)
 
-    role = _application_role()
-    op.execute(f"GRANT SELECT, INSERT, UPDATE ON farms TO {role}")
+    if _has_application_role():
+        role = _application_role()
+        op.execute(f"GRANT SELECT, INSERT, UPDATE ON farms TO {role}")
 
 
 def downgrade() -> None:
-    role = _application_role()
-    op.execute(f"REVOKE SELECT, INSERT, UPDATE ON farms FROM {role}")
+    if _has_application_role():
+        role = _application_role()
+        op.execute(f"REVOKE SELECT, INSERT, UPDATE ON farms FROM {role}")
     op.execute("DROP POLICY farms_organization_isolation ON farms")
     op.execute("ALTER TABLE farms NO FORCE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE farms DISABLE ROW LEVEL SECURITY")

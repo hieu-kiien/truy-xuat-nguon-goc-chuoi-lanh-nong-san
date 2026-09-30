@@ -50,8 +50,8 @@ class Settings(BaseSettings):
     def DATABASE_URL(self) -> URL:
         if self.DATABASE_URL_ENV:
             url = _normalize_postgres_url(self.DATABASE_URL_ENV)
-            if url.username != self.DB_USER:
-                raise ValueError("DATABASE_URL_ENV must use the DB_USER role")
+            if self.DB_PASSWORD and url.username != self.DB_USER:
+                return url.set(username=self.DB_USER, password=self.DB_PASSWORD)
             return url
 
         return URL.create(
@@ -67,17 +67,21 @@ class Settings(BaseSettings):
     def MIGRATION_DATABASE_URL(self) -> URL:
         if self.MIGRATION_DATABASE_URL_ENV:
             url = _normalize_postgres_url(self.MIGRATION_DATABASE_URL_ENV)
-            if url.username != self.DB_ADMIN_USER:
-                raise ValueError(
-                    "MIGRATION_DATABASE_URL_ENV must use the DB_ADMIN_USER role"
+            if self.DB_ADMIN_PASSWORD and url.username != self.DB_ADMIN_USER:
+                return url.set(
+                    username=self.DB_ADMIN_USER,
+                    password=self.DB_ADMIN_PASSWORD,
                 )
             return url
 
         if self.DATABASE_URL_ENV:
-            return self.DATABASE_URL.set(
-                username=self.DB_ADMIN_USER,
-                password=self.DB_ADMIN_PASSWORD,
-            )
+            url = _normalize_postgres_url(self.DATABASE_URL_ENV)
+            if self.DB_ADMIN_PASSWORD:
+                return url.set(
+                    username=self.DB_ADMIN_USER,
+                    password=self.DB_ADMIN_PASSWORD,
+                )
+            return url
 
         return URL.create(
             "postgresql+psycopg",

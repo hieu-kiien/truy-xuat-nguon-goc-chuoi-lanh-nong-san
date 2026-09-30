@@ -11,7 +11,6 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 from alembic import op
-
 from app.core.config import settings
 
 revision: str = "20260929_01"
@@ -94,15 +93,24 @@ def upgrade() -> None:
         "ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name"
     )
 
-    role = op.get_bind().dialect.identifier_preparer.quote(settings.DB_USER)
-    op.execute(f"GRANT USAGE ON SCHEMA public TO {role}")
-    op.execute(f"REVOKE CREATE ON SCHEMA public FROM PUBLIC, {role}")
-    op.execute(f"GRANT SELECT ON organizations, roles, users, sessions TO {role}")
-    op.execute(
-        f"GRANT UPDATE (failed_login_attempts, locked_until) ON users TO {role}"
-    )
-    op.execute(f"GRANT INSERT ON sessions TO {role}")
-    op.execute(f"GRANT UPDATE (revoked_at) ON sessions TO {role}")
+    bind = op.get_bind()
+    role_exists = bind.execute(
+        sa.text(
+            "SELECT 1 FROM pg_catalog.pg_roles "
+            "WHERE rolname = :role AND :role <> current_user"
+        ),
+        {"role": settings.DB_USER},
+    ).scalar()
+    if role_exists:
+        role = bind.dialect.identifier_preparer.quote(settings.DB_USER)
+        op.execute(f"GRANT USAGE ON SCHEMA public TO {role}")
+        op.execute(f"REVOKE CREATE ON SCHEMA public FROM PUBLIC, {role}")
+        op.execute(f"GRANT SELECT ON organizations, roles, users, sessions TO {role}")
+        op.execute(
+            f"GRANT UPDATE (failed_login_attempts, locked_until) ON users TO {role}"
+        )
+        op.execute(f"GRANT INSERT ON sessions TO {role}")
+        op.execute(f"GRANT UPDATE (revoked_at) ON sessions TO {role}")
 
 
 def downgrade() -> None:
