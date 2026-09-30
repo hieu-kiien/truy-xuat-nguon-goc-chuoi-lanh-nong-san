@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     APP_ENV: str = "production"
     DEBUG: bool = False
     DEMO_PASSWORD: str | None = None
+    LOGIN_LOCK_MINUTES: int = Field(default=15, ge=1, le=1440)
     SESSION_TTL_MINUTES: int = Field(default=480, ge=1, le=10080)
     SESSION_COOKIE_NAME: str = "__Host-session"
     ALLOWED_ORIGINS: list[str] | str = [

@@ -94,3 +94,8 @@ def test_inspector_permission_is_read_all_and_read_only():
     assert tenant_select(User, inspector).whereclause is not None
     assert has_permission("inspector", "lots:read")
     assert not has_permission("inspector", "lots:write")
+
+
+def test_tenant_query_without_context_fails_closed():
+    with pytest.raises(ValueError, match="Tenant context is required"):
+        tenant_select(Lot)

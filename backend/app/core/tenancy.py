@@ -17,8 +17,11 @@ def _require_tenant_column(model: Any) -> None:
         raise TypeError(f"{model.__name__} must have an organization_id column")
 
 
-def tenant_select(model: Any, principal: Principal):
+def tenant_select(model: Any, principal: Principal | None = None):
     """Build a database-filtered query for an organization-owned model."""
+    if principal is None:
+        raise ValueError("Tenant context is required for organization-owned queries")
+
     _require_tenant_column(model)
 
     if model.__tablename__ == "lots" and has_permission(

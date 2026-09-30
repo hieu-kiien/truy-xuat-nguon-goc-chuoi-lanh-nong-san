@@ -1,5 +1,7 @@
+import ast
 import logging
 from collections.abc import Iterator
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.routing import APIRoute
@@ -10,6 +12,8 @@ from app.core.authorization import enforce_route_permission
 from app.main import app
 
 AUTH_ROUTE_ALLOWLIST = {("/api/v1/auth/login", "POST")}
+AUTH_QUERY_FILE_ALLOWLIST = {"auth.py"}
+DIRECT_QUERY_METHODS = {"execute", "get", "scalar", "scalars"}
 
 
 def _dependency_calls(dependant) -> Iterator[object]:
@@ -76,3 +80,42 @@ def test_guard_denies_and_logs_a_route_without_permission(caplog):
         getattr(record, "event", None) == "authorization.route_missing_permission"
         for record in caplog.records
     )
+
+
+def test_business_endpoint_queries_must_use_tenant_helpers():
+    endpoint_dir = Path(__file__).parents[1] / "app" / "api" / "v1" / "endpoints"
+    violations: list[str] = []
+
+    for source_path in endpoint_dir.glob("*.py"):
+        if source_path.name in AUTH_QUERY_FILE_ALLOWLIST:
+            continue
+        tree = ast.parse(source_path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if isinstance(node.func, ast.Name) and node.func.id == "select":
+                violations.append(f"{source_path.name}:{node.lineno}: select()")
+            elif (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr in {"scalar", "scalars"}
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id in {"db", "session"}
+                and any(
+                    isinstance(argument, ast.Call)
+                    and isinstance(argument.func, ast.Name)
+                    and argument.func.id == "tenant_select"
+                    for argument in node.args
+                )
+            ):
+                continue
+            elif (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr in DIRECT_QUERY_METHODS
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id in {"db", "session"}
+            ):
+                violations.append(
+                    f"{source_path.name}:{node.lineno}: .{node.func.attr}()"
+                )
+
+    assert violations == []

@@ -13,6 +13,8 @@ services:
         value: staging
       - key: DEBUG
         value: "False"
+      - key: LOGIN_LOCK_MINUTES
+        value: "15"
       - key: DB_USER
         value: ttcs_app
       - key: DB_PASSWORD

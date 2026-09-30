@@ -138,6 +138,28 @@ async def test_login_error_is_generic_and_fifth_failure_locks_for_15_minutes(
 
 
 @pytest.mark.asyncio
+async def test_lockout_duration_uses_the_configured_value(
+    admin_session, identity_factory, monkeypatch
+):
+    identity = identity_factory()
+    monkeypatch.setattr(settings, "LOGIN_LOCK_MINUTES", 3)
+
+    async with _client() as client:
+        for _ in range(5):
+            response = await client.post(
+                "/api/v1/auth/login",
+                json={"email": identity.email, "password": "wrong-password"},
+            )
+            assert response.status_code == 401
+
+    user = admin_session.get(User, identity.user_id)
+    assert user is not None
+    assert user.locked_until is not None
+    remaining = user.locked_until - datetime.now(UTC)
+    assert timedelta(minutes=2, seconds=50) < remaining <= timedelta(minutes=3)
+
+
+@pytest.mark.asyncio
 async def test_cors_does_not_expose_session_credentials():
     async with _client() as client:
         response = await client.options(

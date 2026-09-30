@@ -22,7 +22,6 @@ router = APIRouter()
 session_router = APIRouter(dependencies=[Depends(enforce_route_permission)])
 AUTH_ERROR = "Email hoặc mật khẩu không đúng."
 MAX_FAILED_ATTEMPTS = 5
-LOCK_MINUTES = 15
 
 
 def _session_user(user: User, organization: Organization, role: Role) -> SessionUser:
@@ -62,7 +61,7 @@ def login(
         if not is_locked and user.is_active and not password_ok:
             user.failed_login_attempts += 1
             if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
-                user.locked_until = now + timedelta(minutes=LOCK_MINUTES)
+                user.locked_until = now + timedelta(minutes=settings.LOGIN_LOCK_MINUTES)
 
         db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=AUTH_ERROR)

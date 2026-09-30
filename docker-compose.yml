@@ -14,7 +14,7 @@ services:
     networks:
       - ttcs_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d ttcs_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_ADMIN_USER:-admin} -d ${DB_NAME:-ttcs_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -38,6 +38,7 @@ services:
       APP_ENV: ${APP_ENV:-development}
       DEBUG: ${DEBUG:-true}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+      LOGIN_LOCK_MINUTES: ${LOGIN_LOCK_MINUTES:-15}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
     depends_on:
       database:
