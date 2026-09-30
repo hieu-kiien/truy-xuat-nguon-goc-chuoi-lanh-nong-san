@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import hash_password
+from app.models.farm import Farm
 from app.models.identity import AuthSession, Organization, Role, User
 
 
@@ -85,6 +86,9 @@ def identity_factory(
         )
         admin_session.execute(delete(User).where(User.id.in_(created_users)))
     if created_organizations:
+        admin_session.execute(
+            delete(Farm).where(Farm.organization_id.in_(created_organizations))
+        )
         admin_session.execute(
             delete(Organization).where(Organization.id.in_(created_organizations))
         )
