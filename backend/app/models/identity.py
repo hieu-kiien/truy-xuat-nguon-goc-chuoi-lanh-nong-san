@@ -9,6 +9,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -31,7 +32,9 @@ class Organization(Base):
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     organization_type: Mapped[str] = mapped_column(String(32), nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
 
 
 class Role(Base):
@@ -43,7 +46,13 @@ class Role(Base):
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (Index("ix_users_organization_id", "organization_id"),)
+    __table_args__ = (
+        CheckConstraint("failed_login_attempts >= 0", name="ck_users_failed_attempts"),
+        # Authentication looks accounts up by case-folded address, so a row
+        # stored with mixed case would be permanently unreachable.
+        CheckConstraint("email = lower(email)", name="ck_users_email_normalized"),
+        Index("ix_users_organization_id", "organization_id"),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4
@@ -60,10 +69,12 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(200), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     failed_login_attempts: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
+        Integer, nullable=False, default=0, server_default="0"
     )
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
 
 
 class AuthSession(Base):

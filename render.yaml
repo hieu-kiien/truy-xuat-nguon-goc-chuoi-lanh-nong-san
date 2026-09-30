@@ -7,25 +7,65 @@ services:
     branch: main
     autoDeploy: true
     buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # Mirrors the container CMD: create the least-privilege application role,
+    # bring the schema up to head, then serve. The previous startCommand skipped
+    # both, so the staging database never received a schema.
+    startCommand: >-
+      cd backend &&
+      python -m app.bootstrap_db_role &&
+      python -m alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health/ready
     envVars:
       - key: APP_ENV
         value: staging
       - key: DEBUG
         value: "False"
+      # Required outside development: the service refuses to boot without it.
+      - key: SECRET_KEY
+        generateValue: true
+      # The session cookie must keep the Secure attribute on HTTPS.
+      - key: SESSION_COOKIE_SECURE
+        value: "True"
       - key: ALLOWED_ORIGINS
-        value: https://ttcs-frontend-staging.onrender.com,http://localhost:5173,http://localhost:3000
-      - key: DATABASE_URL_ENV
+        value: https://ttcs-frontend-staging.onrender.com
+      # Render exposes the database only to services in the same private
+      # network; these run on the internal address. The connection string is
+      # deliberately NOT used via DATABASE_URL_ENV: that would make the
+      # application run as the migration/admin role and bypass row-level
+      # security. DB_* keeps the application role and the admin role separate.
+      - key: DB_HOST
         fromDatabase:
           name: ttcs-postgres-staging
-          property: connectionString
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ttcs-postgres-staging
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ttcs-postgres-staging
+          property: database
+      # Application role: no RLS bypass, no superuser, no DDL.
+      - key: DB_USER
+        value: ttcs_app
+      - key: DB_PASSWORD
+        generateValue: true
+      - key: DB_ADMIN_USER
+        fromDatabase:
+          name: ttcs-postgres-staging
+          property: user
+      - key: DB_ADMIN_PASSWORD
+        fromDatabase:
+          name: ttcs-postgres-staging
+          property: password
 
   - type: web
     name: ttcs-frontend-staging
     runtime: static
     branch: main
     autoDeploy: true
-    buildCommand: cd frontend && npm install && npm run build
+    buildCommand: cd frontend && npm ci && npm run build
     staticPublishPath: ./frontend/dist
     routes:
       - type: rewrite

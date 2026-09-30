@@ -26,6 +26,9 @@ services:
     ports:
       - "8000:8000"
     environment:
+      # DB_USER (ttcs_app) is the least-privilege application role; DB_ADMIN_USER
+      # is used only for Alembic and role bootstrap. They must stay distinct so
+      # the API can never bypass row-level security.
       DB_HOST: database
       DB_PORT: 5432
       DB_NAME: ttcs_db
@@ -33,11 +36,27 @@ services:
       DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
       DB_ADMIN_USER: admin
       DB_ADMIN_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_ADMIN_PASSWORD in .env}
-      APP_ENV: development
-      DEBUG: "True"
-      ALLOWED_ORIGINS: http://localhost:3000
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      APP_ENV: ${APP_ENV:-development}
+      DEBUG: "False"
+      # Both the containerised frontend (3000) and the Vite dev server (5173).
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      # Plain HTTP on localhost: a browser will not store a Secure cookie over
+      # http://, which makes local login impossible. This stays "True" in any
+      # environment reached over HTTPS.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
       DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-admin@gmail.com}
-      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-Admin123!}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:?Set DEMO_ADMIN_PASSWORD in .env}
+      SYSTEM_ADMIN_EMAIL: ${SYSTEM_ADMIN_EMAIL:-admin@ttcs.local}
+      SYSTEM_ADMIN_PASSWORD: ${SYSTEM_ADMIN_PASSWORD:?Set SYSTEM_ADMIN_PASSWORD in .env}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health/ready', timeout=5).status == 200 else 1)\""
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     depends_on:
       database:
         condition: service_healthy

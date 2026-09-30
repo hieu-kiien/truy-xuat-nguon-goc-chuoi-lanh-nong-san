@@ -53,13 +53,19 @@
 Yêu cầu máy tính đã cài đặt và bật **Docker Desktop**. Chạy lệnh sau tại thư mục gốc của dự án:
 
 ```bash
+cp .env.example .env
+# Điền các mật khẩu riêng, tối thiểu 12 ký tự cho tài khoản demo/admin,
+# và SECRET_KEY tối thiểu 32 ký tự.
 docker compose up --build -d
 ```
 
 Sau khi hoàn tất:
 - **Giao diện Web:** http://localhost:3000 (hoặc http://localhost:5173 khi chạy npm run dev)
 - **Tài liệu API (Swagger UI):** http://localhost:8000/docs
-- **Cơ sở dữ liệu PostgreSQL:** `localhost:5432` (Database: `ttcs_db`, User: `admin`)
+- **Health/readiness:** http://localhost:8000/health/live và `/health/ready`
+- PostgreSQL chỉ nằm trong mạng Docker; không publish cổng DB ra máy host.
+
+Tài khoản phát triển lấy từ `.env`: `DEMO_ADMIN_EMAIL` quản trị tổ chức demo, `SYSTEM_ADMIN_EMAIL` tạo tổ chức và quản trị tài khoản. Đổi mật khẩu mẫu trước khi chạy.
 
 Để dừng toàn bộ dịch vụ:
 ```bash
@@ -79,7 +85,11 @@ python -m venv .venv
 # Hoặc trên Linux/macOS: source .venv/bin/activate
 
 pip install -r requirements-dev.txt
-cp .env.example .env
+copy .env.example .env
+
+python -m app.bootstrap_db_role
+alembic upgrade head
+python -m app.seed_demo_admin
 
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
@@ -118,6 +128,8 @@ Hệ thống được thiết lập cơ chế triển khai liên tục (Continuo
 
 - **Web Staging:** https://ttcs-frontend-staging.onrender.com
 - **API Staging:** https://ttcs-backend-staging.onrender.com/docs
+
+Chi tiết route, quyền truy cập và schema dữ liệu nằm tại [docs/api.md](docs/api.md) và [docs/database.md](docs/database.md). Mọi thay đổi schema cần có Alembic migration; không sửa bảng thủ công trên môi trường dùng chung.
 
 ## Quy trình đóng góp
 

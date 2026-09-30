@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import hash_session_token
+from app.core.security_events import log_security_event
 from app.models.identity import AuthSession, Organization, Role, User
 
 
@@ -35,9 +36,7 @@ def get_current_principal(
 
     token_hash = hash_session_token(token)
     db.info["session_token_hash"] = token_hash
-    db.execute(
-        select(func.set_config("app.session_token_hash", token_hash, True))
-    )
+    db.execute(select(func.set_config("app.session_token_hash", token_hash, True)))
 
     result = db.execute(
         select(AuthSession, User, Organization, Role)
@@ -75,6 +74,13 @@ def get_current_principal(
     if auth_session.expires_at <= now:
         auth_session.revoked_at = now
         db.commit()
+        log_security_event(
+            "auth.session_expired",
+            request=request,
+            user_id=str(user.id),
+            organization_id=str(user.organization_id),
+            expired_at=auth_session.expires_at.isoformat(),
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Phiên đăng nhập đã hết hạn.",
