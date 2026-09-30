@@ -1,43 +1,77 @@
-import logging
 from collections.abc import Callable
 from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Request, status
 
 from app.core.auth import Principal, get_current_principal
+from app.core.security_events import log_security_event
 
-logger = logging.getLogger(__name__)
+# Permission that lifts tenant scoping for read-only access across
+# organizations. Granted to `inspector` (and to `system_admin`); it never
+# implies write access, so an inspector stays read-only.
+CROSS_TENANT_READ_PERMISSIONS = frozenset({"lots:read_all"})
 
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "grower": frozenset(
         {
-            "farms:read", "farms:write", "lots:read", "lots:write",
-            "products:read", "products:write", "shipments:create",
-            "shipments:receive", "sensors:write", "cold_chain:read",
+            "farms:read",
+            "farms:write",
+            "lots:read",
+            "lots:write",
+            "products:read",
+            "products:write",
+            "shipments:read",
+            "shipments:create",
+            "shipments:receive",
+            "sensors:write",
+            "cold_chain:read",
             "cold_chain:resolve",
         }
     ),
     "cooperative": frozenset(
         {
-            "lots:read", "lots:write", "products:read", "products:write",
-            "shipments:create", "shipments:receive",
+            "lots:read",
+            "lots:write",
+            "products:read",
+            "products:write",
+            "shipments:read",
+            "shipments:create",
+            "shipments:receive",
         }
     ),
     "transporter": frozenset(
         {
-            "lots:read", "products:read", "shipments:create",
-            "shipments:receive", "sensors:read", "sensors:write",
-            "cold_chain:read", "cold_chain:resolve",
+            "lots:read",
+            "products:read",
+            "shipments:read",
+            "shipments:create",
+            "shipments:receive",
+            "sensors:read",
+            "sensors:write",
+            "cold_chain:read",
+            "cold_chain:resolve",
         }
     ),
     "distributor": frozenset(
         {
-            "lots:read", "lots:write", "products:read", "products:write",
-            "shipments:create", "shipments:receive", "cold_chain:read",
+            "lots:read",
+            "lots:write",
+            "products:read",
+            "products:write",
+            "shipments:read",
+            "shipments:create",
+            "shipments:receive",
+            "cold_chain:read",
         }
     ),
     "inspector": frozenset(
-        {"lots:read_all", "products:read", "shipments:read", "cold_chain:read"}
+        {
+            "lots:read",
+            "lots:read_all",
+            "products:read",
+            "shipments:read",
+            "cold_chain:read",
+        }
     ),
     "organization_admin": frozenset(
         {"farms:read", "farms:write", "lots:read", "products:read", "users:manage"}
@@ -50,6 +84,25 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
 
 def has_permission(role: str, permission: str) -> bool:
     return permission in ROLE_PERMISSIONS.get(role, frozenset())
+
+
+def has_any_permission(principal: Principal, permissions: frozenset[str]) -> bool:
+    return any(has_permission(principal.role, permission) for permission in permissions)
+
+
+def can_read_across_organizations(principal: Principal) -> bool:
+    """Whether the principal may read tenant-owned rows of other organizations."""
+    return has_any_permission(principal, CROSS_TENANT_READ_PERMISSIONS)
+
+
+def is_inspection_principal(principal: Principal) -> bool:
+    """Inspection role: read-only oversight across organizations.
+
+    Kept as an explicit predicate so the role name appears once. Inspection is
+    read-only by construction: the role's permission set contains no write
+    permission, so this can only ever widen visibility, never mutate data.
+    """
+    return principal.role == "inspector"
 
 
 def require_permission(
@@ -76,20 +129,13 @@ def enforce_route_permission(
     request.state.organization_id = principal.organization_id
 
     if permission is None:
-        logger.warning(
-            "Denied API route without a declared permission "
-            "user_id=%s organization_id=%s method=%s path=%s",
-            principal.user_id,
-            principal.organization_id,
-            request.method,
-            request.url.path,
-            extra={
-                "event": "authorization.route_missing_permission",
-                "user_id": str(principal.user_id),
-                "organization_id": str(principal.organization_id),
-                "method": request.method,
-                "path": request.url.path,
-            },
+        log_security_event(
+            "authorization.route_missing_permission",
+            request=request,
+            user_id=str(principal.user_id),
+            organization_id=str(principal.organization_id),
+            role=principal.role,
+            endpoint=getattr(endpoint, "__module__", None),
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -97,24 +143,13 @@ def enforce_route_permission(
         )
 
     if not has_permission(principal.role, permission):
-        logger.warning(
-            "Denied API route due to insufficient permission "
-            "user_id=%s organization_id=%s role=%s permission=%s method=%s path=%s",
-            principal.user_id,
-            principal.organization_id,
-            principal.role,
-            permission,
-            request.method,
-            request.url.path,
-            extra={
-                "event": "authorization.permission_denied",
-                "user_id": str(principal.user_id),
-                "organization_id": str(principal.organization_id),
-                "role": principal.role,
-                "permission": permission,
-                "method": request.method,
-                "path": request.url.path,
-            },
+        log_security_event(
+            "authorization.permission_denied",
+            request=request,
+            user_id=str(principal.user_id),
+            organization_id=str(principal.organization_id),
+            role=principal.role,
+            permission=permission,
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

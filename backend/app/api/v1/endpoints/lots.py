@@ -39,9 +39,9 @@ STATUS_AFTER_EVENT = {
 
 
 def _get_lot(db: Session, lot_id: UUID, principal: Principal) -> Lot:
-    statement = tenant_select(
-        Lot, principal, allow_inspector_all_lots=True
-    ).where(Lot.id == lot_id)
+    statement = tenant_select(Lot, principal, allow_cross_tenant_read=True).where(
+        Lot.id == lot_id
+    )
     lot = db.scalar(statement)
     if lot is not None:
         return lot
@@ -60,7 +60,11 @@ def _event(
         raise HTTPException(status_code=422, detail="occurred_at phải có múi giờ.")
     return LotEvent(
         lot_id=lot.id,
-        organization_id=principal.organization_id,
+        # The event belongs to the organization that currently custodies the
+        # lot, not to whoever happened to write the event. Custody transfers
+        # move `lots.organization_id`, so deriving this from the lot keeps the
+        # append-only provenance history consistent.
+        organization_id=lot.organization_id,
         actor_user_id=principal.user_id,
         event_type=event_type,
         occurred_at=occurred_at,
@@ -76,13 +80,9 @@ def list_lots(
     db: Annotated[Session, Depends(get_db)],
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=100),
-    status_filter: LotStatus | None = Query(default=None, alias="status"),
+    status_filter: Annotated[LotStatus | None, Query(alias="status")] = None,
 ) -> Page[LotRead]:
-    base = tenant_select(
-        Lot,
-        principal,
-        allow_inspector_all_lots=principal.role == "inspector",
-    )
+    base = tenant_select(Lot, principal, allow_cross_tenant_read=True)
     if status_filter is not None:
         base = base.where(Lot.status == status_filter.value)
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
@@ -108,6 +108,11 @@ def create_lot(
     ):
         raise HTTPException(status_code=422, detail="harvested_at phải có múi giờ.")
 
+    initial_status = (
+        LotStatus.harvested.value
+        if payload.harvested_at is not None
+        else LotStatus.created.value
+    )
     lot = Lot(
         public_code=secrets.token_urlsafe(32),
         lot_number=payload.lot_number,
@@ -117,7 +122,7 @@ def create_lot(
         origin_farm_id=payload.origin_farm_id,
         quantity=payload.quantity,
         unit=payload.unit.strip(),
-        status=LotStatus.created.value,
+        status=initial_status,
         harvested_at=payload.harvested_at,
         created_by_id=principal.user_id,
     )
@@ -132,6 +137,16 @@ def create_lot(
             payload.public_note,
         )
     )
+    if payload.harvested_at is not None:
+        db.add(
+            _event(
+                lot,
+                principal,
+                "harvested",
+                payload.harvested_at,
+                payload.public_note,
+            )
+        )
     try:
         db.commit()
     except IntegrityError as error:
@@ -182,9 +197,7 @@ def add_lot_event(
     db: Annotated[Session, Depends(get_db)],
 ) -> LotEvent:
     lot = db.scalar(
-        tenant_select(Lot, principal)
-        .where(Lot.id == lot_id)
-        .with_for_update()
+        tenant_select(Lot, principal).where(Lot.id == lot_id).with_for_update()
     )
     if lot is None:
         return get_tenant_record(db, Lot, lot_id, principal)
@@ -230,11 +243,14 @@ def derive_lot(
 ) -> Lot:
     if payload.relation_type == "merge" and len(payload.source_allocations) < 2:
         raise HTTPException(status_code=422, detail="Merge cần ít nhất hai lô nguồn.")
+    if payload.relation_type == "split" and len(payload.source_allocations) != 1:
+        raise HTTPException(status_code=422, detail="Split cần đúng một lô nguồn.")
     if payload.quantity > sum(
         (allocation.quantity for allocation in payload.source_allocations), Decimal(0)
     ):
         raise HTTPException(
-            status_code=422, detail="Sản lượng lô mới không thể vượt tổng nguyên liệu nguồn."
+            status_code=422,
+            detail="Sản lượng lô mới không thể vượt tổng nguyên liệu nguồn.",
         )
 
     source_ids = sorted(
@@ -263,10 +279,16 @@ def derive_lot(
 
     for allocation in payload.source_allocations:
         source = source_by_id[allocation.lot_id]
-        if source.status in {LotStatus.in_transit.value, LotStatus.sold.value, LotStatus.discarded.value}:
+        if source.status in {
+            LotStatus.in_transit.value,
+            LotStatus.sold.value,
+            LotStatus.discarded.value,
+        }:
             raise HTTPException(status_code=409, detail="Lô nguồn không còn khả dụng.")
         if source.unit.casefold() != payload.unit.casefold():
-            raise HTTPException(status_code=422, detail="Đơn vị các lô phải thống nhất.")
+            raise HTTPException(
+                status_code=422, detail="Đơn vị các lô phải thống nhất."
+            )
         remaining = source.quantity - already_allocated.get(source.id, Decimal(0))
         if allocation.quantity > remaining:
             raise HTTPException(
