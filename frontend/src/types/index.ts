@@ -51,6 +51,13 @@ export interface FarmPayload {
   longitude: number | string
 }
 
+export interface Lot {
+  id: string
+  organization_id: string
+  farm_id: string
+  name: string
+}
+
 export const ROLE_LABELS: Record<RoleCode, string> = {
   grower: 'Nông hộ / Trang trại',
   cooperative: 'Hợp tác xã',

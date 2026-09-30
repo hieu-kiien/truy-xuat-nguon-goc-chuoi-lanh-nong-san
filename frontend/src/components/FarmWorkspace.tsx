@@ -9,9 +9,10 @@ import {
   type SessionUser,
 } from '../types'
 import { IntegrityPanel } from './IntegrityPanel'
+import { LotsPanel } from './LotsPanel'
 import { SecurityPanel } from './SecurityPanel'
 
-export type WorkspaceTab = 'overview' | 'security' | 'integrity'
+export type WorkspaceTab = 'lots' | 'overview' | 'security' | 'integrity'
 
 interface FarmWorkspaceProps {
   user: SessionUser
@@ -62,6 +63,7 @@ export function FarmWorkspace({
 }: FarmWorkspaceProps) {
   const canReadFarms = hasPermission(user.role, 'farms:read')
   const canWriteFarms = hasPermission(user.role, 'farms:write')
+  const canReadLots = hasPermission(user.role, 'lots:read')
   const grantedPermissions = ROLE_PERMISSIONS[user.role] ?? []
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -158,6 +160,7 @@ export function FarmWorkspace({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const form = event.currentTarget
     setSaving(true)
     setFormFeedback(null)
 
@@ -188,6 +191,7 @@ export function FarmWorkspace({
         })
         onNotify(`Đã thêm vùng trồng: ${created.name}`)
       }
+      form.reset()
       resetForm()
     } catch (err) {
       setFormFeedback({
@@ -264,6 +268,20 @@ export function FarmWorkspace({
 
             <nav className="sidebar-nav">
               <ul className="sidebar-nav-list">
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onTabChange('lots')
+                      setSidebarOpen(false)
+                    }}
+                    className={`dashboard-nav-item ${
+                      activeTab === 'lots' ? 'dashboard-nav-item-active' : ''
+                    }`}
+                  >
+                    Danh sách lô
+                  </button>
+                </li>
                 <li>
                   <button
                     type="button"
@@ -352,7 +370,9 @@ export function FarmWorkspace({
               </button>
               <div>
                 <h1 className="topbar-title">
-                  {activeTab === 'overview'
+                  {activeTab === 'lots'
+                    ? 'Danh sách lô'
+                    : activeTab === 'overview'
                     ? 'Quản lý Vùng trồng & Thửa đất'
                     : activeTab === 'security'
                       ? 'Phân quyền RBAC & Cô lập Đa tổ chức (RLS)'
@@ -376,18 +396,21 @@ export function FarmWorkspace({
                   aria-label="Tìm kiếm vùng trồng"
                 />
               )}
-              <button
-                type="button"
-                className="ds-button ds-button-brand ds-button-sm"
-                onClick={() => void refreshFarms()}
-              >
-                Làm mới dữ liệu
-              </button>
+              {activeTab !== 'lots' && (
+                <button
+                  type="button"
+                  className="ds-button ds-button-brand ds-button-sm"
+                  onClick={() => void refreshFarms()}
+                >
+                  Làm mới dữ liệu
+                </button>
+              )}
             </div>
           </header>
 
           <main className="dashboard-content">
-            <section aria-label="Chỉ số tổng quan">
+            {activeTab === 'overview' && (
+              <section aria-label="Chỉ số tổng quan">
               <div className="stats-grid">
                 <article className="stat-card sticker-panel">
                   <p className="stat-label">Số vùng trồng thuộc đơn vị</p>
@@ -435,7 +458,10 @@ export function FarmWorkspace({
                   </p>
                 </article>
               </div>
-            </section>
+              </section>
+            )}
+
+            {activeTab === 'lots' && <LotsPanel canReadLots={canReadLots} />}
 
             {activeTab === 'overview' && (
               <>

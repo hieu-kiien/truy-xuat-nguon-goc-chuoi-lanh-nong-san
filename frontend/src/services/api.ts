@@ -3,6 +3,7 @@ import type {
   FarmPayload,
   HealthResponse,
   LoginRequest,
+  Lot,
   SessionUser,
 } from '../types'
 
@@ -64,6 +65,27 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   })
 
   if (!response.ok) {
+    if (
+      response.status === 401 &&
+      path !== '/api/v1/auth/login' &&
+      path !== '/api/v1/auth/me' &&
+      typeof window !== 'undefined' &&
+      window.location.pathname !== '/login'
+    ) {
+      const protectedPaths = new Set([
+        '/lots',
+        '/farms',
+        '/security',
+        '/integrity',
+      ])
+      const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
+      const returnPath = protectedPaths.has(window.location.pathname)
+        ? currentPath
+        : '/lots'
+      window.location.replace(
+        `/login?next=${encodeURIComponent(returnPath)}`
+      )
+    }
     const message = await parseErrorMessage(response)
     throw new ApiError(response.status, message)
   }
@@ -89,6 +111,8 @@ export const logout = () =>
   request<void>('/api/v1/auth/logout', { method: 'POST' })
 
 export const getFarms = () => request<Farm[]>('/api/v1/farms/')
+
+export const getLots = () => request<Lot[]>('/api/v1/lots/')
 
 export const getFarm = (farmId: string) =>
   request<Farm>(`/api/v1/farms/${farmId}`)
