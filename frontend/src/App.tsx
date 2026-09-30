@@ -31,8 +31,16 @@ export default function App() {
     }
     toastTimerRef.current = window.setTimeout(() => {
       setToastVisible(false)
-    }, 2600)
+    }, 2400)
   }, [])
+
+  const toggleTheme = useCallback(() => {
+    setIsDark((prev) => {
+      const next = !prev
+      notify(next ? 'Đã chuyển sang giao diện Tối' : 'Đã chuyển sang giao diện Sáng')
+      return next
+    })
+  }, [notify])
 
   useEffect(() => {
     const root = document.documentElement
@@ -103,13 +111,18 @@ export default function App() {
           key={currentUser.id}
           user={currentUser}
           activeTab={activeTab}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
           onTabChange={(tab) => setActiveTab(tab)}
+          onSwitchUser={(nextUser) => setCurrentUser(nextUser)}
           onLogout={() => void handleLogout()}
           onNotify={notify}
         />
       ) : (
         <LoginView
           backendOnline={backendOnline}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
           onLoginSuccess={(user) => {
             setCurrentUser(user)
             setActiveTab('overview')
@@ -117,60 +130,6 @@ export default function App() {
           onNotify={notify}
         />
       )}
-
-      <nav className="sc-switcher-bar" aria-label="Điều hướng nhanh và giao diện">
-        {currentUser ? (
-          <>
-            <button
-              type="button"
-              onClick={() => setActiveTab('overview')}
-              className={`sc-switcher__btn ${
-                activeTab === 'overview' ? 'sc-switcher__btn--active' : ''
-              }`}
-            >
-              Vùng trồng
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('security')}
-              className={`sc-switcher__btn ${
-                activeTab === 'security' ? 'sc-switcher__btn--active' : ''
-              }`}
-            >
-              Phân quyền RLS
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('integrity')}
-              className={`sc-switcher__btn ${
-                activeTab === 'integrity' ? 'sc-switcher__btn--active' : ''
-              }`}
-            >
-              Chuỗi Hash
-            </button>
-          </>
-        ) : (
-          <span className="sc-switcher__btn sc-switcher__btn--active">
-            Xác thực phiên
-          </span>
-        )}
-
-        <button
-          type="button"
-          className="sc-switcher__btn"
-          onClick={() => {
-            setIsDark((prev) => !prev)
-            notify(
-              !isDark
-                ? 'Đã chuyển sang giao diện Tối'
-                : 'Đã chuyển sang giao diện Sáng'
-            )
-          }}
-          aria-label="Chuyển đổi giao diện Sáng / Tối"
-        >
-          {isDark ? 'Giao diện Sáng' : 'Giao diện Tối'}
-        </button>
-      </nav>
 
       <div
         className={`toast-banner ${toastVisible ? 'show' : ''}`}
