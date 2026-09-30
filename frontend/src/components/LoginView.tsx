@@ -4,12 +4,16 @@ import type { SessionUser } from '../types'
 
 interface LoginViewProps {
   backendOnline: boolean | null
+  isDark: boolean
+  onToggleTheme: () => void
   onLoginSuccess: (user: SessionUser) => void
   onNotify: (message: string) => void
 }
 
 export function LoginView({
   backendOnline,
+  isDark,
+  onToggleTheme,
   onLoginSuccess,
   onNotify,
 }: LoginViewProps) {
@@ -30,21 +34,14 @@ export function LoginView({
     syncAriaInvalid(event.currentTarget)
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const form = event.currentTarget
-    const inputs = form.querySelectorAll<HTMLInputElement>('input[required]')
-    inputs.forEach(syncAriaInvalid)
-
-    if (!form.checkValidity()) {
-      return
-    }
-
+  const executeLogin = async (targetEmail: string, targetPassword: string) => {
     setSubmitting(true)
     setErrorMessage(null)
-
     try {
-      const user = await login({ email: email.trim(), password })
+      const user = await login({
+        email: targetEmail.trim(),
+        password: targetPassword,
+      })
       onNotify(`Đăng nhập thành công: ${user.full_name}`)
       onLoginSuccess(user)
     } catch (err) {
@@ -56,135 +53,183 @@ export function LoginView({
     }
   }
 
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const form = event.currentTarget
+    const inputs = form.querySelectorAll<HTMLInputElement>('input[required]')
+    inputs.forEach(syncAriaInvalid)
+
+    if (!form.checkValidity()) {
+      return
+    }
+
+    await executeLogin(email, password)
+  }
+
   return (
     <div className="login-hero section-pattern">
       <div className="login-container">
-        <header className="login-banner">
-          <div className="pill-tag">
-            <span>
-              {backendOnline === true
-                ? 'Backend Online'
-                : backendOnline === false
-                  ? 'Backend Offline'
-                  : 'Đang kết nối máy chủ'}
-            </span>
-            <span>&bull;</span>
-            <a
-              href={`${API_BASE_URL}/docs`}
-              target="_blank"
-              rel="noreferrer"
-              className="pill-link"
-            >
-              OpenAPI Swagger
-            </a>
+        <header className="login-topbar">
+          <div className="login-banner-compact">
+            <h1>AgroChain — Hệ thống Truy xuất Nguồn gốc &amp; Giám sát Chuỗi lạnh</h1>
+            <p>
+              Kiến trúc Đa tổ chức (PostgreSQL RLS), Phân quyền RBAC và Xác thực
+              Chuỗi Băm SHA-256
+            </p>
           </div>
-          <h1>AgroChain — Truy xuất Nguồn gốc Chuỗi lạnh</h1>
-          <p>
-            Nền tảng quản lý vùng trồng, giám sát nhiệt độ bảo quản và xác thực toàn vẹn
-            chuỗi sự kiện nông sản
-          </p>
+
+          <div className="action-row">
+            <div className="pill-tag">
+              <span>
+                {backendOnline === true
+                  ? 'API: Online'
+                  : backendOnline === false
+                    ? 'API: Offline'
+                    : 'API: Đang kết nối'}
+              </span>
+              <span>&bull;</span>
+              <a
+                href={`${API_BASE_URL}/docs`}
+                target="_blank"
+                rel="noreferrer"
+                className="pill-link"
+              >
+                Swagger Docs
+              </a>
+            </div>
+
+            <button
+              type="button"
+              className="ds-button ds-button-secondary ds-button-sm"
+              onClick={onToggleTheme}
+            >
+              {isDark ? 'Giao diện: Sáng' : 'Giao diện: Tối'}
+            </button>
+          </div>
         </header>
 
         <div className="auth-grid">
-          <section className="sticker-panel auth-panel">
-            <div className="panel-head">
-              <h2>Đăng nhập hệ thống</h2>
-              <p className="panel-sub">
-                Xác thực phiên làm việc theo đơn vị thành viên trong chuỗi cung ứng
-              </p>
-            </div>
-
-            {errorMessage && (
-              <div className="alert-box alert-error" role="alert">
-                {errorMessage}
+          <div className="info-stack">
+            <section className="panel-card auth-panel">
+              <div className="panel-head">
+                <h2>Đăng nhập Phiên Làm việc (N3-5)</h2>
+                <span className="status-badge status-done">Argon2id + Cookie</span>
               </div>
-            )}
 
-            <form onSubmit={handleSubmit} className="form-stack" noValidate>
-              <div className="form-field">
-                <label htmlFor="login-email">
-                  Địa chỉ Email <span className="required-mark">*</span>
-                </label>
-                <input
-                  id="login-email"
-                  name="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onBlur={handleBlur}
-                  onChange={(e) => {
-                    setEmail(e.target.value)
-                    if (e.currentTarget.checkValidity()) {
-                      e.currentTarget.removeAttribute('aria-invalid')
-                    }
-                  }}
-                  placeholder="ten@tochuc.vn"
-                  aria-errormessage="login-email-error"
-                />
-                <div id="login-email-error" className="field-error">
-                  [!] Vui lòng nhập địa chỉ email hợp lệ.
+              {errorMessage && (
+                <div className="alert-box alert-error" role="alert">
+                  {errorMessage}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="form-stack" noValidate>
+                <div className="form-field">
+                  <label htmlFor="login-email">
+                    Địa chỉ Email <span className="required-mark">*</span>
+                  </label>
+                  <input
+                    id="login-email"
+                    name="email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={email}
+                    onBlur={handleBlur}
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      if (e.currentTarget.checkValidity()) {
+                        e.currentTarget.removeAttribute('aria-invalid')
+                      }
+                    }}
+                    placeholder="ten@tochuc.vn"
+                    aria-errormessage="login-email-error"
+                  />
+                  <div id="login-email-error" className="field-error">
+                    [!] Vui lòng nhập địa chỉ email hợp lệ.
+                  </div>
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="login-password">
+                    Mật khẩu <span className="required-mark">*</span>
+                  </label>
+                  <input
+                    id="login-password"
+                    name="password"
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    value={password}
+                    onBlur={handleBlur}
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      if (e.currentTarget.checkValidity()) {
+                        e.currentTarget.removeAttribute('aria-invalid')
+                      }
+                    }}
+                    placeholder="Nhập mật khẩu"
+                    aria-errormessage="login-password-error"
+                  />
+                  <div id="login-password-error" className="field-error">
+                    [!] Mật khẩu không được để trống.
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="ds-button ds-button-brand ds-button-block"
+                  disabled={submitting}
+                >
+                  {submitting
+                    ? 'Đang xác thực phiên...'
+                    : 'Đăng nhập vào Không gian điều hành'}
+                </button>
+
+                <p className="security-footnote">
+                  Chống Brute-force: Khóa tạm thời 15 phút nếu sai mật khẩu 5 lần
+                  liên tiếp.
+                </p>
+              </form>
+            </section>
+
+            <section className="panel-card auth-panel">
+              <div className="panel-head">
+                <h2>Thông số Kỹ thuật Các Phân hệ Đã Tích hợp</h2>
+              </div>
+              <div className="info-grid-2">
+                <div className="info-item">
+                  <span className="info-item-label">N3-4 · Toàn vẹn Chuỗi lạnh</span>
+                  <strong className="info-item-value">SHA-256 + RFC 8785</strong>
+                </div>
+                <div className="info-item">
+                  <span className="info-item-label">N3-5 · Quản lý Phiên</span>
+                  <strong className="info-item-value">Argon2id + SHA-256 Digest</strong>
+                </div>
+                <div className="info-item">
+                  <span className="info-item-label">N3-6 · Đa tổ chức &amp; Phân quyền</span>
+                  <strong className="info-item-value">PostgreSQL FORCE RLS</strong>
+                </div>
+                <div className="info-item">
+                  <span className="info-item-label">N3-7 · Danh mục Vùng trồng</span>
+                  <strong className="info-item-value">UUID Cố định + GPS WGS84</strong>
                 </div>
               </div>
+            </section>
+          </div>
 
-              <div className="form-field">
-                <label htmlFor="login-password">
-                  Mật khẩu <span className="required-mark">*</span>
-                </label>
-                <input
-                  id="login-password"
-                  name="password"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onBlur={handleBlur}
-                  onChange={(e) => {
-                    setPassword(e.target.value)
-                    if (e.currentTarget.checkValidity()) {
-                      e.currentTarget.removeAttribute('aria-invalid')
-                    }
-                  }}
-                  placeholder="Nhập mật khẩu"
-                  aria-errormessage="login-password-error"
-                />
-                <div id="login-password-error" className="field-error">
-                  [!] Mật khẩu không được để trống.
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="ds-button ds-button-brand ds-button-block"
-                disabled={submitting}
-              >
-                {submitting ? 'Đang xác thực phiên...' : 'Đăng nhập vào Không gian làm việc'}
-              </button>
-
-              <p className="security-footnote">
-                Bảo mật Argon2id &amp; chống dò mật khẩu: Tự động khóa 15 phút nếu nhập
-                sai 5 lần liên tiếp.
-              </p>
-            </form>
-          </section>
-
-          <aside className="sticker-panel auth-panel">
+          <aside className="panel-card auth-panel">
             <div className="panel-head">
               <h2>Bảo vệ phiên đăng nhập</h2>
-              <p className="panel-sub">
-                Phiên làm việc được xác thực bằng cookie HttpOnly; mã phiên không được
-                đưa vào JavaScript hoặc lưu trong Web Storage.
-              </p>
             </div>
 
             <div className="demo-cards-stack">
               <p className="demo-sticker-role">
-                Mật khẩu được kiểm tra bằng Argon2id. Sau năm lần đăng nhập sai liên
-                tiếp, tài khoản tạm khóa trong 15 phút.
+                Phiên đăng nhập sử dụng cookie HttpOnly; mã phiên không được đưa
+                vào JavaScript hoặc lưu trong Web Storage.
               </p>
               <p className="demo-sticker-desc">
-                Quyền truy cập và cách ly tổ chức được áp dụng phía máy chủ và
-                PostgreSQL.
+                Tài khoản demo chỉ được khởi tạo trong môi trường phát triển cục
+                bộ, không được nhúng thông tin đăng nhập vào giao diện.
               </p>
             </div>
           </aside>

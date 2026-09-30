@@ -33,19 +33,16 @@ function safeWorkspacePath(candidate: string | null): string | null {
 }
 
 function routeForTab(tab: WorkspaceTab): string {
-  return tab === 'overview'
-    ? '/farms'
-    : tab === 'security'
-      ? '/security'
-      : tab === 'integrity'
-        ? '/integrity'
-        : '/lots'
+  if (tab === 'overview') return '/farms'
+  if (tab === 'security') return '/security'
+  if (tab === 'integrity') return '/integrity'
+  return '/lots'
 }
 
 function tabForPath(pathname: string): WorkspaceTab {
+  if (pathname === '/farms') return 'overview'
   if (pathname === '/security') return 'security'
   if (pathname === '/integrity') return 'integrity'
-  if (pathname === '/farms') return 'overview'
   return 'lots'
 }
 
@@ -60,6 +57,7 @@ export default function App() {
   const [initialLocation] = useState(readLocation)
   const [location, setLocation] = useState(initialLocation)
   const activeTab = tabForPath(location.pathname)
+  const currentUserRef = useRef<SessionUser | null>(null)
   const [isDark, setIsDark] = useState<boolean>(() => {
     try {
       return localStorage.getItem(THEME_STORAGE_KEY) === 'dark'
@@ -80,10 +78,13 @@ export default function App() {
     }
     toastTimerRef.current = window.setTimeout(() => {
       setToastVisible(false)
-    }, 2600)
+    }, 2400)
   }, [])
 
   const navigate = useCallback((path: string, replace = false) => {
+    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    if (path === currentPath) return
+
     if (replace) {
       window.history.replaceState(null, '', path)
     } else {
@@ -92,8 +93,33 @@ export default function App() {
     setLocation(readLocation())
   }, [])
 
+  const toggleTheme = useCallback(() => {
+    setIsDark((prev) => {
+      const next = !prev
+      notify(next ? 'Đã chuyển sang giao diện Tối' : 'Đã chuyển sang giao diện Sáng')
+      return next
+    })
+  }, [notify])
+
   useEffect(() => {
-    const syncLocation = () => setLocation(readLocation())
+    const syncLocation = () => {
+      let nextLocation = readLocation()
+      if (!currentUserRef.current && nextLocation.pathname !== '/login') {
+        const returnTo =
+          safeWorkspacePath(
+            `${nextLocation.pathname}${nextLocation.search}${nextLocation.hash}`
+          ) ?? '/lots'
+        window.history.replaceState(null, '', loginPath(returnTo))
+        nextLocation = readLocation()
+      } else if (
+        currentUserRef.current &&
+        !WORKSPACE_PATHS.has(nextLocation.pathname)
+      ) {
+        window.history.replaceState(null, '', '/lots')
+        nextLocation = readLocation()
+      }
+      setLocation(nextLocation)
+    }
     window.addEventListener('popstate', syncLocation)
     return () => window.removeEventListener('popstate', syncLocation)
   }, [])
@@ -139,6 +165,7 @@ export default function App() {
       try {
         const user = await getCurrentUser()
         if (active) {
+          currentUserRef.current = user
           setCurrentUser(user)
           if (
             initialLocation.pathname === '/' ||
@@ -154,6 +181,7 @@ export default function App() {
         }
       } catch {
         if (active) {
+          currentUserRef.current = null
           setCurrentUser(null)
           if (initialLocation.pathname !== '/login') {
             navigate(loginPath(initialReturnTo), true)
@@ -179,6 +207,7 @@ export default function App() {
         return
       }
     }
+    currentUserRef.current = null
     setCurrentUser(null)
     navigate(loginPath('/lots'), true)
     notify('Đã đăng xuất khỏi phiên làm việc')
@@ -188,7 +217,7 @@ export default function App() {
     <>
       {initializing ? (
         <div className="login-hero section-pattern init-screen">
-          <div className="sticker-panel init-card">
+          <div className="panel-card init-card">
             <h2>AgroChain đang khởi tạo...</h2>
             <p className="panel-sub">
               Đang đồng bộ trạng thái phiên làm việc với máy chủ
@@ -200,6 +229,8 @@ export default function App() {
           key={currentUser.id}
           user={currentUser}
           activeTab={activeTab}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
           onTabChange={(tab) => navigate(routeForTab(tab))}
           onLogout={() => void handleLogout()}
           onNotify={notify}
@@ -207,7 +238,10 @@ export default function App() {
       ) : (
         <LoginView
           backendOnline={backendOnline}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
           onLoginSuccess={(user) => {
+            currentUserRef.current = user
             setCurrentUser(user)
             const requestedReturnTo = safeWorkspacePath(
               new URLSearchParams(location.search).get('next')
@@ -217,69 +251,6 @@ export default function App() {
           onNotify={notify}
         />
       )}
-
-      <nav className="sc-switcher-bar" aria-label="Điều hướng nhanh và giao diện">
-        {currentUser ? (
-          <>
-            <button
-              type="button"
-              onClick={() => navigate('/lots')}
-              className={`sc-switcher__btn ${
-                activeTab === 'lots' ? 'sc-switcher__btn--active' : ''
-              }`}
-            >
-              Danh sách lô
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/farms')}
-              className={`sc-switcher__btn ${
-                activeTab === 'overview' ? 'sc-switcher__btn--active' : ''
-              }`}
-            >
-              Vùng trồng
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/security')}
-              className={`sc-switcher__btn ${
-                activeTab === 'security' ? 'sc-switcher__btn--active' : ''
-              }`}
-            >
-              Phân quyền RLS
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/integrity')}
-              className={`sc-switcher__btn ${
-                activeTab === 'integrity' ? 'sc-switcher__btn--active' : ''
-              }`}
-            >
-              Chuỗi Hash
-            </button>
-          </>
-        ) : (
-          <span className="sc-switcher__btn sc-switcher__btn--active">
-            Xác thực phiên
-          </span>
-        )}
-
-        <button
-          type="button"
-          className="sc-switcher__btn"
-          onClick={() => {
-            setIsDark((prev) => !prev)
-            notify(
-              !isDark
-                ? 'Đã chuyển sang giao diện Tối'
-                : 'Đã chuyển sang giao diện Sáng'
-            )
-          }}
-          aria-label="Chuyển đổi giao diện Sáng / Tối"
-        >
-          {isDark ? 'Giao diện Sáng' : 'Giao diện Tối'}
-        </button>
-      </nav>
 
       <div
         className={`toast-banner ${toastVisible ? 'show' : ''}`}

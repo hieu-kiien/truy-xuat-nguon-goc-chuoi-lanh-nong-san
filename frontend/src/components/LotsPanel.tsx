@@ -51,7 +51,7 @@ export function LotsPanel({ canReadLots }: LotsPanelProps) {
 
   if (!canReadLots) {
     return (
-      <section className="sticker-panel panel-box" role="status">
+      <section className="panel-card panel-box" role="status">
         Tài khoản này không có quyền xem danh sách lô.
       </section>
     )
@@ -59,7 +59,7 @@ export function LotsPanel({ canReadLots }: LotsPanelProps) {
 
   return (
     <section
-      className="data-table-wrapper sticker-panel"
+      className="data-table-wrapper panel-card"
       aria-labelledby="lots-table-title"
     >
       <div className="data-table-header">

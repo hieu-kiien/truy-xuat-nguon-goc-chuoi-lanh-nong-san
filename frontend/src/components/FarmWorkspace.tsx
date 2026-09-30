@@ -1,62 +1,36 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
-import { API_BASE_URL, createFarm, getFarms, updateFarm } from '../services/api'
+import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
+import { createFarm, getFarms, updateFarm } from '../services/api'
 import {
   hasPermission,
-  ORG_TYPE_LABELS,
   ROLE_LABELS,
   ROLE_PERMISSIONS,
   type Farm,
   type SessionUser,
 } from '../types'
+import { FarmFormPanel } from './FarmFormPanel'
 import { IntegrityPanel } from './IntegrityPanel'
 import { LotsPanel } from './LotsPanel'
 import { SecurityPanel } from './SecurityPanel'
+import { WorkspaceSidebar } from './WorkspaceSidebar'
+import { WorkspaceTopbar } from './WorkspaceTopbar'
 
 export type WorkspaceTab = 'lots' | 'overview' | 'security' | 'integrity'
 
 interface FarmWorkspaceProps {
   user: SessionUser
   activeTab: WorkspaceTab
+  isDark: boolean
+  onToggleTheme: () => void
   onTabChange: (tab: WorkspaceTab) => void
   onLogout: () => void
   onNotify: (message: string) => void
 }
 
-interface PresetLocation {
-  label: string
-  name: string
-  area_ha: string
-  latitude: string
-  longitude: string
-}
-
-const PRESET_LOCATIONS: PresetLocation[] = [
-  {
-    label: 'Mẫu Đà Lạt',
-    name: 'Phân khu Rau hữu cơ Trại Mát',
-    area_ha: '3.2500',
-    latitude: '11.924850',
-    longitude: '108.497210',
-  },
-  {
-    label: 'Mẫu Mộc Châu',
-    name: 'Đồi Dâu tây Bản Áng Khu B',
-    area_ha: '4.5000',
-    latitude: '20.828640',
-    longitude: '104.661520',
-  },
-  {
-    label: 'Mẫu Tiền Giang',
-    name: 'Vùng trồng Xoài Cát Hòa Lộc Cái Bè',
-    area_ha: '6.1000',
-    latitude: '10.334910',
-    longitude: '106.028450',
-  },
-]
-
 export function FarmWorkspace({
   user,
   activeTab,
+  isDark,
+  onToggleTheme,
   onTabChange,
   onLogout,
   onNotify,
@@ -79,6 +53,7 @@ export function FarmWorkspace({
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const [formFeedback, setFormFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -149,18 +124,11 @@ export function FarmWorkspace({
     onNotify(`Đang chỉnh sửa: ${farm.name}`)
   }
 
-  const applyPreset = (preset: PresetLocation) => {
-    setName(preset.name)
-    setAreaHa(preset.area_ha)
-    setLatitude(preset.latitude)
-    setLongitude(preset.longitude)
-    setFormFeedback(null)
-    onNotify(`Đã điền mẫu: ${preset.name}`)
-  }
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const form = event.currentTarget
+    if (savingRef.current) return
+
+    savingRef.current = true
     setSaving(true)
     setFormFeedback(null)
 
@@ -179,7 +147,7 @@ export function FarmWorkspace({
         )
         setFormFeedback({
           type: 'success',
-          message: `Đã cập nhật "${updated.name}" (ID cố định: ${updated.id}).`,
+          message: `Đã cập nhật "${updated.name}" (UUID cố định: ${updated.id.slice(0, 8)}...).`,
         })
         onNotify(`Đã lưu cập nhật: ${updated.name}`)
       } else {
@@ -187,11 +155,10 @@ export function FarmWorkspace({
         setFarms((prev) => [...prev, created])
         setFormFeedback({
           type: 'success',
-          message: `Đã khai báo vùng trồng mới "${created.name}".`,
+          message: `Đã thêm vùng trồng "${created.name}".`,
         })
         onNotify(`Đã thêm vùng trồng: ${created.name}`)
       }
-      form.reset()
       resetForm()
     } catch (err) {
       setFormFeedback({
@@ -199,12 +166,13 @@ export function FarmWorkspace({
         message: err instanceof Error ? err.message : 'Không thể lưu vùng trồng',
       })
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
 
   const runForbiddenProbe = async () => {
-    setRbacProbeResult('Đang gửi yêu cầu GET /api/v1/farms/ tới Backend...')
+    setRbacProbeResult('Đang gửi GET /api/v1/farms/ tới Backend...')
     try {
       await getFarms()
       setRbacProbeResult(
@@ -236,6 +204,7 @@ export function FarmWorkspace({
     (sum, item) => sum + (Number(item.area_ha) || 0),
     0
   )
+  const avgAreaHa = farms.length > 0 ? totalAreaHa / farms.length : 0
   const maxAreaHa = Math.max(
     ...farms.map((item) => Number(item.area_ha) || 1),
     5
@@ -253,199 +222,82 @@ export function FarmWorkspace({
       )}
 
       <div className="dashboard-layout">
-        <aside
-          className={`dashboard-sidebar ${
-            sidebarOpen ? 'dashboard-sidebar-open' : ''
-          }`}
-          aria-label="Điều hướng chính"
-        >
-          <div>
-            <div className="sidebar-brand">
-              <span className="sidebar-brand-badge">Chuỗi Lạnh Nông Sản</span>
-              <div className="sidebar-brand-title">AgroChain</div>
-              <p className="sidebar-brand-sub">{user.organization_name}</p>
-            </div>
-
-            <nav className="sidebar-nav">
-              <ul className="sidebar-nav-list">
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onTabChange('lots')
-                      setSidebarOpen(false)
-                    }}
-                    className={`dashboard-nav-item ${
-                      activeTab === 'lots' ? 'dashboard-nav-item-active' : ''
-                    }`}
-                  >
-                    Danh sách lô
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onTabChange('overview')
-                      setSidebarOpen(false)
-                    }}
-                    className={`dashboard-nav-item ${
-                      activeTab === 'overview' ? 'dashboard-nav-item-active' : ''
-                    }`}
-                  >
-                    Vùng trồng &amp; Thửa đất
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onTabChange('security')
-                      setSidebarOpen(false)
-                    }}
-                    className={`dashboard-nav-item ${
-                      activeTab === 'security' ? 'dashboard-nav-item-active' : ''
-                    }`}
-                  >
-                    Phân quyền &amp; Cô lập RLS
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onTabChange('integrity')
-                      setSidebarOpen(false)
-                    }}
-                    className={`dashboard-nav-item ${
-                      activeTab === 'integrity' ? 'dashboard-nav-item-active' : ''
-                    }`}
-                  >
-                    Chuỗi Hash Sự kiện
-                  </button>
-                </li>
-                <li>
-                  <a
-                    href={`${API_BASE_URL}/docs`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="dashboard-nav-item"
-                  >
-                    Tài liệu API (Swagger)
-                  </a>
-                </li>
-              </ul>
-            </nav>
-          </div>
-
-          <div className="sidebar-footer">
-            <div className="sidebar-user-card">
-              <div className="sidebar-user-name">{user.full_name}</div>
-              <div className="sidebar-user-meta">{user.email}</div>
-              <div className="sidebar-user-meta">
-                Vai trò: <strong>{ROLE_LABELS[user.role]}</strong>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="ds-button ds-button-secondary ds-button-sm ds-button-block"
-              onClick={onLogout}
-            >
-              Đăng xuất phiên làm việc
-            </button>
-          </div>
-        </aside>
+        <WorkspaceSidebar
+          user={user}
+          activeTab={activeTab}
+          sidebarOpen={sidebarOpen}
+          onCloseSidebar={() => setSidebarOpen(false)}
+          onTabChange={onTabChange}
+          onLogout={onLogout}
+        />
 
         <div className="dashboard-main">
-          <header className="dashboard-topbar">
-            <div className="topbar-left">
-              <button
-                type="button"
-                className="dashboard-menu-btn"
-                aria-label="Mở thanh điều hướng"
-                onClick={() => setSidebarOpen((prev) => !prev)}
-              >
-                Menu
-              </button>
-              <div>
-                <h1 className="topbar-title">
-                  {activeTab === 'lots'
-                    ? 'Danh sách lô'
-                    : activeTab === 'overview'
-                    ? 'Quản lý Vùng trồng & Thửa đất'
-                    : activeTab === 'security'
-                      ? 'Phân quyền RBAC & Cô lập Đa tổ chức (RLS)'
-                      : 'Xác minh Toàn vẹn Chuỗi Sự kiện (SHA-256)'}
-                </h1>
-                <p className="panel-sub">
-                  Đơn vị: <strong>{user.organization_name}</strong> (
-                  {ORG_TYPE_LABELS[user.organization_type]})
-                </p>
-              </div>
-            </div>
-
-            <div className="topbar-actions">
-              {activeTab === 'overview' && canReadFarms && (
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm tên thửa đất, mã UUID..."
-                  className="dashboard-search"
-                  aria-label="Tìm kiếm vùng trồng"
-                />
-              )}
-              {activeTab !== 'lots' && (
-                <button
-                  type="button"
-                  className="ds-button ds-button-brand ds-button-sm"
-                  onClick={() => void refreshFarms()}
-                >
-                  Làm mới dữ liệu
-                </button>
-              )}
-            </div>
-          </header>
+          <WorkspaceTopbar
+            user={user}
+            activeTab={activeTab}
+            canReadFarms={canReadFarms}
+            searchQuery={searchQuery}
+            isDark={isDark}
+            onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+            onSearchChange={setSearchQuery}
+            onRefresh={() => void refreshFarms()}
+            onToggleTheme={onToggleTheme}
+          />
 
           <main className="dashboard-content">
-            {activeTab === 'overview' && (
-              <section aria-label="Chỉ số tổng quan">
+            <section aria-label="Chỉ số vận hành tổng hợp">
               <div className="stats-grid">
-                <article className="stat-card sticker-panel">
-                  <p className="stat-label">Số vùng trồng thuộc đơn vị</p>
-                  <p className="stat-value">
-                    {canReadFarms ? farms.length : 'Giới hạn'}
+                <article className="stat-card panel-card">
+                  <p className="stat-label">Đơn vị thành viên (Tenant)</p>
+                  <p
+                    className="stat-value stat-value-sans"
+                    title={user.organization_name}
+                  >
+                    {user.organization_name}
                   </p>
                   <p className="stat-trend">
-                    {canReadFarms
-                      ? 'Cô lập theo PostgreSQL RLS'
-                      : 'Vai trò không có quyền farms:read'}
+                    ID: {user.organization_id.slice(0, 8)}...
                   </p>
                 </article>
 
-                <article className="stat-card sticker-panel">
+                <article className="stat-card panel-card">
+                  <p className="stat-label">Vùng trồng thuộc đơn vị</p>
+                  <p className="stat-value">
+                    {canReadFarms ? `${farms.length} vùng` : 'Chặn (403)'}
+                  </p>
+                  <p className="stat-trend">
+                    {canReadFarms
+                      ? 'Cô lập bởi PostgreSQL RLS'
+                      : 'Không có quyền farms:read'}
+                  </p>
+                </article>
+
+                <article className="stat-card panel-card">
                   <p className="stat-label">Tổng diện tích canh tác</p>
                   <p className="stat-value">
                     {canReadFarms ? `${totalAreaHa.toFixed(2)} ha` : '—'}
                   </p>
-                  <p className="stat-trend">Đạt chuẩn truy xuất VietGAP</p>
+                  <p className="stat-trend">
+                    {canReadFarms
+                      ? `TB: ${avgAreaHa.toFixed(2)} ha / thửa`
+                      : 'Bị giới hạn theo RBAC'}
+                  </p>
                 </article>
 
-                <article className="stat-card sticker-panel">
-                  <p className="stat-label">Vai trò phiên hiện tại</p>
-                  <p className="stat-value stat-value-compact">
+                <article className="stat-card panel-card">
+                  <p className="stat-label">Vai trò &amp; Quyền RBAC</p>
+                  <p className="stat-value stat-value-sans">
                     {ROLE_LABELS[user.role]}
                   </p>
                   <p className="stat-trend">
-                    {grantedPermissions.length} quyền hạn được cấp
+                    <code>{user.role}</code> ({grantedPermissions.length} quyền)
                   </p>
                 </article>
 
-                <article className="stat-card sticker-panel">
-                  <p className="stat-label">Toàn vẹn chuỗi sự kiện</p>
+                <article className="stat-card panel-card">
+                  <p className="stat-label">Chuỗi băm sự kiện (N3-4)</p>
                   <p className="stat-value">
-                    {tamperSimulated ? 'Cảnh báo' : '100%'}
+                    {tamperSimulated ? 'Lỗi Hash!' : '4/4 Hợp lệ'}
                   </p>
                   <p
                     className={`stat-trend ${
@@ -453,268 +305,90 @@ export function FarmWorkspace({
                     }`}
                   >
                     {tamperSimulated
-                      ? 'Phát hiện sai lệch chữ ký băm!'
-                      : 'SHA-256 & RFC 8785 hợp lệ'}
+                      ? 'Phát hiện can thiệp tại #03'
+                      : 'SHA-256 · 147,8k sự kiện/s'}
                   </p>
                 </article>
+
+                <article className="stat-card panel-card">
+                  <p className="stat-label">Bảo mật phiên (N3-5)</p>
+                  <p className="stat-value stat-value-sans">Argon2id + Cookie</p>
+                  <p className="stat-trend">Khóa 15p nếu sai mật khẩu 5 lần</p>
+                </article>
               </div>
-              </section>
-            )}
+            </section>
 
             {activeTab === 'lots' && <LotsPanel canReadLots={canReadLots} />}
 
             {activeTab === 'overview' && (
               <>
-                {!canReadFarms ? (
-                  <section className="sticker-panel panel-box">
-                    <div className="panel-head">
-                      <h2>Giới hạn quyền truy cập Vùng trồng (RBAC)</h2>
-                      <p className="panel-sub">
-                        Tài khoản <strong>{user.email}</strong> có vai trò{' '}
-                        <code>{user.role}</code> (quyền hiện có:{' '}
-                        <code>{grantedPermissions.join(', ')}</code>). Theo thiết
-                        kế bảo mật N3-6, vai trò này không được phép đọc hoặc
-                        chỉnh sửa danh mục vùng trồng.
-                      </p>
-                    </div>
-
-                    <div className="action-row">
-                      <button
-                        type="button"
-                        className="ds-button ds-button-brand ds-button-sm"
-                        onClick={() => void runForbiddenProbe()}
-                      >
-                        Thử gọi GET /api/v1/farms/ (Kiểm chứng chặn 403)
-                      </button>
-                      <button
-                        type="button"
-                        className="ds-button ds-button-secondary ds-button-sm"
-                        onClick={() => onTabChange('security')}
-                      >
-                        Xem chi tiết Ma trận Phân quyền
-                      </button>
-                    </div>
-
-                    {rbacProbeResult && (
-                      <div className="alert-box alert-error alert-spaced">
-                        {rbacProbeResult}
+                <div className="dashboard-split-main">
+                  {!canReadFarms ? (
+                    <section className="panel-card panel-box">
+                      <div className="panel-head">
+                        <h2>
+                          Chặn Truy cập Danh mục Vùng trồng theo RBAC (N3-6)
+                        </h2>
+                        <span className="status-badge status-danger">
+                          HTTP 403 Forbidden
+                        </span>
                       </div>
-                    )}
-                  </section>
-                ) : (
-                  <>
-                    <div className="dashboard-panels">
-                      <section
-                        className="panel-box sticker-panel"
-                        aria-labelledby="chart-title"
-                      >
-                        <div className="panel-head">
-                          <h2 id="chart-title">Biểu đồ phân bổ diện tích (ha)</h2>
-                          <p className="panel-sub">
-                            Bấm vào từng cột để xem nhanh thông số thửa đất
-                          </p>
-                        </div>
+                      <p className="panel-sub">
+                        Tài khoản <strong>{user.email}</strong> đang mang vai trò{' '}
+                        <code>{user.role}</code> (quyền được cấp:{' '}
+                        <code>{grantedPermissions.join(', ')}</code>). Theo thiết
+                        kế bảo mật N3-6, vai trò Thanh tra viên chỉ đọc lô hàng (
+                        <code>lots:read_all</code>) và bị chặn truy cập trực tiếp
+                        vào API quản lý vùng trồng (<code>farms:read</code>,{' '}
+                        <code>farms:write</code>).
+                      </p>
 
-                        {farms.length === 0 ? (
-                          <p className="empty-message">
-                            Chưa có dữ liệu vùng trồng để hiển thị biểu đồ.
-                          </p>
-                        ) : (
-                          <div
-                            className="chart-bars"
-                            role="img"
-                            aria-label="Biểu đồ diện tích các vùng trồng"
-                          >
-                            {farms.map((farm, idx) => {
-                              const area = Number(farm.area_ha) || 0
-                              const heightPct = Math.max(
-                                18,
-                                Math.min(100, (area / maxAreaHa) * 100)
-                              )
-                              return (
-                                <div key={farm.id} className="chart-bar-col">
-                                  <span className="chart-bar-value">
-                                    {area.toFixed(1)}ha
-                                  </span>
-                                  <div
-                                    className="chart-bar"
-                                    style={{ height: `${heightPct}%` }}
-                                    title={`${farm.name}: ${area.toFixed(2)} ha`}
-                                    onClick={() =>
-                                      onNotify(
-                                        `${farm.name} — Diện tích: ${area.toFixed(2)} ha`
-                                      )
-                                    }
-                                  />
-                                  <span className="chart-bar-caption">
-                                    Lô #{idx + 1}
-                                  </span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </section>
-
-                      {canWriteFarms && (
-                        <section
-                          className="panel-box sticker-panel"
-                          aria-labelledby="form-title"
+                      <div className="action-row alert-spaced">
+                        <button
+                          type="button"
+                          className="ds-button ds-button-brand ds-button-sm"
+                          onClick={() => void runForbiddenProbe()}
                         >
-                          <div className="panel-head">
-                            <h2 id="form-title">
-                              {editingFarm
-                                ? 'Cập nhật Vùng trồng'
-                                : 'Khai báo Vùng trồng mới'}
-                            </h2>
-                            <p className="panel-sub">
-                              {editingFarm
-                                ? `Mã UUID bất biến: ${editingFarm.id}`
-                                : 'Điền thông tin diện tích (> 0 ha) và tọa độ GPS hợp lệ'}
-                            </p>
-                          </div>
+                          Gửi thử GET /api/v1/farms/ (Kiểm chứng chặn 403)
+                        </button>
+                        <button
+                          type="button"
+                          className="ds-button ds-button-secondary ds-button-sm"
+                          onClick={() => onTabChange('security')}
+                        >
+                          Mở Ma trận Phân quyền đầy đủ
+                        </button>
+                      </div>
 
-                          {!editingFarm && (
-                            <div className="preset-strip">
-                              {PRESET_LOCATIONS.map((preset) => (
-                                <button
-                                  key={preset.label}
-                                  type="button"
-                                  className="ds-button ds-button-secondary ds-button-sm"
-                                  onClick={() => applyPreset(preset)}
-                                >
-                                  {preset.label}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-
-                          {formFeedback && (
-                            <div
-                              className={`alert-box ${
-                                formFeedback.type === 'success'
-                                  ? 'alert-success'
-                                  : 'alert-error'
-                              }`}
-                              role="status"
-                            >
-                              {formFeedback.message}
-                            </div>
-                          )}
-
-                          <form onSubmit={handleSubmit} className="form-stack">
-                            <div className="form-field">
-                              <label htmlFor="farm-name">
-                                Tên vùng trồng / thửa đất{' '}
-                                <span className="required-mark">*</span>
-                              </label>
-                              <input
-                                id="farm-name"
-                                type="text"
-                                required
-                                maxLength={200}
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="VD: Khu nhà kính Dâu tây Công nghệ cao A1"
-                              />
-                            </div>
-
-                            <div className="form-field">
-                              <label htmlFor="farm-area">
-                                Diện tích canh tác (ha){' '}
-                                <span className="required-mark">*</span>
-                              </label>
-                              <input
-                                id="farm-area"
-                                type="number"
-                                step="0.0001"
-                                min="0.0001"
-                                required
-                                value={areaHa}
-                                onChange={(e) => setAreaHa(e.target.value)}
-                                placeholder="VD: 2.4500"
-                              />
-                            </div>
-
-                            <div className="form-row-2">
-                              <div className="form-field">
-                                <label htmlFor="farm-lat">
-                                  Vĩ độ (-90 đến 90){' '}
-                                  <span className="required-mark">*</span>
-                                </label>
-                                <input
-                                  id="farm-lat"
-                                  type="number"
-                                  step="0.000001"
-                                  min="-90"
-                                  max="90"
-                                  required
-                                  value={latitude}
-                                  onChange={(e) => setLatitude(e.target.value)}
-                                  placeholder="11.862450"
-                                />
-                              </div>
-
-                              <div className="form-field">
-                                <label htmlFor="farm-lng">
-                                  Kinh độ (-180 đến 180){' '}
-                                  <span className="required-mark">*</span>
-                                </label>
-                                <input
-                                  id="farm-lng"
-                                  type="number"
-                                  step="0.000001"
-                                  min="-180"
-                                  max="180"
-                                  required
-                                  value={longitude}
-                                  onChange={(e) => setLongitude(e.target.value)}
-                                  placeholder="108.538120"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="action-row">
-                              <button
-                                type="submit"
-                                className="ds-button ds-button-brand ds-button-sm"
-                                disabled={saving}
-                              >
-                                {saving
-                                  ? 'Đang lưu...'
-                                  : editingFarm
-                                    ? 'Lưu cập nhật'
-                                    : 'Thêm vùng trồng'}
-                              </button>
-                              {editingFarm && (
-                                <button
-                                  type="button"
-                                  className="ds-button ds-button-secondary ds-button-sm"
-                                  onClick={resetForm}
-                                >
-                                  Hủy chỉnh sửa
-                                </button>
-                              )}
-                            </div>
-                          </form>
-                        </section>
+                      {rbacProbeResult && (
+                        <div className="alert-box alert-error alert-spaced">
+                          {rbacProbeResult}
+                        </div>
                       )}
-                    </div>
-
+                    </section>
+                  ) : (
                     <section
-                      className="data-table-wrapper sticker-panel"
+                      className="data-table-wrapper panel-card"
                       aria-labelledby="farms-table-title"
                     >
                       <div className="data-table-header">
                         <div>
                           <h2 id="farms-table-title" className="section-title">
-                            Danh mục Vùng trồng đã khai báo ({filteredFarms.length})
+                            Danh mục Vùng trồng &amp; Thửa đất ({filteredFarms.length}
+                            )
                           </h2>
                           <p className="panel-sub">
-                            Mỗi vùng trồng có mã định danh UUID cố định không thay
-                            đổi khi cập nhật tên hoặc diện tích
+                            Dữ liệu lọc tự động theo{' '}
+                            <code>
+                              organization_id = {user.organization_id.slice(0, 8)}
+                              ...
+                            </code>{' '}
+                            tại tầng PostgreSQL RLS
                           </p>
                         </div>
+                        <span className="status-badge status-done">
+                          UUID Bất biến (N3-7)
+                        </span>
                       </div>
 
                       {listError && (
@@ -727,82 +401,217 @@ export function FarmWorkspace({
                         <table className="data-table">
                           <thead>
                             <tr>
-                              <th scope="col">Mã định danh (UUID)</th>
+                              <th scope="col">Mã UUID</th>
                               <th scope="col">Tên Vùng trồng / Thửa đất</th>
                               <th scope="col">Diện tích</th>
-                              <th scope="col">Tọa độ GPS</th>
+                              <th scope="col">Tỷ trọng</th>
+                              <th scope="col">Tọa độ GPS (WGS84)</th>
                               <th scope="col">Thao tác</th>
                             </tr>
                           </thead>
                           <tbody>
                             {loadingFarms ? (
                               <tr>
-                                <td colSpan={5} className="cell-center">
+                                <td colSpan={6} className="cell-center">
                                   Đang tải danh sách vùng trồng...
                                 </td>
                               </tr>
                             ) : filteredFarms.length === 0 ? (
                               <tr>
-                                <td colSpan={5} className="cell-center">
-                                  Không tìm thấy vùng trồng nào phù hợp.
+                                <td colSpan={6} className="cell-center">
+                                  Không có vùng trồng nào khớp với bộ lọc.
                                 </td>
                               </tr>
                             ) : (
-                              filteredFarms.map((farm) => (
-                                <tr
-                                  key={farm.id}
-                                  className={
-                                    editingFarm?.id === farm.id
-                                      ? 'row-editing'
-                                      : undefined
-                                  }
-                                >
-                                  <td>
-                                    <code>{farm.id.slice(0, 13)}...</code>
-                                  </td>
-                                  <th scope="row" className="cell-strong">
-                                    {farm.name}
-                                  </th>
-                                  <td>
-                                    <span className="status-badge status-done">
-                                      {Number(farm.area_ha).toFixed(2)} ha
-                                    </span>
-                                  </td>
-                                  <td>
-                                    <div className="coord-stack">
-                                      <code>
-                                        {farm.latitude}, {farm.longitude}
+                              filteredFarms.map((farm) => {
+                                const areaNum = Number(farm.area_ha) || 0
+                                const sharePct =
+                                  totalAreaHa > 0
+                                    ? Math.round((areaNum / totalAreaHa) * 100)
+                                    : 0
+                                return (
+                                  <tr
+                                    key={farm.id}
+                                    className={
+                                      editingFarm?.id === farm.id
+                                        ? 'row-editing'
+                                        : undefined
+                                    }
+                                  >
+                                    <td>
+                                      <code title={farm.id}>
+                                        {farm.id.slice(0, 8)}...
                                       </code>
-                                      <a
-                                        href={`https://www.google.com/maps?q=${farm.latitude},${farm.longitude}`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="map-external-link"
-                                      >
-                                        Mở Google Maps
-                                      </a>
-                                    </div>
-                                  </td>
-                                  <td>
-                                    {canWriteFarms && (
-                                      <button
-                                        type="button"
-                                        className="ds-button ds-button-secondary ds-button-sm"
-                                        onClick={() => startEdit(farm)}
-                                      >
-                                        Chỉnh sửa
-                                      </button>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))
+                                    </td>
+                                    <th scope="row" className="cell-strong">
+                                      {farm.name}
+                                    </th>
+                                    <td>
+                                      <span className="status-badge status-done">
+                                        {areaNum.toFixed(2)} ha
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <div className="area-bar-cell">
+                                        <div className="area-bar-track">
+                                          <div
+                                            className="area-bar-fill"
+                                            style={{ width: `${sharePct}%` }}
+                                          />
+                                        </div>
+                                        <span className="area-bar-pct">
+                                          {sharePct}%
+                                        </span>
+                                      </div>
+                                    </td>
+                                    <td>
+                                      <div className="coord-inline">
+                                        <code>
+                                          {farm.latitude}, {farm.longitude}
+                                        </code>
+                                        <a
+                                          href={`https://www.google.com/maps?q=${farm.latitude},${farm.longitude}`}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="map-external-link"
+                                        >
+                                          Bản đồ
+                                        </a>
+                                      </div>
+                                    </td>
+                                    <td>
+                                      {canWriteFarms && (
+                                        <button
+                                          type="button"
+                                          className="ds-button ds-button-secondary ds-button-xs"
+                                          onClick={() => startEdit(farm)}
+                                        >
+                                          Sửa
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                )
+                              })
                             )}
                           </tbody>
                         </table>
                       </div>
                     </section>
-                  </>
-                )}
+                  )}
+
+                  <FarmFormPanel
+                    canReadFarms={canReadFarms}
+                    canWriteFarms={canWriteFarms}
+                    farms={farms}
+                    totalAreaHa={totalAreaHa}
+                    maxAreaHa={maxAreaHa}
+                    editingFarm={editingFarm}
+                    name={name}
+                    areaHa={areaHa}
+                    latitude={latitude}
+                    longitude={longitude}
+                    saving={saving}
+                    formFeedback={formFeedback}
+                    onNameChange={setName}
+                    onAreaChange={setAreaHa}
+                    onLatChange={setLatitude}
+                    onLngChange={setLongitude}
+                    onApplyPreset={(preset) => {
+                      setName(preset.name)
+                      setAreaHa(preset.area_ha)
+                      setLatitude(preset.latitude)
+                      setLongitude(preset.longitude)
+                      setFormFeedback(null)
+                      onNotify(`Đã điền mẫu: ${preset.name}`)
+                    }}
+                    onSubmit={handleSubmit}
+                    onCancelEdit={resetForm}
+                    onNotify={onNotify}
+                  />
+                </div>
+
+                <div className="dashboard-split-equal">
+                  <IntegrityPanel
+                    compact
+                    tamperSimulated={tamperSimulated}
+                    onToggleTamper={() => {
+                      setTamperSimulated((prev) => !prev)
+                      onNotify(
+                        !tamperSimulated
+                          ? 'Đã mô phỏng sửa lén nhiệt độ tại sự kiện #03!'
+                          : 'Đã khôi phục dữ liệu gốc hợp lệ.'
+                      )
+                    }}
+                  />
+
+                  <section className="panel-card panel-box">
+                    <div className="panel-head">
+                      <h2>
+                        Trạng thái Cô lập Đa tổ chức (RLS) &amp; Phân quyền RBAC (N3-6)
+                      </h2>
+                      <button
+                        type="button"
+                        className="ds-button ds-button-secondary ds-button-xs"
+                        onClick={() => onTabChange('security')}
+                      >
+                        Chi tiết ma trận
+                      </button>
+                    </div>
+
+                    <div className="info-grid-2">
+                      <div className="info-item">
+                        <span className="info-item-label">
+                          Biến phiên PostgreSQL (app.current_organization)
+                        </span>
+                        <code>{user.organization_id}</code>
+                      </div>
+
+                      <div className="info-item">
+                        <span className="info-item-label">
+                          Quyền hạn RBAC được cấp cho {user.role}
+                        </span>
+                        <div className="badge-row">
+                          {grantedPermissions.map((perm) => (
+                            <span
+                              key={perm}
+                              className="status-badge status-done"
+                            >
+                              {perm}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="action-row alert-spaced">
+                      <button
+                        type="button"
+                        className="ds-button ds-button-brand ds-button-xs"
+                        onClick={() => void runForbiddenProbe()}
+                      >
+                        Kiểm tra API: GET /api/v1/farms/
+                      </button>
+                      <span className="panel-sub">
+                        Đổi nhanh sang tài khoản Mộc Châu hoặc Thanh tra trên
+                        thanh công cụ để so sánh kết quả
+                      </span>
+                    </div>
+
+                    {rbacProbeResult && (
+                      <div
+                        className={`alert-box alert-spaced ${
+                          rbacProbeResult.startsWith('200')
+                            ? 'alert-success'
+                            : 'alert-error'
+                        }`}
+                        role="status"
+                      >
+                        {rbacProbeResult}
+                      </div>
+                    )}
+                  </section>
+                </div>
               </>
             )}
 
