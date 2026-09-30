@@ -102,6 +102,7 @@ def login(
         samesite="lax",
         path="/",
     )
+    response.headers["X-Session-Token"] = token
     return _session_user(user, organization, role)
 
 
@@ -129,7 +130,9 @@ def logout(
     principal: Annotated[Principal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Response:
-    token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    token = request.cookies.get(settings.SESSION_COOKIE_NAME) or request.headers.get(
+        "X-Session-Token"
+    )
     if token:
         auth_session = db.scalar(
             select(AuthSession).where(

@@ -27,7 +27,9 @@ class Principal:
 def get_current_principal(
     request: Request, db: Annotated[Session, Depends(get_db)]
 ) -> Principal:
-    token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    token = request.cookies.get(settings.SESSION_COOKIE_NAME) or request.headers.get(
+        "X-Session-Token"
+    )
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Cần đăng nhập."

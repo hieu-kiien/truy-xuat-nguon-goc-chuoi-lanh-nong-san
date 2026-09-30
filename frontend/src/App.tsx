@@ -1,61 +1,112 @@
 import { useState, useEffect } from 'react'
-import { API_BASE_URL, checkHealth } from './services/api'
+import { FarmWorkspace } from './components/FarmWorkspace'
+import { LoginView } from './components/LoginView'
+import { API_BASE_URL, checkHealth, getCurrentUser, logout } from './services/api'
+import { ROLE_LABELS, type SessionUser } from './types'
 
 export default function App() {
-  const [statusMessage, setStatusMessage] = useState<string>('Đang kiểm tra kết nối tới máy chủ...')
-  const [isConnected, setIsConnected] = useState<boolean | null>(null)
+  const [backendOnline, setBackendOnline] = useState<boolean | null>(null)
+  const [currentUser, setCurrentUser] = useState<SessionUser | null>(null)
+  const [initializing, setInitializing] = useState(true)
 
   useEffect(() => {
-    checkHealth()
-      .then((res) => {
-        setStatusMessage(res.message || 'Kết nối máy chủ thành công')
-        setIsConnected(true)
-      })
-      .catch(() => {
-        setStatusMessage('Không thể kết nối tới Backend API')
-        setIsConnected(false)
-      })
+    let active = true
+
+    async function bootstrap() {
+      try {
+        await checkHealth()
+        if (active) setBackendOnline(true)
+      } catch {
+        if (active) {
+          setBackendOnline(false)
+          setInitializing(false)
+        }
+        return
+      }
+
+      try {
+        const user = await getCurrentUser()
+        if (active) setCurrentUser(user)
+      } catch {
+        if (active) setCurrentUser(null)
+      } finally {
+        if (active) setInitializing(false)
+      }
+    }
+
+    void bootstrap()
+    return () => {
+      active = false
+    }
   }, [])
 
-  const statusClass =
-    isConnected === true
-      ? 'status-card status-online'
-      : isConnected === false
-        ? 'status-card status-offline'
-        : 'status-card status-pending'
+  const handleLogout = async () => {
+    await logout()
+    setCurrentUser(null)
+  }
 
   return (
-    <main className="container">
-      <header className="header">
-        <h1>Hệ thống Truy xuất Nguồn gốc Chuỗi lạnh Nông sản</h1>
-        <p className="subtitle">Nền tảng quản lý lô hàng và giám sát bảo quản nông sản</p>
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="brand">
+            <h1>Hệ thống Truy xuất Nguồn gốc Chuỗi lạnh Nông sản</h1>
+            <div className="brand-meta">
+              <span
+                className={`status-dot ${
+                  backendOnline === true
+                    ? 'dot-online'
+                    : backendOnline === false
+                      ? 'dot-offline'
+                      : 'dot-pending'
+                }`}
+              />
+              <span>
+                API:{' '}
+                <a href={`${API_BASE_URL}/docs`} target="_blank" rel="noreferrer">
+                  {API_BASE_URL}/docs
+                </a>
+              </span>
+            </div>
+          </div>
+
+          {currentUser && (
+            <div className="user-bar">
+              <div className="user-info">
+                <div className="user-name">{currentUser.full_name}</div>
+                <div className="user-sub">
+                  {currentUser.organization_name} &bull;{' '}
+                  {ROLE_LABELS[currentUser.role]}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => void handleLogout()}
+              >
+                Đăng xuất
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
-      <section className={statusClass}>
-        <h2>Trạng thái kết nối Backend</h2>
-        <p className="status-text">{statusMessage}</p>
-        <p className="endpoint-info">
-          Endpoint: <code>{API_BASE_URL}</code>
-        </p>
-      </section>
+      <main className="main-content">
+        {backendOnline === false && (
+          <div className="alert alert-error" role="alert">
+            Không thể kết nối tới máy chủ Backend tại <code>{API_BASE_URL}</code>. Vui
+            lòng kiểm tra lại trạng thái máy chủ.
+          </div>
+        )}
 
-      <section className="info-panel">
-        <h3>Tài nguyên phát triển</h3>
-        <ul>
-          <li>
-            <strong>Tài liệu OpenAPI (Swagger):</strong>{' '}
-            <a href={`${API_BASE_URL}/docs`} target="_blank" rel="noreferrer">
-              {API_BASE_URL}/docs
-            </a>
-          </li>
-          <li>
-            <strong>Quy chuẩn đóng góp:</strong> Xem file <code>CONTRIBUTING.md</code> tại thư mục gốc
-          </li>
-          <li>
-            <strong>Tích hợp API:</strong> Định nghĩa các hàm gọi dữ liệu trong <code>src/services/api.ts</code>
-          </li>
-        </ul>
-      </section>
-    </main>
+        {initializing ? (
+          <div className="loading-panel">Đang khởi tạo phiên làm việc...</div>
+        ) : currentUser ? (
+          <FarmWorkspace key={currentUser.id} user={currentUser} />
+        ) : (
+          <LoginView onLoginSuccess={(user) => setCurrentUser(user)} />
+        )}
+      </main>
+    </div>
   )
 }

@@ -7,7 +7,7 @@ services:
     branch: main
     autoDeploy: true
     buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: cd backend && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: cd backend && alembic upgrade head && python -m app.seed_demo && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: APP_ENV
         value: staging
