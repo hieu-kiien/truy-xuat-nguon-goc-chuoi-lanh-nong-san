@@ -1,5 +1,4 @@
 name: CI Pipeline
-
 on:
   push:
     branches: [main]
@@ -8,14 +7,40 @@ on:
 
 jobs:
   backend-check:
-    name: 🐍 Backend (Lint & Test)
+    name: 🐍 Backend (Lint, Migrations & Integration Tests)
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+    # Real PostgreSQL: Argon2id, HttpOnly session cookies and PostgreSQL row
+    # level security cannot be verified against SQLite or in-process fakes.
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: ci_admin_password
+          POSTGRES_DB: ttcs_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin -d ttcs_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      APP_ENV: development
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_NAME: ttcs_db
+      DB_ADMIN_USER: admin
+      DB_ADMIN_PASSWORD: ci_admin_password
+      DB_USER: ttcs_app
+      DB_PASSWORD: ci_app_password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -24,62 +49,87 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          cd backend
-          pip install -r requirements-dev.txt
+          pip install -r backend/requirements-dev.txt
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in $(seq 1 30); do
+            if pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_ADMIN_USER"; then
+              echo "PostgreSQL is ready"; exit 0
+            fi
+            sleep 2
+          done
+          echo "PostgreSQL did not become ready in time" >&2
+          exit 1
 
       - name: Run linter (Ruff)
-        run: |
-          cd backend
-          ruff check app/ tests/
+        run: ruff check backend/app backend/tests
 
       - name: Check formatting (Ruff)
-        run: |
-          cd backend
-          ruff format --check app/ tests/
+        run: ruff format --check backend/app backend/tests
 
-      - name: Run unit tests (Pytest)
+      - name: Bootstrap least-privilege application database role
+        working-directory: backend
+        run: python -m app.bootstrap_db_role
+
+      - name: Apply migrations from an empty database
+        working-directory: backend
+        run: python -m alembic upgrade head
+
+      - name: Verify no model/migration drift
+        working-directory: backend
+        run: python -m alembic check
+
+      - name: Verify migrations are reversible
+        working-directory: backend
         run: |
-          cd backend
-          pytest tests/ -v
+          python -m alembic downgrade 20260929_04
+          python -m alembic upgrade head
+
+      - name: Verify the application role cannot bypass row level security
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import os
+          import psycopg
+
+          with psycopg.connect(
+              host=os.environ["DB_HOST"],
+              port=os.environ["DB_PORT"],
+              dbname=os.environ["DB_NAME"],
+              user=os.environ["DB_USER"],
+              password=os.environ["DB_PASSWORD"],
+          ) as connection:
+              row = connection.execute(
+                  "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user"
+              ).fetchone()
+              assert row == (False, False), f"application role is too privileged: {row}"
+              # Without a tenant context every tenant-owned table must be empty.
+              for table in ("farms", "products", "lots", "shipments", "sensors"):
+                  count = connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+                  assert count == 0, f"{table} exposed {count} rows without tenant context"
+          print("application database role is least-privilege and RLS is enforced")
+          PY
+
+      - name: Run integration tests (Pytest)
+        working-directory: backend
+        run: pytest tests/ -v
 
   frontend-check:
     name: ⚛️ Frontend (Lint & Build)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        run: |
-          cd frontend
-          npm ci
-
-      - name: Run linter
-        run: |
-          cd frontend
-          npm run lint
-
-      - name: Build production bundle
-        run: |
-          cd frontend
-          npm run build
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: cd frontend && npm ci
+      - run: cd frontend && npm run lint
+      - run: cd frontend && npm run build
 
   docker-check:
     name: 🐳 Docker Images Build Check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Build backend image
-        run: docker build -t ttcs-backend:ci ./backend
-
-      - name: Build frontend image
-        run: docker build -t ttcs-frontend:ci ./frontend
+      - uses: actions/checkout@v4
+      - run: docker build -t ttcs-backend:ci ./backend
+      - run: docker build -t ttcs-frontend:ci ./frontend
