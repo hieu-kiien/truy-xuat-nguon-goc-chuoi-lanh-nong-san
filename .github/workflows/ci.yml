@@ -10,6 +10,30 @@ jobs:
   backend-check:
     name: 🐍 Backend (Lint & Test)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ttcs_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-test-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ttcs_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: ttcs_test
+      DB_USER: ttcs_app
+      DB_PASSWORD: app-test-password
+      DB_ADMIN_USER: postgres
+      DB_ADMIN_PASSWORD: postgres-test-password
+      APP_ENV: test
+      DEBUG: "false"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -37,7 +61,14 @@ jobs:
           cd backend
           ruff format --check app/ tests/
 
-      - name: Run unit tests (Pytest)
+      - name: Run database migrations and schema check
+        run: |
+          cd backend
+          python -m app.bootstrap_db_role
+          alembic upgrade head
+          alembic check
+
+      - name: Run backend integration tests (Pytest)
         run: |
           cd backend
           pytest tests/ -v

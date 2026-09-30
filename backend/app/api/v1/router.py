@@ -1,8 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from app.api.v1.endpoints import items
+from app.api.v1.endpoints import farms, items
+from app.core.authorization import enforce_route_permission
 
-api_router = APIRouter()
+api_router = APIRouter(dependencies=[Depends(enforce_route_permission)])
 
-# Thêm các endpoint groups vào đây
+# Đăng ký API nghiệp vụ tại api_router để mặc định yêu cầu quyền.
+api_router.include_router(farms.router, prefix="/farms", tags=["farms"])
 api_router.include_router(items.router, prefix="/items", tags=["items"])

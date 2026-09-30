@@ -1,5 +1,14 @@
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import URL, make_url
+
+
+def _normalize_postgres_url(value: str) -> URL:
+    if value.startswith("postgres://"):
+        value = value.replace("postgres://", "postgresql+psycopg://", 1)
+    elif value.startswith("postgresql://"):
+        value = value.replace("postgresql://", "postgresql+psycopg://", 1)
+    return make_url(value)
 
 
 class Settings(BaseSettings):
@@ -12,13 +21,18 @@ class Settings(BaseSettings):
     DB_HOST: str = "localhost"
     DB_PORT: int = 5432
     DB_NAME: str = "ttcs_db"
-    DB_USER: str = "admin"
-    DB_PASSWORD: str = "password123"
+    DB_USER: str = "ttcs_app"
+    DB_PASSWORD: str = ""
+    DB_ADMIN_USER: str = "admin"
+    DB_ADMIN_PASSWORD: str = ""
     DATABASE_URL_ENV: str | None = None
+    MIGRATION_DATABASE_URL_ENV: str | None = None
 
     APP_ENV: str = "development"
     SECRET_KEY: str = "change-me-in-production"
     DEBUG: bool = True
+    SESSION_TTL_MINUTES: int = Field(default=480, ge=1, le=10080)
+    SESSION_COOKIE_NAME: str = "__Host-session"
     ALLOWED_ORIGINS: list[str] | str = [
         "http://localhost:5173",
         "http://localhost:3000",
@@ -27,23 +41,51 @@ class Settings(BaseSettings):
 
     @field_validator("ALLOWED_ORIGINS", mode="after")
     @classmethod
-    def parse_cors_origins(cls, v: list[str] | str) -> list[str]:
-        if isinstance(v, str):
-            return [x.strip() for x in v.split(",") if x.strip()]
-        return v
+    def parse_cors_origins(cls, value: list[str] | str) -> list[str]:
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
 
     @property
-    def DATABASE_URL(self) -> str:
+    def DATABASE_URL(self) -> URL:
         if self.DATABASE_URL_ENV:
-            url = self.DATABASE_URL_ENV
-            if url.startswith("postgres://"):
-                return url.replace("postgres://", "postgresql+psycopg://", 1)
-            if url.startswith("postgresql://"):
-                return url.replace("postgresql://", "postgresql+psycopg://", 1)
+            url = _normalize_postgres_url(self.DATABASE_URL_ENV)
+            if url.username != self.DB_USER:
+                raise ValueError("DATABASE_URL_ENV must use the DB_USER role")
             return url
-        return (
-            f"postgresql+psycopg://{self.DB_USER}:{self.DB_PASSWORD}"
-            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+        return URL.create(
+            "postgresql+psycopg",
+            username=self.DB_USER,
+            password=self.DB_PASSWORD,
+            host=self.DB_HOST,
+            port=self.DB_PORT,
+            database=self.DB_NAME,
+        )
+
+    @property
+    def MIGRATION_DATABASE_URL(self) -> URL:
+        if self.MIGRATION_DATABASE_URL_ENV:
+            url = _normalize_postgres_url(self.MIGRATION_DATABASE_URL_ENV)
+            if url.username != self.DB_ADMIN_USER:
+                raise ValueError(
+                    "MIGRATION_DATABASE_URL_ENV must use the DB_ADMIN_USER role"
+                )
+            return url
+
+        if self.DATABASE_URL_ENV:
+            return self.DATABASE_URL.set(
+                username=self.DB_ADMIN_USER,
+                password=self.DB_ADMIN_PASSWORD,
+            )
+
+        return URL.create(
+            "postgresql+psycopg",
+            username=self.DB_ADMIN_USER,
+            password=self.DB_ADMIN_PASSWORD,
+            host=self.DB_HOST,
+            port=self.DB_PORT,
+            database=self.DB_NAME,
         )
 
 
