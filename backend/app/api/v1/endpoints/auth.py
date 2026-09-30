@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal, get_current_principal
+from app.core.authorization import enforce_route_permission, require_permission
 from app.core.config import settings
 from app.core.database import get_db, set_db_context
 from app.core.security import (
@@ -18,7 +19,7 @@ from app.models.identity import AuthSession, Organization, Role, User
 from app.schemas.auth import LoginRequest, SessionUser
 
 router = APIRouter()
-session_router = APIRouter()
+session_router = APIRouter(dependencies=[Depends(enforce_route_permission)])
 AUTH_ERROR = "Email hoặc mật khẩu không đúng."
 MAX_FAILED_ATTEMPTS = 5
 LOCK_MINUTES = 15
@@ -105,6 +106,7 @@ def login(
 
 
 @session_router.get("/me", response_model=SessionUser)
+@require_permission("auth:session")
 def get_session_user(
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> SessionUser:
@@ -120,6 +122,7 @@ def get_session_user(
 
 
 @session_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@require_permission("auth:session")
 def logout(
     request: Request,
     response: Response,
