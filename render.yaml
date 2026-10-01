@@ -16,7 +16,7 @@ services:
       - key: ENABLE_DEMO_LOGIN
         value: "True"
       - key: ALLOWED_ORIGINS
-        value: https://ttcs-frontend-staging.onrender.com,http://localhost:5173,http://localhost:3000
+        value: https://ttcs-frontend-staging.onrender.com
       - key: DATABASE_URL_ENV
         fromDatabase:
           name: ttcs-postgres-staging
