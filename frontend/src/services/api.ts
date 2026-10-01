@@ -111,17 +111,27 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const checkHealth = () => request<HealthResponse>('/')
 
-export const login = (payload: LoginRequest) =>
-  request<SessionUser>('/api/v1/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
-
 export const demoLogin = (payload: DemoLoginRequest) =>
   request<SessionUser>('/api/v1/auth/demo-login', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
+
+export const login = (payload: LoginRequest) => {
+  if (!payload.password) {
+    if (!DEMO_LOGIN_ENABLED) {
+      return Promise.reject(
+        new ApiError(404, 'Đăng nhập demo đang tắt ở môi trường này')
+      )
+    }
+    return demoLogin({ email: payload.email })
+  }
+
+  return request<SessionUser>('/api/v1/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email: payload.email, password: payload.password }),
+  })
+}
 
 export const getCurrentUser = () => request<SessionUser>('/api/v1/auth/me')
 
