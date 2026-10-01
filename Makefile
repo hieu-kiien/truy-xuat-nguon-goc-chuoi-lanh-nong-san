@@ -25,11 +25,11 @@ test:
 	cd backend && .venv/Scripts/pytest tests/ -v
 
 lint:
-	cd backend && .venv/Scripts/ruff check app/ tests/
+	cd backend && .venv/Scripts/ruff check app/ tests/ alembic/
 	cd frontend && npm run lint
 
 lint-fix:
-	cd backend && .venv/Scripts/ruff check --fix app/ tests/ && .venv/Scripts/ruff format app/ tests/
+	cd backend && .venv/Scripts/ruff check --fix app/ tests/ alembic/ && .venv/Scripts/ruff format app/ tests/ alembic/
 
 migrate:
 	cd backend && .venv/Scripts/alembic upgrade head
