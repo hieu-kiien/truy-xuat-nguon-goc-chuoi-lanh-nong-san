@@ -154,7 +154,7 @@ export function WorkspaceSidebar({
             <div className="sidebar-specs-box">
               <div className="sidebar-spec-row">
                 <span className="sidebar-spec-key">PostgreSQL RLS</span>
-                <span className="sidebar-spec-val">FORCE ON</span>
+                <span className="sidebar-spec-val">ENABLED</span>
               </div>
               <div className="sidebar-spec-row">
                 <span className="sidebar-spec-key">Tenant ID</span>
