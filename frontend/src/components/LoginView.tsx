@@ -141,7 +141,7 @@ export function LoginView({
             <section className="panel-card auth-panel">
               <div className="panel-head">
                 <h2>Đăng nhập Phiên Làm việc (N3-5)</h2>
-                <span className="status-badge status-done">Argon2id + Cookie</span>
+                <span className="status-badge status-done">Argon2id + Session</span>
               </div>
 
               {errorMessage && (
