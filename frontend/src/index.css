@@ -23,6 +23,11 @@ html.light {
   --fg-danger: #b91c1c;
   --fg-warning: #92400e;
 
+  --ice-primary: #0284c7;
+  --ice-medium: #38bdf8;
+  --ice-soft: #e0f2fe;
+  --ice-glow: rgba(2, 132, 199, 0.25);
+
   --heading: #13462b;
   --body: #111827;
   --body-subtle: #3b5544;
@@ -67,6 +72,11 @@ html.dark {
   --fg-success-strong: #86efac;
   --fg-danger: #fca5a5;
   --fg-warning: #fcd34d;
+
+  --ice-primary: #38bdf8;
+  --ice-medium: #7dd3fc;
+  --ice-soft: #082f49;
+  --ice-glow: rgba(56, 189, 248, 0.25);
 
   --bg-panel: #102018;
   --menu-bar: #102018eb;
@@ -1325,3 +1335,907 @@ code {
     inset: 0;
   }
 }
+
+/* ==========================================================================
+   MICRO-INTERACTIONS & VISUAL EFFECTS (COLD CHAIN & AGRICULTURAL THEME)
+   ========================================================================== */
+
+/* 1. Cold Chain Pipeline Flow */
+.pipeline-card {
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+}
+
+.pipeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.pipeline-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pipeline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--heading);
+}
+
+.telemetry-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--brand);
+  box-shadow: 0 0 6px var(--brand);
+  animation: pulse-telemetry 2s infinite ease-in-out;
+}
+
+.pipeline-sub {
+  font-size: 11px;
+  color: var(--body-subtle);
+}
+
+.telemetry-chill-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ice-soft);
+  color: var(--ice-primary);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  border: 1px solid var(--ice-medium);
+}
+
+.chill-pulse-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.chill-optimal {
+  background-color: var(--ice-primary);
+  box-shadow: 0 0 4px var(--ice-primary);
+}
+
+.chill-danger {
+  background-color: var(--fg-danger);
+  box-shadow: 0 0 6px var(--fg-danger);
+  animation: alarm-pulse 0.8s infinite ease-in-out;
+}
+
+.pipeline-track {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 0 2px;
+}
+
+.pipeline-step-wrapper {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 145px;
+}
+
+.pipeline-step-node {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  font-family: var(--font-sans);
+}
+
+.pipeline-step-node:hover,
+.pipeline-step-node:focus-visible {
+  border-color: var(--brand);
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(47, 158, 102, 0.12);
+  outline: none;
+}
+
+.pipeline-step-node.step-selected {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+.pipeline-step-node.step-warning {
+  border-color: var(--fg-danger);
+  background: var(--danger-soft);
+}
+
+.step-node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.step-node-seq {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--body-subtle);
+}
+
+.step-node-icon {
+  font-size: 13px;
+}
+
+.step-temp-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--brand-softer);
+  color: var(--heading);
+  border: 1px solid var(--border-subtle);
+}
+
+.step-temp-badge.temp-chill {
+  background: var(--ice-soft);
+  color: var(--ice-primary);
+  border-color: var(--ice-medium);
+}
+
+.step-temp-badge.temp-danger {
+  background: var(--danger-soft);
+  color: var(--fg-danger);
+  border-color: var(--fg-danger);
+}
+
+.step-node-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.step-node-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-node-sub {
+  font-size: 10px;
+  color: var(--body-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pipeline-connector {
+  width: 24px;
+  height: 2px;
+  flex-shrink: 0;
+  position: relative;
+  margin: 0 2px;
+}
+
+.connector-line {
+  width: 100%;
+  height: 2px;
+  background: var(--border-subtle);
+  position: relative;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.connector-particle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 2px;
+  background: var(--brand);
+  box-shadow: 0 0 6px var(--brand);
+  animation: particle-glide 1.6s infinite linear;
+}
+
+.connector-broken .connector-line {
+  background: repeating-linear-gradient(90deg, var(--fg-danger), var(--fg-danger) 3px, transparent 3px, transparent 6px);
+}
+
+.connector-broken .connector-particle {
+  display: none;
+}
+
+/* 2. Cryptographic Hash Chain Visualizer (IntegrityPanel) */
+.hash-chain-visualizer {
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-left: 3px solid var(--brand);
+  transition: border-color 0.3s ease;
+}
+
+.hash-chain-visualizer.chain-tampered {
+  border-left-color: var(--fg-danger);
+}
+
+.chain-visual-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.chain-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.chain-tech-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--body-subtle);
+  background: var(--brand-softer);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+.chain-visual-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--heading);
+  margin: 0;
+}
+
+.chain-flow-track {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 4px 0 6px;
+}
+
+.chain-node-wrapper {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 165px;
+}
+
+.chain-node-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chain-node-box.node-verified:hover {
+  border-color: var(--brand);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(47, 158, 102, 0.15);
+}
+
+.chain-node-box.node-tampered {
+  border-color: var(--fg-danger);
+  background: var(--danger-soft);
+  animation: fracture-shake 0.45s ease;
+}
+
+.chain-node-box.node-broken {
+  opacity: 0.7;
+  border-style: dashed;
+  border-color: var(--fg-danger);
+}
+
+.node-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.node-seq-pill {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--body-subtle);
+}
+
+.node-icon {
+  font-size: 13px;
+}
+
+.node-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.node-status-dot.dot-verified {
+  background-color: var(--brand);
+  box-shadow: 0 0 5px var(--brand);
+}
+
+.node-status-dot.dot-danger {
+  background-color: var(--fg-danger);
+  box-shadow: 0 0 6px var(--fg-danger);
+  animation: alarm-pulse 0.8s infinite ease-in-out;
+}
+
+.node-stage-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-data-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+}
+
+.node-temp-label {
+  color: var(--body-subtle);
+}
+
+.node-temp-val {
+  font-family: var(--font-mono);
+  color: var(--heading);
+}
+
+.node-temp-val.temp-tampered-alert {
+  color: var(--fg-danger);
+  font-weight: 800;
+}
+
+.node-hash-preview {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+}
+
+.hash-key {
+  color: var(--body-subtle);
+  font-family: var(--font-mono);
+}
+
+.chain-link-connector {
+  width: 32px;
+  height: 2px;
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 3px;
+}
+
+.connector-svg-beam {
+  width: 100%;
+  height: 2px;
+  background: var(--border-subtle);
+  position: relative;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.link-verified .connector-svg-beam {
+  background: linear-gradient(90deg, var(--border-subtle), var(--brand-medium), var(--border-subtle));
+}
+
+.link-verified .beam-spark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 2px;
+  background: var(--brand);
+  box-shadow: 0 0 8px var(--brand);
+  animation: particle-glide 1.5s infinite linear;
+}
+
+.link-fractured .connector-svg-beam {
+  background: repeating-linear-gradient(90deg, var(--fg-danger), var(--fg-danger) 3px, transparent 3px, transparent 6px);
+}
+
+.link-fractured .beam-spark {
+  display: none;
+}
+
+.fracture-label {
+  position: absolute;
+  top: -15px;
+  font-size: 8.5px;
+  font-weight: 800;
+  color: var(--fg-danger);
+  background: var(--danger-soft);
+  border: 1px solid var(--fg-danger);
+  border-radius: 3px;
+  padding: 1px 4px;
+  white-space: nowrap;
+}
+
+/* 3. RBAC Request Packet Circuit (SecurityPanel) */
+.rbac-circuit-box {
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: var(--bg-panel);
+}
+
+.circuit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.circuit-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--body-subtle);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.circuit-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand);
+  box-shadow: 0 0 5px var(--brand);
+  animation: pulse-telemetry 2s infinite ease-in-out;
+}
+
+.circuit-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--heading);
+  margin: 2px 0 0 0;
+}
+
+.circuit-stages-track {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 6px 0;
+}
+
+.circuit-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 3px;
+  min-width: 110px;
+}
+
+.circuit-node-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-default);
+  background: var(--brand-softer);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.circuit-node-badge.caller-badge {
+  border-color: var(--brand);
+}
+
+.circuit-node-badge.gateway-badge {
+  border-color: var(--ice-medium);
+  background: var(--ice-soft);
+}
+
+.circuit-node-badge.rbac-badge {
+  border-color: var(--brand);
+}
+
+.circuit-node-badge.rbac-badge-danger {
+  border-color: var(--fg-danger);
+  background: var(--danger-soft);
+  animation: shield-vibrate 0.45s ease;
+}
+
+.circuit-node-badge.db-badge {
+  border-color: var(--brand);
+}
+
+.node-icon-symbol {
+  font-size: 14px;
+}
+
+.circuit-node-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--heading);
+}
+
+.circuit-node-role {
+  font-size: 10px;
+  color: var(--body-subtle);
+}
+
+.circuit-node-meta {
+  font-size: 9.5px;
+  padding: 1px 4px;
+}
+
+.circuit-status-pill {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.circuit-status-pill.pill-permitted {
+  background: var(--success-soft);
+  color: var(--fg-success-strong);
+}
+
+.circuit-status-pill.pill-rejected {
+  background: var(--danger-soft);
+  color: var(--fg-danger);
+}
+
+.circuit-bus {
+  flex: 1;
+  min-width: 32px;
+  height: 2px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.bus-wire {
+  width: 100%;
+  height: 2px;
+  background: var(--border-subtle);
+  border-radius: 2px;
+}
+
+.bus-packet {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand);
+  box-shadow: 0 0 8px var(--brand);
+  top: -2.5px;
+  left: 0;
+  opacity: 0;
+}
+
+.bus-active .bus-packet {
+  opacity: 1;
+  animation: packet-flight 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.bus-rejected .bus-wire {
+  background: var(--fg-danger);
+}
+
+.circuit-node.node-unreachable {
+  opacity: 0.45;
+}
+
+.circuit-outcome-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  margin-top: 10px;
+  font-size: 11.5px;
+}
+
+.circuit-outcome-box.outcome-success {
+  background: var(--success-soft);
+  border: 1px solid var(--brand);
+  color: var(--fg-success-strong);
+}
+
+.circuit-outcome-box.outcome-danger {
+  background: var(--danger-soft);
+  border: 1px solid var(--fg-danger);
+  color: var(--fg-danger);
+}
+
+.outcome-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.outcome-text p {
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+/* 4. GPS Radar Sonar Badge */
+.gps-radar-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease;
+}
+
+.gps-radar-badge:hover,
+.gps-radar-badge.radar-active {
+  background: var(--brand-softer);
+}
+
+.radar-sonar-emitter {
+  width: 14px;
+  height: 14px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.radar-core-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--brand);
+  z-index: 2;
+  box-shadow: 0 0 4px var(--brand);
+}
+
+.radar-ping-ring {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  border: 1px solid var(--brand);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.radar-active .radar-ping-ring.ring-1 {
+  animation: sonar-ripple 1.4s infinite cubic-bezier(0, 0.2, 0.8, 1);
+}
+
+.radar-active .radar-ping-ring.ring-2 {
+  animation: sonar-ripple 1.4s infinite 0.45s cubic-bezier(0, 0.2, 0.8, 1);
+}
+
+.gps-coord-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.gps-map-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--brand);
+  text-decoration: none;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  font-weight: 600;
+}
+
+.gps-map-action:hover,
+.gps-map-action:focus-visible {
+  border-color: var(--brand);
+  background: var(--bg-panel);
+  outline: none;
+}
+
+.map-icon {
+  font-size: 11px;
+}
+
+/* 5. Keyframes & Animation Library */
+@keyframes pulse-telemetry {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.65;
+  }
+}
+
+@keyframes chill-glow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.25);
+  }
+}
+
+@keyframes alarm-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.4);
+  }
+}
+
+@keyframes particle-glide {
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% - 10px);
+    opacity: 0;
+  }
+}
+
+@keyframes fracture-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20%, 60% {
+    transform: translateX(-3px);
+  }
+  40%, 80% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes shield-vibrate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.15) rotate(-4deg);
+  }
+  60% {
+    transform: scale(1.15) rotate(4deg);
+  }
+}
+
+@keyframes packet-flight {
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% - 7px);
+    opacity: 1;
+  }
+}
+
+@keyframes sonar-ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+
+/* 6. Active Demo Card Subtle Border Beam */
+.account-card-active {
+  position: relative;
+  overflow: hidden;
+}
+
+.account-card-active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(47, 158, 102, 0.15),
+    transparent
+  );
+  animation: card-beam-sweep 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes card-beam-sweep {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
+/* 7. Accessibility: Prefers Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .connector-particle,
+  .beam-spark,
+  .bus-packet {
+    display: none !important;
+  }
+
+  .radar-active .radar-ping-ring {
+    display: none !important;
+  }
+
+  .account-card-active::before {
+    display: none !important;
+  }
+}
+

@@ -35,11 +35,29 @@ export default function App() {
   }, [])
 
   const toggleTheme = useCallback(() => {
-    setIsDark((prev) => {
-      const next = !prev
-      notify(next ? 'Đã chuyển sang giao diện Tối' : 'Đã chuyển sang giao diện Sáng')
-      return next
-    })
+    const applyToggle = () => {
+      setIsDark((prev) => {
+        const next = !prev
+        notify(next ? 'Đã chuyển sang giao diện Tối' : 'Đã chuyển sang giao diện Sáng')
+        return next
+      })
+    }
+
+    const doc = document as unknown as {
+      startViewTransition?: (callback: () => void) => void
+    }
+
+    if (
+      typeof document !== 'undefined' &&
+      typeof doc.startViewTransition === 'function' &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      doc.startViewTransition(() => {
+        applyToggle()
+      })
+    } else {
+      applyToggle()
+    }
   }, [notify])
 
   useEffect(() => {

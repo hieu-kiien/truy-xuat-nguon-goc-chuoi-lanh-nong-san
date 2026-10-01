@@ -12,6 +12,7 @@ interface HashEventRecord {
   humidity: string
   prevHash: string
   hash: string
+  icon: string
 }
 
 const SAMPLE_HASH_EVENTS: HashEventRecord[] = [
@@ -23,6 +24,7 @@ const SAMPLE_HASH_EVENTS: HashEventRecord[] = [
     humidity: '78%',
     prevHash: '00000000...00000000',
     hash: '9f86d081...8b4c70a1',
+    icon: '🌾',
   },
   {
     seq: '#02',
@@ -32,6 +34,7 @@ const SAMPLE_HASH_EVENTS: HashEventRecord[] = [
     humidity: '85%',
     prevHash: '9f86d081...8b4c70a1',
     hash: '4b227777...d4735e3a',
+    icon: '❄️',
   },
   {
     seq: '#03',
@@ -41,6 +44,7 @@ const SAMPLE_HASH_EVENTS: HashEventRecord[] = [
     humidity: '82%',
     prevHash: '4b227777...d4735e3a',
     hash: 'e3b0c442...98fc1c14',
+    icon: '🚛',
   },
   {
     seq: '#04',
@@ -50,6 +54,7 @@ const SAMPLE_HASH_EVENTS: HashEventRecord[] = [
     humidity: '80%',
     prevHash: 'e3b0c442...98fc1c14',
     hash: 'a1860004...b62aa867',
+    icon: '🏬',
   },
 ]
 
@@ -60,15 +65,24 @@ export function IntegrityPanel({
 }: IntegrityPanelProps) {
   return (
     <div className={compact ? '' : 'info-stack'}>
-      <section className="data-table-wrapper panel-card">
-        <div className="data-table-header">
+      {/* Interactive Visual Hash Chain Node Diagram */}
+      <section
+        className={`hash-chain-visualizer panel-card ${tamperSimulated ? 'chain-tampered' : 'chain-valid'}`}
+        aria-label="Sơ đồ tương tác chuỗi băm sự kiện mật mã"
+      >
+        <div className="chain-visual-header">
           <div>
-            <h2 className="section-title">
-              Chuỗi Băm Sự kiện Chuỗi lạnh (SHA-256 + RFC 8785)
-            </h2>
+            <div className="chain-badge-row">
+              <span className={`status-badge ${tamperSimulated ? 'status-danger' : 'status-done'}`}>
+                {tamperSimulated ? '⚡ Phát hiện Can thiệp Mật mã' : '🔒 Chuỗi Khép kín — Toàn vẹn 100%'}
+              </span>
+              <span className="chain-tech-tag">SHA-256 + RFC 8785 JCS</span>
+            </div>
+            <h3 className="chain-visual-title">
+              Mô hình Liên kết Mật mã Bất biến (Cryptographic Hash Chain)
+            </h3>
             <p className="panel-sub">
-              Liên kết mật mã chống sửa lén nhật ký nhiệt độ — hiệu năng xác minh:
-              147.856 sự kiện/giây
+              Mỗi bản ghi niêm phong kèm băm của bản ghi trước: <code>H(n) = SHA256(H(n-1) || Data(n))</code>
             </p>
           </div>
 
@@ -79,10 +93,109 @@ export function IntegrityPanel({
             }`}
             onClick={onToggleTamper}
           >
-            {tamperSimulated
-              ? 'Khôi phục dữ liệu gốc'
-              : 'Mô phỏng sửa lén nhiệt độ (#03)'}
+            {tamperSimulated ? 'Khôi phục dữ liệu gốc' : 'Mô phỏng sửa lén nhiệt độ (#03)'}
           </button>
+        </div>
+
+        {/* Nodes and Connectors Visual */}
+        <div className="chain-flow-track" role="region" aria-label="Các mắt xích chuỗi băm">
+          {SAMPLE_HASH_EVENTS.map((ev, idx) => {
+            const isTamperedNode = tamperSimulated && idx === 2
+            const isBrokenDownstream = tamperSimulated && idx > 2
+            const isLast = idx === SAMPLE_HASH_EVENTS.length - 1
+
+            return (
+              <div key={ev.seq} className="chain-node-wrapper">
+                <div
+                  className={`chain-node-box ${
+                    isTamperedNode
+                      ? 'node-tampered'
+                      : isBrokenDownstream
+                        ? 'node-broken'
+                        : 'node-verified'
+                  }`}
+                >
+                  <div className="node-head">
+                    <span className="node-seq-pill">{ev.seq}</span>
+                    <span className="node-icon" aria-hidden="true">
+                      {ev.icon}
+                    </span>
+                    <span
+                      className={`node-status-dot ${
+                        isTamperedNode || isBrokenDownstream ? 'dot-danger' : 'dot-verified'
+                      }`}
+                      title={
+                        isTamperedNode
+                          ? 'Dữ liệu bị sửa đổi!'
+                          : isBrokenDownstream
+                            ? 'Mất liên kết băm'
+                            : 'Mã băm hợp lệ'
+                      }
+                    />
+                  </div>
+
+                  <strong className="node-stage-name">{ev.stage}</strong>
+
+                  <div className="node-data-pill">
+                    <span className="node-temp-label">Nhiệt độ:</span>
+                    <strong
+                      className={`node-temp-val ${isTamperedNode ? 'temp-tampered-alert' : ''}`}
+                    >
+                      {isTamperedNode ? '99.9°C (Sửa)' : ev.temp}
+                    </strong>
+                  </div>
+
+                  <div className="node-hash-preview" title={ev.hash}>
+                    <span className="hash-key">Hash:</span>
+                    <code>
+                      {isTamperedNode ? 'e9d41a02...7c3b81f9' : ev.hash.slice(0, 16)}...
+                    </code>
+                  </div>
+                </div>
+
+                {!isLast && (
+                  <div
+                    className={`chain-link-connector ${
+                      tamperSimulated && idx === 2 ? 'link-fractured' : 'link-verified'
+                    }`}
+                    aria-hidden="true"
+                  >
+                    <div className="connector-svg-beam">
+                      <span className="beam-spark" />
+                    </div>
+                    {tamperSimulated && idx === 2 && (
+                      <span className="fracture-label" title="Liên kết băm bị đứt gãy!">
+                        ⚡ ĐỨT CHUỖI
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {tamperSimulated && (
+          <div className="alert-box alert-error alert-spaced" role="alert">
+            <strong>[!] Cảnh báo Toàn vẹn:</strong> Dữ liệu nhiệt độ tại chặng #03 bị thay đổi từ{' '}
+            <code>3.5°C</code> thành <code>99.9°C</code>. Khi băm lại bằng SHA-256 + RFC 8785, giá trị
+            mới (<code>e9d41a02...</code>) không khớp với giá trị niêm phong (<code>e3b0c442...</code>).
+            Toàn bộ chuỗi sự kiện phía sau lập tức bị vô hiệu hóa!
+          </div>
+        )}
+      </section>
+
+      {/* Comprehensive Data Table */}
+      <section className="data-table-wrapper panel-card">
+        <div className="data-table-header">
+          <div>
+            <h2 className="section-title">
+              Bảng Nhật ký Chi tiết Sự kiện Chuỗi lạnh
+            </h2>
+            <p className="panel-sub">
+              Hiệu năng xác minh độc lập: 147.856 sự kiện / giây · Độ trễ: 0,0068 ms / bản ghi
+            </p>
+          </div>
         </div>
 
         <div className="table-scroll">
