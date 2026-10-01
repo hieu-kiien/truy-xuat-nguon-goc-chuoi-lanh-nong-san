@@ -25,6 +25,10 @@ export interface LoginRequest {
   password: string
 }
 
+export interface DemoLoginRequest {
+  email: string
+}
+
 export interface SessionUser {
   id: string
   email: string
@@ -94,7 +98,6 @@ export interface DemoAccount {
   organization: string
   roleText: string
   email: string
-  password: string
   description: string
 }
 
@@ -105,7 +108,6 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     organization: 'Nông trại Cầu Đất Đà Lạt',
     roleText: 'grower · Quyền: farms:read, farms:write',
     email: 'grower@caudat.vn',
-    password: 'Password123!',
     description:
       'Quản lý danh mục thửa đất Đà Lạt. Chỉ nhìn thấy vùng trồng thuộc Tổ chức A.',
   },
@@ -115,7 +117,6 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     organization: 'Hợp tác xã Nông sản Mộc Châu',
     roleText: 'organization_admin · Cô lập dữ liệu đa tổ chức (RLS)',
     email: 'admin@mocchau.vn',
-    password: 'Password123!',
     description:
       'Kiểm chứng PostgreSQL Row-Level Security: Chỉ hiển thị vùng trồng của Mộc Châu.',
   },
@@ -125,7 +126,6 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     organization: 'Chi cục Quản lý Chất lượng Nông lâm sản',
     roleText: 'inspector · Quyền: lots:read_all (Chặn farms:read)',
     email: 'inspector@chicuc.gov.vn',
-    password: 'Password123!',
     description:
       'Kiểm chứng RBAC chặn truy cập trái phép (403 Forbidden) khi gọi API vùng trồng.',
   },
