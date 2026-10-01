@@ -74,6 +74,20 @@ input:focus-visible,
   outline-offset: 2px;
 }
 
+html.light button:focus-visible,
+html.light a:focus-visible,
+html.light input:focus-visible,
+html.light [tabindex]:focus-visible {
+  outline-color: #164e30;
+}
+
+html.dark button:focus-visible,
+html.dark a:focus-visible,
+html.dark input:focus-visible,
+html.dark [tabindex]:focus-visible {
+  outline-color: #58c78e;
+}
+
 .dashboard-nav-item:focus-visible,
 .map-external-link:focus-visible,
 .pill-link:focus-visible {
