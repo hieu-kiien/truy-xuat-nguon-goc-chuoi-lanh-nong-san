@@ -1,4 +1,5 @@
 import type {
+  DemoLoginRequest,
   Farm,
   FarmPayload,
   HealthResponse,
@@ -23,6 +24,7 @@ function resolveBaseUrl(): string {
 }
 
 export const API_BASE_URL = resolveBaseUrl()
+export const DEMO_LOGIN_ENABLED = import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true'
 
 export class ApiError extends Error {
   status: number
@@ -111,6 +113,12 @@ export const checkHealth = () => request<HealthResponse>('/')
 
 export const login = (payload: LoginRequest) =>
   request<SessionUser>('/api/v1/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const demoLogin = (payload: DemoLoginRequest) =>
+  request<SessionUser>('/api/v1/auth/demo-login', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
