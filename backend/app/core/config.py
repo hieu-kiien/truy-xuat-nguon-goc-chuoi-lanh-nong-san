@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     SECRET_KEY: str = "change-me-in-production"
     DEBUG: bool = True
+    ENABLE_DEMO_LOGIN: bool = False
     SESSION_TTL_MINUTES: int = Field(default=480, ge=1, le=10080)
     SESSION_COOKIE_NAME: str = "__Host-session"
     ALLOWED_ORIGINS: list[str] | str = [
@@ -45,6 +46,10 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
+
+    @property
+    def demo_login_enabled(self) -> bool:
+        return self.ENABLE_DEMO_LOGIN and self.APP_ENV.lower() != "production"
 
     @property
     def DATABASE_URL(self) -> URL:
