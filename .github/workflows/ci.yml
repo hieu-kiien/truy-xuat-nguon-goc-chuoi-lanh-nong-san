@@ -82,6 +82,21 @@ jobs:
           cd backend
           pytest tests/ -v
 
+  integrity-check:
+    name: 🔐 Integrity (Canonical JSON & SHA-256)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+
+      - name: Run integrity and tamper-detection tests
+        run: node --test backend/tests/integrity.test.js
+
   frontend-check:
     name: ⚛️ Frontend (Lint & Build)
     runs-on: ubuntu-latest
