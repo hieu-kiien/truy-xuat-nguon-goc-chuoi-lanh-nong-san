@@ -18,7 +18,9 @@ def bootstrap_database_role() -> None:
     if not app_url.password or not admin_url.password:
         raise RuntimeError("Database passwords must be configured through environment")
     if not admin_url.database:
-        raise RuntimeError("Database name is required to provision the application role")
+        raise RuntimeError(
+            "Database name is required to provision the application role"
+        )
 
     engine = create_engine(admin_url)
     try:
