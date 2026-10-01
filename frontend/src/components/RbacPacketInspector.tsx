@@ -22,6 +22,13 @@ export type ProbePhase =
   | 'rejected'
   | 'error'
 
+function resultToPhase(result: ProbeResult): ProbePhase | null {
+  if (result.kind === 'allowed') return 'permitted'
+  if (result.kind === 'denied') return 'rejected'
+  if (result.kind === 'error') return 'error'
+  return null
+}
+
 export function RbacPacketInspector({
   user,
   rbacProbeResult,
@@ -44,23 +51,21 @@ export function RbacPacketInspector({
   }, [])
 
   useEffect(() => {
-    if (phase !== 'evaluating' || !rbacProbeResult) return
+    if (!rbacProbeResult || rbacProbeResult.kind === 'pending') return
+    if (phase === 'dispatching' || phase === 'gateway') return
 
-    const nextPhase: ProbePhase | null =
-      rbacProbeResult.kind === 'allowed'
-        ? 'permitted'
-        : rbacProbeResult.kind === 'denied'
-          ? 'rejected'
-          : rbacProbeResult.kind === 'error'
-            ? 'error'
-            : null
+    const nextPhase = resultToPhase(rbacProbeResult)
+    if (!nextPhase || phase === nextPhase) return
 
-    if (!nextPhase) return
+    if (phase === 'evaluating') {
+      const timer = window.setTimeout(() => {
+        setPhase(nextPhase)
+      }, 150)
+      timersRef.current.push(timer)
+      return
+    }
 
-    const timer = window.setTimeout(() => {
-      setPhase(nextPhase)
-    }, 150)
-    timersRef.current.push(timer)
+    setPhase(nextPhase)
   }, [rbacProbeResult, phase])
 
   const handleInspect = () => {
@@ -92,9 +97,7 @@ export function RbacPacketInspector({
 
   return (
     <div
-      className={`rbac-circuit-box panel-card ${
-        isPermitted ? 'circuit-permitted' : isRejected ? 'circuit-rejected' : ''
-      }`}
+      className="rbac-circuit-box panel-card"
       aria-label="Mô phỏng đường truyền gói tin bảo mật RBAC"
     >
       <div className="circuit-header">
@@ -119,7 +122,7 @@ export function RbacPacketInspector({
       </div>
 
       <div className="circuit-stages-track">
-        <div className={`circuit-node ${phase === 'dispatching' ? 'node-active' : ''}`}>
+        <div className="circuit-node">
           <div className="circuit-node-badge caller-badge">
             <span className="node-icon-symbol" aria-hidden="true">
               👤
@@ -142,7 +145,7 @@ export function RbacPacketInspector({
           <span key={`packet-1-${runId}`} className="bus-packet packet-1" />
         </div>
 
-        <div className={`circuit-node ${phase === 'gateway' ? 'node-active' : ''}`}>
+        <div className="circuit-node">
           <div className="circuit-node-badge gateway-badge">
             <span className="node-icon-symbol" aria-hidden="true">
               ⚡
@@ -165,14 +168,10 @@ export function RbacPacketInspector({
           <span key={`packet-2-${runId}`} className="bus-packet packet-2" />
         </div>
 
-        <div
-          className={`circuit-node ${
-            isRejected ? 'node-blocked' : isPermitted ? 'node-passed' : phase === 'evaluating' ? 'node-active' : ''
-          }`}
-        >
+        <div className={`circuit-node ${isRejected ? 'node-blocked' : ''}`}>
           <div
             className={`circuit-node-badge ${
-              isRejected ? 'rbac-badge-danger' : isPermitted ? 'rbac-badge-success' : 'rbac-badge'
+              isRejected ? 'rbac-badge-danger' : 'rbac-badge'
             }`}
           >
             <span className="node-icon-symbol" aria-hidden="true">
@@ -183,7 +182,7 @@ export function RbacPacketInspector({
           <span className="circuit-node-role">farms:read</span>
           <span
             className={`circuit-status-pill ${
-              isPermitted ? 'pill-permitted' : isRejected ? 'pill-rejected' : 'pill-neutral'
+              isPermitted ? 'pill-permitted' : isRejected ? 'pill-rejected' : ''
             }`}
           >
             {isPermitted ? 'Cho phép' : isRejected ? 'Chặn (403)' : isError ? 'Lỗi kiểm tra' : 'Đang đợi...'}
@@ -206,12 +205,8 @@ export function RbacPacketInspector({
           )}
         </div>
 
-        <div
-          className={`circuit-node ${
-            isRejected ? 'node-unreachable' : isPermitted ? 'node-passed' : ''
-          }`}
-        >
-          <div className={`circuit-node-badge ${isPermitted ? 'db-badge-success' : 'db-badge'}`}>
+        <div className={`circuit-node ${isRejected ? 'node-unreachable' : ''}`}>
+          <div className="circuit-node-badge db-badge">
             <span className="node-icon-symbol" aria-hidden="true">
               🗄️
             </span>
@@ -227,7 +222,7 @@ export function RbacPacketInspector({
       {showOutcome && rbacProbeResult && (
         <div
           className={`circuit-outcome-box ${
-            isPermitted ? 'outcome-success' : isRejected ? 'outcome-danger' : 'outcome-neutral'
+            isPermitted ? 'outcome-success' : isRejected ? 'outcome-danger' : ''
           }`}
           role="status"
           aria-live="polite"
