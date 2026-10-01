@@ -72,7 +72,7 @@ DEMO_FARMS = [
         "longitude": Decimal("108.541300"),
     },
     {
-        "id": UUID("f3333333-3333-4111-8111-111111111111"),
+        "id": UUID("f3333333-3333-4333-8333-333333333333"),
         "organization_id": UUID("22222222-2222-4222-8222-222222222222"),
         "name": "Vùng trồng Chè Shan Tuyết Mộc Châu C1",
         "area_ha": Decimal("5.2000"),
