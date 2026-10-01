@@ -1,4 +1,4 @@
-"""Constants shared by demo-only seed and authentication flows."""
+"""Allowlist for the explicit non-production demo authentication flow."""
 
 DEMO_EMAILS = frozenset(
     {
