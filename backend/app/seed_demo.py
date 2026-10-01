@@ -83,6 +83,9 @@ DEMO_FARMS = [
 
 
 def seed_demo_data() -> None:
+    if settings.APP_ENV.lower() == "production":
+        return
+
     engine = create_engine(settings.MIGRATION_DATABASE_URL, pool_pre_ping=True)
     try:
         with Session(engine) as session:
