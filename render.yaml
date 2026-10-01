@@ -7,7 +7,8 @@ services:
     branch: main
     autoDeploy: true
     buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: cd backend && alembic upgrade head && python -m app.seed_demo && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: cd backend && python -m app.bootstrap_db_role && alembic upgrade head && python -m app.seed_demo && unset DB_ADMIN_PASSWORD && exec uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
     envVars:
       - key: APP_ENV
         value: staging
@@ -17,14 +18,30 @@ services:
         value: "True"
       - key: ALLOWED_ORIGINS
         value: https://ttcs-frontend-staging.onrender.com
-      - key: DATABASE_URL_ENV
+      - key: DB_HOST
         fromDatabase:
           name: ttcs-postgres-staging
-          property: connectionString
-      - key: MIGRATION_DATABASE_URL_ENV
+          property: host
+      - key: DB_PORT
         fromDatabase:
           name: ttcs-postgres-staging
-          property: connectionString
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ttcs-postgres-staging
+          property: database
+      - key: DB_USER
+        value: ttcs_app
+      - key: DB_PASSWORD
+        generateValue: true
+      - key: DB_ADMIN_USER
+        fromDatabase:
+          name: ttcs-postgres-staging
+          property: user
+      - key: DB_ADMIN_PASSWORD
+        fromDatabase:
+          name: ttcs-postgres-staging
+          property: password
 
   - type: web
     name: ttcs-frontend-staging
@@ -68,3 +85,4 @@ databases:
     plan: free
     databaseName: ttcs_staging
     user: admin
+    ipAllowList: []
