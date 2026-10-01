@@ -26,6 +26,7 @@ export function WorkspaceSidebar({
 
   return (
     <aside
+      id="dashboard-sidebar"
       className={`dashboard-sidebar ${
         sidebarOpen ? 'dashboard-sidebar-open' : ''
       }`}
@@ -50,6 +51,7 @@ export function WorkspaceSidebar({
                 <button
                   type="button"
                   onClick={() => selectTab('overview')}
+                  aria-current={activeTab === 'overview' ? 'page' : undefined}
                   className={`dashboard-nav-item ${
                     activeTab === 'overview' ? 'dashboard-nav-item-active' : ''
                   }`}
@@ -62,6 +64,7 @@ export function WorkspaceSidebar({
                 <button
                   type="button"
                   onClick={() => selectTab('security')}
+                  aria-current={activeTab === 'security' ? 'page' : undefined}
                   className={`dashboard-nav-item ${
                     activeTab === 'security' ? 'dashboard-nav-item-active' : ''
                   }`}
@@ -74,6 +77,7 @@ export function WorkspaceSidebar({
                 <button
                   type="button"
                   onClick={() => selectTab('integrity')}
+                  aria-current={activeTab === 'integrity' ? 'page' : undefined}
                   className={`dashboard-nav-item ${
                     activeTab === 'integrity' ? 'dashboard-nav-item-active' : ''
                   }`}
@@ -88,6 +92,7 @@ export function WorkspaceSidebar({
                   target="_blank"
                   rel="noreferrer"
                   className="dashboard-nav-item"
+                  aria-label="Mở OpenAPI Swagger trong tab mới"
                 >
                   <span>OpenAPI Swagger</span>
                   <span className="nav-tag">API</span>
