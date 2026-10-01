@@ -14,6 +14,20 @@ interface HashEventRecord {
   hash: string
 }
 
+const HASH_01 = '857af794d6feb2fd777e6720fa4e71889fda897e62c1c58e60f15d1756b4b2b3'
+const HASH_02 = '7c481b7448fa545f795a8d5fe6ac420e2eefaf356821174671cc80ee99e2ee74'
+const HASH_03 = '65888f087599b007023d41b590bd961e8d66ac2890567788c421b6014713554b'
+const HASH_04 = '3ba6b583d8f76b309af532096cf65e9c70ace809daf8db861f59d885ab52366d'
+const HASH_03_TAMPERED =
+  'ea42b0e1ee5fd2f949ea85c53578181ab86ea2917212475fe402a58d2cf03f1c'
+
+const EVENT_03_CANONICAL =
+  `{"event_seq":3,"humidity_pct":82,"lot_id":"lot-caudat-01","prev_hash":"${HASH_02}","stage":"transport","temp_c":3.5,"timestamp":"2026-09-30T10:30:00Z"}`
+const EVENT_03_TAMPERED_CANONICAL =
+  `{"event_seq":3,"humidity_pct":82,"lot_id":"lot-caudat-01","prev_hash":"${HASH_02}","stage":"transport","temp_c":99.9,"timestamp":"2026-09-30T10:30:00Z"}`
+
+const shortHash = (hash: string) => `${hash.slice(0, 8)}...${hash.slice(-8)}`
+
 const SAMPLE_HASH_EVENTS: HashEventRecord[] = [
   {
     seq: '#01',
@@ -21,8 +35,8 @@ const SAMPLE_HASH_EVENTS: HashEventRecord[] = [
     stage: 'Thu hoạch tại vùng trồng',
     temp: '14.2°C',
     humidity: '78%',
-    prevHash: '00000000...00000000',
-    hash: '9f86d081...8b4c70a1',
+    prevHash: '0'.repeat(64),
+    hash: HASH_01,
   },
   {
     seq: '#02',
@@ -30,8 +44,8 @@ const SAMPLE_HASH_EVENTS: HashEventRecord[] = [
     stage: 'Sơ chế & Cấp đông nhanh',
     temp: '3.8°C',
     humidity: '85%',
-    prevHash: '9f86d081...8b4c70a1',
-    hash: '4b227777...d4735e3a',
+    prevHash: HASH_01,
+    hash: HASH_02,
   },
   {
     seq: '#03',
@@ -39,8 +53,8 @@ const SAMPLE_HASH_EVENTS: HashEventRecord[] = [
     stage: 'Vận chuyển xe lạnh chuyên dụng',
     temp: '3.5°C',
     humidity: '82%',
-    prevHash: '4b227777...d4735e3a',
-    hash: 'e3b0c442...98fc1c14',
+    prevHash: HASH_02,
+    hash: HASH_03,
   },
   {
     seq: '#04',
@@ -48,8 +62,8 @@ const SAMPLE_HASH_EVENTS: HashEventRecord[] = [
     stage: 'Nhập kho trung tâm phân phối',
     temp: '4.0°C',
     humidity: '80%',
-    prevHash: 'e3b0c442...98fc1c14',
-    hash: 'a1860004...b62aa867',
+    prevHash: HASH_03,
+    hash: HASH_04,
   },
 ]
 
@@ -102,6 +116,7 @@ export function IntegrityPanel({
               {SAMPLE_HASH_EVENTS.map((ev, index) => {
                 const isTamperedRow = tamperSimulated && index === 2
                 const isBrokenDownstream = tamperSimulated && index > 2
+                const displayedHash = isTamperedRow ? HASH_03_TAMPERED : ev.hash
                 return (
                   <tr
                     key={ev.seq}
@@ -128,12 +143,10 @@ export function IntegrityPanel({
                       </code>
                     </td>
                     <td>
-                      <code>{ev.prevHash}</code>
+                      <code title={ev.prevHash}>{shortHash(ev.prevHash)}</code>
                     </td>
                     <td>
-                      <code>
-                        {isTamperedRow ? 'e9d41a02...7c3b81f9' : ev.hash}
-                      </code>
+                      <code title={displayedHash}>{shortHash(displayedHash)}</code>
                     </td>
                     <td>
                       {isTamperedRow ? (
@@ -175,8 +188,8 @@ export function IntegrityPanel({
             </p>
             <pre className="code-block-compact">
               {tamperSimulated
-                ? `{"event_seq":3,"humidity_pct":82,"lot_id":"lot-caudat-01","prev_hash":"4b227777...d4735e3a","stage":"transport","temp_c":99.9,"timestamp":"2026-09-30T10:30:00Z"}\n-> SHA-256 Tính lại : e9d41a026f904b12...7c3b81f9 (Khác với e3b0c442...98fc1c14 đã niêm phong!)`
-                : `{"event_seq":3,"humidity_pct":82,"lot_id":"lot-caudat-01","prev_hash":"4b227777...d4735e3a","stage":"transport","temp_c":3.5,"timestamp":"2026-09-30T10:30:00Z"}\n-> SHA-256 Tính lại : e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (Khớp 100%)`}
+                ? `${EVENT_03_TAMPERED_CANONICAL}\n-> SHA-256 tính lại: ${HASH_03_TAMPERED}\n-> Hash đã niêm phong: ${HASH_03} (không khớp)`
+                : `${EVENT_03_CANONICAL}\n-> SHA-256 tính lại: ${HASH_03} (khớp hash đã niêm phong)`}
             </pre>
           </section>
 
