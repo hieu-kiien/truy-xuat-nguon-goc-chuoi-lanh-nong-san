@@ -94,7 +94,8 @@ export function ColdChainPipeline({
             <span
               className={`chill-pulse-indicator ${tamperSimulated ? 'chill-danger' : 'chill-optimal'}`}
             />
-            Chuỗi lạnh: {tamperSimulated ? 'CẢNH BÁO ĐỨT GÃY' : 'CHUẨN 0°C – 4°C'}
+            Bảo quản lạnh (chặng 03–05):{' '}
+            {tamperSimulated ? 'CẢNH BÁO VI PHẠM' : 'ĐẠT CHUẨN 0°C – 4°C ✓'}
           </span>
         </div>
       </div>

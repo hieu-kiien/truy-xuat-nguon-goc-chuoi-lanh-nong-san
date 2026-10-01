@@ -1380,8 +1380,7 @@ code {
   height: 7px;
   border-radius: 50%;
   background-color: var(--brand);
-  box-shadow: 0 0 6px var(--brand);
-  animation: pulse-telemetry 2s infinite ease-in-out;
+  box-shadow: 0 0 4px var(--brand);
 }
 
 .pipeline-sub {
@@ -1537,6 +1536,8 @@ code {
   flex-shrink: 0;
   position: relative;
   margin: 0 2px;
+  container-type: inline-size;
+  --travel-distance: 14px;
 }
 
 .connector-line {
@@ -1556,7 +1557,14 @@ code {
   height: 2px;
   background: var(--brand);
   box-shadow: 0 0 6px var(--brand);
-  animation: particle-glide 1.6s infinite linear;
+  transform: translateX(0);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.pipeline-track:hover .connector-particle,
+.pipeline-track:focus-within .connector-particle {
+  animation: particle-glide 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .connector-broken .connector-line {
@@ -1745,6 +1753,8 @@ code {
   align-items: center;
   justify-content: center;
   margin: 0 3px;
+  container-type: inline-size;
+  --travel-distance: 20px;
 }
 
 .connector-svg-beam {
@@ -1768,7 +1778,14 @@ code {
   height: 2px;
   background: var(--brand);
   box-shadow: 0 0 8px var(--brand);
-  animation: particle-glide 1.5s infinite linear;
+  transform: translateX(0);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.chain-flow-track:hover .link-verified .beam-spark,
+.chain-flow-track:focus-within .link-verified .beam-spark {
+  animation: beam-spark-run 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .link-fractured .connector-svg-beam {
@@ -1824,8 +1841,7 @@ code {
   height: 6px;
   border-radius: 50%;
   background: var(--brand);
-  box-shadow: 0 0 5px var(--brand);
-  animation: pulse-telemetry 2s infinite ease-in-out;
+  box-shadow: 0 0 4px var(--brand);
 }
 
 .circuit-title {
@@ -1932,6 +1948,7 @@ code {
   position: relative;
   display: flex;
   align-items: center;
+  container-type: inline-size;
 }
 
 .bus-wire {
@@ -1950,7 +1967,9 @@ code {
   box-shadow: 0 0 8px var(--brand);
   top: -2.5px;
   left: 0;
+  transform: translateX(0);
   opacity: 0;
+  will-change: transform, opacity;
 }
 
 .bus-active .bus-packet {
@@ -2117,7 +2136,7 @@ code {
 
 @keyframes particle-glide {
   0% {
-    left: 0;
+    transform: translateX(0);
     opacity: 0;
   }
   20% {
@@ -2127,7 +2146,24 @@ code {
     opacity: 1;
   }
   100% {
-    left: calc(100% - 10px);
+    transform: translateX(var(--travel-distance, calc(100cqw - 10px)));
+    opacity: 0;
+  }
+}
+
+@keyframes beam-spark-run {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(var(--travel-distance, calc(100cqw - 12px)));
     opacity: 0;
   }
 }
@@ -2158,14 +2194,17 @@ code {
 
 @keyframes packet-flight {
   0% {
-    left: 0;
+    transform: translateX(0);
     opacity: 0;
   }
-  30% {
+  25% {
+    opacity: 1;
+  }
+  90% {
     opacity: 1;
   }
   100% {
-    left: calc(100% - 7px);
+    transform: translateX(var(--travel-distance, calc(100cqw - 7px)));
     opacity: 1;
   }
 }
@@ -2191,7 +2230,7 @@ code {
   content: '';
   position: absolute;
   top: 0;
-  left: -100%;
+  left: 0;
   width: 50%;
   height: 100%;
   background: linear-gradient(
@@ -2200,16 +2239,17 @@ code {
     rgba(47, 158, 102, 0.15),
     transparent
   );
+  transform: translateX(-100%);
   animation: card-beam-sweep 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   pointer-events: none;
 }
 
 @keyframes card-beam-sweep {
   0% {
-    left: -100%;
+    transform: translateX(-100%);
   }
   100% {
-    left: 200%;
+    transform: translateX(300%);
   }
 }
 
