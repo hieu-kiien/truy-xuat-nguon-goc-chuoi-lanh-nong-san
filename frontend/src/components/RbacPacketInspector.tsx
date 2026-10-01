@@ -51,7 +51,15 @@ export function RbacPacketInspector({
   }, [])
 
   useEffect(() => {
-    if (!rbacProbeResult || rbacProbeResult.kind === 'pending') return
+    if (!rbacProbeResult) return
+
+    if (rbacProbeResult.kind === 'pending') {
+      if (phase !== 'dispatching' && phase !== 'gateway' && phase !== 'evaluating') {
+        setPhase('evaluating')
+      }
+      return
+    }
+
     if (phase === 'dispatching' || phase === 'gateway') return
 
     const nextPhase = resultToPhase(rbacProbeResult)
