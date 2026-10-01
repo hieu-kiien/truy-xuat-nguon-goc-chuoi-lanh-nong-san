@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { API_BASE_URL } from '../services/api'
 import { ROLE_LABELS, type SessionUser } from '../types'
 import type { WorkspaceTab } from './FarmWorkspace'
@@ -19,6 +20,40 @@ export function WorkspaceSidebar({
   onTabChange,
   onLogout,
 }: WorkspaceSidebarProps) {
+  useEffect(() => {
+    const menuButton = document.querySelector<HTMLButtonElement>(
+      '[aria-controls="dashboard-sidebar"]'
+    )
+    menuButton?.setAttribute('aria-expanded', String(sidebarOpen))
+  }, [sidebarOpen])
+
+  useEffect(() => {
+    if (!sidebarOpen) return
+
+    const previousOverflow = document.body.style.overflow
+    const dashboardMain = document.querySelector<HTMLElement>('.dashboard-main')
+    document.body.style.overflow = 'hidden'
+    if (dashboardMain) dashboardMain.inert = true
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      onCloseSidebar()
+      window.requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLButtonElement>('[aria-controls="dashboard-sidebar"]')
+          ?.focus()
+      })
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
+      if (dashboardMain) dashboardMain.inert = false
+    }
+  }, [sidebarOpen, onCloseSidebar])
+
   const selectTab = (tab: WorkspaceTab) => {
     onTabChange(tab)
     onCloseSidebar()
