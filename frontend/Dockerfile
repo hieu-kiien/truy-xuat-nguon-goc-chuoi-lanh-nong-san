@@ -1,11 +1,15 @@
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY . .
+
+ARG VITE_ENABLE_DEMO_LOGIN=false
+ENV VITE_ENABLE_DEMO_LOGIN=$VITE_ENABLE_DEMO_LOGIN
+
 RUN npm run build
 
 FROM nginx:alpine AS final
