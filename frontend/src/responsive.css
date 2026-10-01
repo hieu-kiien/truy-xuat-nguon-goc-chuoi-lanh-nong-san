@@ -174,10 +174,9 @@
   }
 
   .data-table tbody th {
-    position: sticky;
-    inset-block-start: auto;
-    inset-inline-start: 0;
-    z-index: 2;
+    position: static;
+    inset: auto;
+    z-index: auto;
     background: var(--bg-panel);
   }
 
