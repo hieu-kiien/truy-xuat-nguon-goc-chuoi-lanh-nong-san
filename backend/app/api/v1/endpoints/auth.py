@@ -79,7 +79,6 @@ def _issue_session(
         samesite="lax",
         path="/",
     )
-    response.headers["X-Session-Token"] = token
     return _session_user(user, organization, role)
 
 
