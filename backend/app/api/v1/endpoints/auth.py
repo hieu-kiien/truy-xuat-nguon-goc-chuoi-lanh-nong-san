@@ -9,6 +9,7 @@ from app.core.auth import Principal, get_current_principal
 from app.core.authorization import enforce_route_permission, require_permission
 from app.core.config import settings
 from app.core.database import get_db, set_db_context
+from app.core.demo import DEMO_EMAILS
 from app.core.security import (
     hash_session_token,
     new_session_token,
@@ -16,11 +17,12 @@ from app.core.security import (
     verify_password,
 )
 from app.models.identity import AuthSession, Organization, Role, User
-from app.schemas.auth import LoginRequest, SessionUser
+from app.schemas.auth import DemoLoginRequest, LoginRequest, SessionUser
 
 router = APIRouter()
 session_router = APIRouter(dependencies=[Depends(enforce_route_permission)])
 AUTH_ERROR = "Email hoặc mật khẩu không đúng."
+DEMO_AUTH_ERROR = "Tài khoản demo không khả dụng."
 MAX_FAILED_ATTEMPTS = 5
 LOCK_MINUTES = 15
 
@@ -37,38 +39,13 @@ def _session_user(user: User, organization: Organization, role: Role) -> Session
     )
 
 
-@router.post("/login", response_model=SessionUser)
-def login(
-    payload: LoginRequest,
+def _issue_session(
+    user: User,
     response: Response,
-    db: Annotated[Session, Depends(get_db)],
+    db: Session,
+    *,
+    now: datetime,
 ) -> SessionUser:
-    email = str(payload.email).strip().lower()
-    set_db_context(db, login_email=email)
-    user = db.scalar(select(User).where(User.email == email).with_for_update())
-    if user is None:
-        verify_dummy_password(payload.password)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=AUTH_ERROR)
-
-    password_ok = verify_password(user.password_hash, payload.password)
-    now = datetime.now(UTC)
-    is_locked = user.locked_until is not None and user.locked_until > now
-
-    if is_locked or not user.is_active or not password_ok:
-        if user.locked_until is not None and user.locked_until <= now:
-            user.failed_login_attempts = 0
-            user.locked_until = None
-
-        if not is_locked and user.is_active and not password_ok:
-            user.failed_login_attempts += 1
-            if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
-                user.locked_until = now + timedelta(minutes=LOCK_MINUTES)
-
-        db.commit()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=AUTH_ERROR)
-
-    user.failed_login_attempts = 0
-    user.locked_until = None
     set_db_context(db, login_organization_id=user.organization_id)
     organization = db.get(Organization, user.organization_id)
     role = db.get(Role, user.role_code)
@@ -104,6 +81,64 @@ def login(
     )
     response.headers["X-Session-Token"] = token
     return _session_user(user, organization, role)
+
+
+@router.post("/login", response_model=SessionUser)
+def login(
+    payload: LoginRequest,
+    response: Response,
+    db: Annotated[Session, Depends(get_db)],
+) -> SessionUser:
+    email = str(payload.email).strip().lower()
+    set_db_context(db, login_email=email)
+    user = db.scalar(select(User).where(User.email == email).with_for_update())
+    if user is None:
+        verify_dummy_password(payload.password)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=AUTH_ERROR)
+
+    password_ok = verify_password(user.password_hash, payload.password)
+    now = datetime.now(UTC)
+    is_locked = user.locked_until is not None and user.locked_until > now
+
+    if is_locked or not user.is_active or not password_ok:
+        if user.locked_until is not None and user.locked_until <= now:
+            user.failed_login_attempts = 0
+            user.locked_until = None
+
+        if not is_locked and user.is_active and not password_ok:
+            user.failed_login_attempts += 1
+            if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
+                user.locked_until = now + timedelta(minutes=LOCK_MINUTES)
+
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=AUTH_ERROR)
+
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    return _issue_session(user, response, db, now=now)
+
+
+@router.post("/demo-login", response_model=SessionUser)
+def demo_login(
+    payload: DemoLoginRequest,
+    response: Response,
+    db: Annotated[Session, Depends(get_db)],
+) -> SessionUser:
+    if not settings.demo_login_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=DEMO_AUTH_ERROR)
+
+    email = str(payload.email).strip().lower()
+    if email not in DEMO_EMAILS:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=DEMO_AUTH_ERROR)
+
+    set_db_context(db, login_email=email)
+    user = db.scalar(select(User).where(User.email == email).with_for_update())
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=DEMO_AUTH_ERROR)
+
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    return _issue_session(user, response, db, now=datetime.now(UTC))
 
 
 @session_router.get("/me", response_model=SessionUser)
