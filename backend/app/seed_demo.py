@@ -92,11 +92,6 @@ def seed_demo_data() -> None:
             if session.scalar(select(Role.code).limit(1)) is None:
                 return
 
-            # Demo accounts are entered through /auth/demo-login. Their ordinary
-            # password is intentionally random and discarded so no reusable demo
-            # password is shipped in source code or the frontend bundle.
-            disabled_demo_password_hash = hash_password(token_urlsafe(48))
-
             for org_data in DEMO_ORGANIZATIONS:
                 org = session.get(Organization, org_data["id"])
                 if org is None:
@@ -112,6 +107,10 @@ def seed_demo_data() -> None:
             session.flush()
 
             for user_data in DEMO_USERS:
+                # Demo accounts enter through /auth/demo-login. Each account gets
+                # an independent random ordinary password which is immediately
+                # discarded, so no reusable demo password is shipped or shared.
+                disabled_password_hash = hash_password(token_urlsafe(48))
                 existing_user = session.scalar(
                     select(User).where(User.email == user_data["email"])
                 )
@@ -123,14 +122,14 @@ def seed_demo_data() -> None:
                             role_code=user_data["role_code"],
                             email=user_data["email"],
                             full_name=user_data["full_name"],
-                            password_hash=disabled_demo_password_hash,
+                            password_hash=disabled_password_hash,
                             failed_login_attempts=0,
                             locked_until=None,
                             is_active=True,
                         )
                     )
                 else:
-                    existing_user.password_hash = disabled_demo_password_hash
+                    existing_user.password_hash = disabled_password_hash
                     existing_user.failed_login_attempts = 0
                     existing_user.locked_until = None
 
