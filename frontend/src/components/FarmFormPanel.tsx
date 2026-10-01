@@ -26,7 +26,7 @@ const PRESET_LOCATIONS: PresetLocation[] = [
   },
   {
     label: 'Mẫu Tiền Giang',
-    name: 'Vùng trồng Xoài Cát Hòa Lộc Cái B',
+    name: 'Vùng trồng Xoài Cát Hòa Lộc Cái Bè',
     area_ha: '6.1000',
     latitude: '10.334910',
     longitude: '106.028450',
