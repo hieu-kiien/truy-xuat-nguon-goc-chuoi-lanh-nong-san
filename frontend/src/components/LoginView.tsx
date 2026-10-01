@@ -235,7 +235,7 @@ export function LoginView({
                 </div>
                 <div className="info-item">
                   <span className="info-item-label">N3-6 · Đa tổ chức &amp; Phân quyền</span>
-                  <strong className="info-item-value">PostgreSQL FORCE RLS</strong>
+                  <strong className="info-item-value">PostgreSQL RLS</strong>
                 </div>
                 <div className="info-item">
                   <span className="info-item-label">N3-7 · Danh mục Vùng trồng</span>
