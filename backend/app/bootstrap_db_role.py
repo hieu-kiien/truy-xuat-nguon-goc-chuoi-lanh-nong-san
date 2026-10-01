@@ -17,6 +17,8 @@ def bootstrap_database_role() -> None:
         )
     if not app_url.password or not admin_url.password:
         raise RuntimeError("Database passwords must be configured through environment")
+    if not admin_url.database:
+        raise RuntimeError("Database name is required to provision the application role")
 
     engine = create_engine(admin_url)
     try:
@@ -53,6 +55,12 @@ def bootstrap_database_role() -> None:
                     ).format(
                         sql.Identifier(settings.DB_USER),
                         sql.Literal(app_url.password),
+                    )
+                )
+                cursor.execute(
+                    sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(
+                        sql.Identifier(admin_url.database),
+                        sql.Identifier(settings.DB_USER),
                     )
                 )
     finally:
