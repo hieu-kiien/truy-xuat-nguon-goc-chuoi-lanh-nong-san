@@ -80,6 +80,16 @@ input:focus-visible,
   border-radius: var(--radius-sm);
 }
 
+/* Chart bars are real buttons so keyboard and assistive-technology users can
+ * trigger the same detail toast as pointer users. Remove native button chrome
+ * without removing focus indication.
+ */
+.chart-bar {
+  appearance: none;
+  padding: 0;
+  font: inherit;
+}
+
 @media (max-width: 720px) {
   .dashboard-menu-btn,
   .ds-button,
