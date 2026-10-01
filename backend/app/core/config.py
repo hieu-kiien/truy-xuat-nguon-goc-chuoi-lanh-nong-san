@@ -49,7 +49,10 @@ class Settings(BaseSettings):
 
     @property
     def demo_login_enabled(self) -> bool:
-        return self.ENABLE_DEMO_LOGIN and self.APP_ENV.lower() != "production"
+        return self.ENABLE_DEMO_LOGIN and self.APP_ENV.lower() in {
+            "development",
+            "staging",
+        }
 
     @property
     def DATABASE_URL(self) -> URL:
