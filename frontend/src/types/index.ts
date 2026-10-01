@@ -22,7 +22,7 @@ export interface HealthResponse {
 
 export interface LoginRequest {
   email: string
-  password: string
+  password?: string
 }
 
 export interface DemoLoginRequest {
@@ -98,6 +98,7 @@ export interface DemoAccount {
   organization: string
   roleText: string
   email: string
+  password?: never
   description: string
 }
 
