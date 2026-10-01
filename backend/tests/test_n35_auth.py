@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from app.core.config import settings
 from app.core.security import hash_session_token
@@ -42,10 +42,25 @@ async def test_login_hash_cookie_session_expiration_and_logout(
         assert "httponly" in cookie
         assert "secure" in cookie
         assert f"max-age={settings.SESSION_TTL_MINUTES * 60}" in cookie
+        assert "x-session-token" not in response.headers
         assert (await client.get("/api/v1/auth/me")).status_code == 200
 
         token = client.cookies.get(settings.SESSION_COOKIE_NAME)
         assert token
+        assert token not in response.text
+        session = admin_session.scalar(
+            select(AuthSession).where(
+                AuthSession.token_hash == hash_session_token(token)
+            )
+        )
+        assert session is not None
+        assert session.token_hash != token
+        async with _client() as header_only_client:
+            header_only = await header_only_client.get(
+                "/api/v1/auth/me", headers={"X-Session-Token": token}
+            )
+            assert header_only.status_code == 401
+
         admin_session.execute(
             update(AuthSession)
             .where(AuthSession.token_hash == hash_session_token(token))
@@ -73,18 +88,30 @@ async def test_login_error_is_generic_and_fifth_failure_locks_for_15_minutes(
         )
         assert unknown.status_code == 401
 
-        failures = [
+        first_four_failures = [
             await client.post(
                 "/api/v1/auth/login",
                 json={"email": identity.email, "password": "wrong-password"},
             )
-            for _ in range(5)
+            for _ in range(4)
         ]
-        assert all(response.status_code == 401 for response in failures)
-        assert all(response.json() == unknown.json() for response in failures)
+        assert all(response.status_code == 401 for response in first_four_failures)
+        assert all(
+            response.json() == unknown.json() for response in first_four_failures
+        )
 
         user = admin_session.get(User, identity.user_id)
         assert user is not None
+        admin_session.refresh(user)
+        assert user.failed_login_attempts == 4
+        assert user.locked_until is None
+
+        fifth_failure = await client.post(
+            "/api/v1/auth/login",
+            json={"email": identity.email, "password": "wrong-password"},
+        )
+        assert fifth_failure.status_code == 401
+        assert fifth_failure.json() == unknown.json()
         admin_session.refresh(user)
         assert user.failed_login_attempts == 5
         assert user.locked_until is not None
@@ -97,3 +124,52 @@ async def test_login_error_is_generic_and_fifth_failure_locks_for_15_minutes(
         )
         assert correct_while_locked.status_code == 401
         assert correct_while_locked.json() == unknown.json()
+
+        user.locked_until = datetime.now(UTC) - timedelta(seconds=1)
+        admin_session.commit()
+        unlocked = await client.post(
+            "/api/v1/auth/login",
+            json={"email": identity.email, "password": identity.password},
+        )
+        assert unlocked.status_code == 200
+        admin_session.refresh(user)
+        assert user.failed_login_attempts == 0
+        assert user.locked_until is None
+
+
+@pytest.mark.asyncio
+async def test_lockout_duration_uses_the_configured_value(
+    admin_session, identity_factory, monkeypatch
+):
+    identity = identity_factory()
+    monkeypatch.setattr(settings, "LOGIN_LOCK_MINUTES", 3)
+
+    async with _client() as client:
+        for _ in range(5):
+            response = await client.post(
+                "/api/v1/auth/login",
+                json={"email": identity.email, "password": "wrong-password"},
+            )
+            assert response.status_code == 401
+
+    user = admin_session.get(User, identity.user_id)
+    assert user is not None
+    assert user.locked_until is not None
+    remaining = user.locked_until - datetime.now(UTC)
+    assert timedelta(minutes=2, seconds=50) < remaining <= timedelta(minutes=3)
+
+
+@pytest.mark.asyncio
+async def test_cors_does_not_expose_session_credentials():
+    async with _client() as client:
+        response = await client.options(
+            "/api/v1/auth/login",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+
+    assert response.status_code == 200
+    assert "access-control-expose-headers" not in response.headers

@@ -27,9 +27,7 @@ class Principal:
 def get_current_principal(
     request: Request, db: Annotated[Session, Depends(get_db)]
 ) -> Principal:
-    token = request.cookies.get(settings.SESSION_COOKIE_NAME) or request.headers.get(
-        "X-Session-Token"
-    )
+    token = request.cookies.get(settings.SESSION_COOKIE_NAME)
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Cần đăng nhập."
@@ -37,32 +35,17 @@ def get_current_principal(
 
     token_hash = hash_session_token(token)
     set_db_context(db, session_token_hash=token_hash)
-    result = db.execute(
-        select(AuthSession, User, Organization, Role)
-        .join(User, AuthSession.user_id == User.id)
-        .join(Organization, User.organization_id == Organization.id)
-        .join(Role, User.role_code == Role.code)
-        .where(
+    auth_session = db.scalar(
+        select(AuthSession).where(
             AuthSession.token_hash == token_hash,
             AuthSession.revoked_at.is_(None),
-            User.is_active.is_(True),
-            Organization.is_active.is_(True),
         )
-    ).first()
-
-    if result is None:
+    )
+    if auth_session is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Phiên đăng nhập không hợp lệ.",
         )
-
-    auth_session, user, organization, role = result
-    set_db_context(
-        db,
-        organization_id=user.organization_id,
-        user_id=user.id,
-        role=role.code,
-    )
 
     now = datetime.now(UTC)
     if auth_session.expires_at <= now:
@@ -71,6 +54,21 @@ def get_current_principal(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Phiên đăng nhập đã hết hạn.",
+        )
+
+    user = db.get(User, auth_session.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Phiên đăng nhập không hợp lệ.",
+        )
+
+    organization = db.get(Organization, user.organization_id)
+    role = db.get(Role, user.role_code)
+    if organization is None or role is None or not organization.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Phiên đăng nhập không hợp lệ.",
         )
 
     return Principal(

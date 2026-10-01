@@ -1,16 +1,63 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { FarmWorkspace, type WorkspaceTab } from './components/FarmWorkspace'
 import { LoginView } from './components/LoginView'
-import { checkHealth, getCurrentUser, logout } from './services/api'
+import { ApiError, checkHealth, getCurrentUser, logout } from './services/api'
 import type { SessionUser } from './types'
 
 const THEME_STORAGE_KEY = 'ttcs_theme'
+const WORKSPACE_PATHS = new Set([
+  '/lots',
+  '/farms',
+  '/security',
+  '/integrity',
+])
+
+function readLocation() {
+  return {
+    pathname: window.location.pathname,
+    search: window.location.search,
+    hash: window.location.hash,
+  }
+}
+
+function safeWorkspacePath(candidate: string | null): string | null {
+  if (!candidate || !candidate.startsWith('/') || candidate.startsWith('//')) {
+    return null
+  }
+
+  const url = new URL(candidate, window.location.origin)
+  if (url.origin !== window.location.origin || !WORKSPACE_PATHS.has(url.pathname)) {
+    return null
+  }
+  return `${url.pathname}${url.search}${url.hash}`
+}
+
+function routeForTab(tab: WorkspaceTab): string {
+  if (tab === 'overview') return '/farms'
+  if (tab === 'security') return '/security'
+  if (tab === 'integrity') return '/integrity'
+  return '/lots'
+}
+
+function tabForPath(pathname: string): WorkspaceTab {
+  if (pathname === '/farms') return 'overview'
+  if (pathname === '/security') return 'security'
+  if (pathname === '/integrity') return 'integrity'
+  return 'lots'
+}
+
+function loginPath(returnTo: string): string {
+  return `/login?next=${encodeURIComponent(returnTo)}`
+}
 
 export default function App() {
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null)
   const [currentUser, setCurrentUser] = useState<SessionUser | null>(null)
   const [initializing, setInitializing] = useState(true)
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('overview')
+  const [initialLocation] = useState(readLocation)
+  const [location, setLocation] = useState(initialLocation)
+  const activeTab = tabForPath(location.pathname)
+  const currentUserRef = useRef<SessionUser | null>(null)
   const [isDark, setIsDark] = useState<boolean>(() => {
     try {
       return localStorage.getItem(THEME_STORAGE_KEY) === 'dark'
@@ -34,6 +81,18 @@ export default function App() {
     }, 2400)
   }, [])
 
+  const navigate = useCallback((path: string, replace = false) => {
+    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    if (path === currentPath) return
+
+    if (replace) {
+      window.history.replaceState(null, '', path)
+    } else {
+      window.history.pushState(null, '', path)
+    }
+    setLocation(readLocation())
+  }, [])
+
   const toggleTheme = useCallback(() => {
     setIsDark((prev) => {
       const next = !prev
@@ -41,6 +100,29 @@ export default function App() {
       return next
     })
   }, [notify])
+
+  useEffect(() => {
+    const syncLocation = () => {
+      let nextLocation = readLocation()
+      if (!currentUserRef.current && nextLocation.pathname !== '/login') {
+        const returnTo =
+          safeWorkspacePath(
+            `${nextLocation.pathname}${nextLocation.search}${nextLocation.hash}`
+          ) ?? '/lots'
+        window.history.replaceState(null, '', loginPath(returnTo))
+        nextLocation = readLocation()
+      } else if (
+        currentUserRef.current &&
+        !WORKSPACE_PATHS.has(nextLocation.pathname)
+      ) {
+        window.history.replaceState(null, '', '/lots')
+        nextLocation = readLocation()
+      }
+      setLocation(nextLocation)
+    }
+    window.addEventListener('popstate', syncLocation)
+    return () => window.removeEventListener('popstate', syncLocation)
+  }, [])
 
   useEffect(() => {
     const root = document.documentElement
@@ -60,6 +142,10 @@ export default function App() {
 
   useEffect(() => {
     let active = true
+    const initialReturnTo =
+      safeWorkspacePath(
+        `${initialLocation.pathname}${initialLocation.search}${initialLocation.hash}`
+      ) ?? '/lots'
 
     async function bootstrap() {
       try {
@@ -68,6 +154,9 @@ export default function App() {
       } catch {
         if (active) {
           setBackendOnline(false)
+          if (initialLocation.pathname !== '/login') {
+            navigate(loginPath(initialReturnTo), true)
+          }
           setInitializing(false)
         }
         return
@@ -75,9 +164,29 @@ export default function App() {
 
       try {
         const user = await getCurrentUser()
-        if (active) setCurrentUser(user)
+        if (active) {
+          currentUserRef.current = user
+          setCurrentUser(user)
+          if (
+            initialLocation.pathname === '/' ||
+            initialLocation.pathname === '/login'
+          ) {
+            const requestedReturnTo = safeWorkspacePath(
+              new URLSearchParams(initialLocation.search).get('next')
+            )
+            navigate(requestedReturnTo ?? '/lots', true)
+          } else if (!WORKSPACE_PATHS.has(initialLocation.pathname)) {
+            navigate('/lots', true)
+          }
+        }
       } catch {
-        if (active) setCurrentUser(null)
+        if (active) {
+          currentUserRef.current = null
+          setCurrentUser(null)
+          if (initialLocation.pathname !== '/login') {
+            navigate(loginPath(initialReturnTo), true)
+          }
+        }
       } finally {
         if (active) setInitializing(false)
       }
@@ -87,11 +196,20 @@ export default function App() {
     return () => {
       active = false
     }
-  }, [])
+  }, [initialLocation, navigate])
 
   const handleLogout = async () => {
-    await logout()
+    try {
+      await logout()
+    } catch (err) {
+      if (!(err instanceof ApiError && err.status === 401)) {
+        notify('Không thể đăng xuất. Vui lòng thử lại.')
+        return
+      }
+    }
+    currentUserRef.current = null
     setCurrentUser(null)
+    navigate(loginPath('/lots'), true)
     notify('Đã đăng xuất khỏi phiên làm việc')
   }
 
@@ -113,8 +231,7 @@ export default function App() {
           activeTab={activeTab}
           isDark={isDark}
           onToggleTheme={toggleTheme}
-          onTabChange={(tab) => setActiveTab(tab)}
-          onSwitchUser={(nextUser) => setCurrentUser(nextUser)}
+          onTabChange={(tab) => navigate(routeForTab(tab))}
           onLogout={() => void handleLogout()}
           onNotify={notify}
         />
@@ -124,8 +241,12 @@ export default function App() {
           isDark={isDark}
           onToggleTheme={toggleTheme}
           onLoginSuccess={(user) => {
+            currentUserRef.current = user
             setCurrentUser(user)
-            setActiveTab('overview')
+            const requestedReturnTo = safeWorkspacePath(
+              new URLSearchParams(location.search).get('next')
+            )
+            navigate(requestedReturnTo ?? '/lots', true)
           }}
           onNotify={notify}
         />

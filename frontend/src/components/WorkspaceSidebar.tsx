@@ -49,6 +49,18 @@ export function WorkspaceSidebar({
               <li>
                 <button
                   type="button"
+                  onClick={() => selectTab('lots')}
+                  className={`dashboard-nav-item ${
+                    activeTab === 'lots' ? 'dashboard-nav-item-active' : ''
+                  }`}
+                >
+                  <span>Danh sách lô</span>
+                  <span className="nav-tag">N3-6</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
                   onClick={() => selectTab('overview')}
                   className={`dashboard-nav-item ${
                     activeTab === 'overview' ? 'dashboard-nav-item-active' : ''

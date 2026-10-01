@@ -9,12 +9,8 @@ engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 _RLS_CONTEXT: dict[str, str] = {
-    "organization_id": "app.current_organization",
-    "user_id": "app.current_user_id",
-    "role": "app.current_role",
     "session_token_hash": "app.session_token_hash",
     "login_email": "app.login_email",
-    "login_organization_id": "app.login_organization",
 }
 
 

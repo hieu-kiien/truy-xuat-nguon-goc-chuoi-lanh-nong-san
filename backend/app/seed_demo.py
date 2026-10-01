@@ -1,4 +1,4 @@
-"""Seed initial demo organizations, users, and farms for staging and local development."""
+"""Seed local demo organizations, users, and farms when explicitly configured."""
 
 from decimal import Decimal
 from uuid import UUID
@@ -10,8 +10,6 @@ from app.core.config import settings
 from app.core.security import hash_password
 from app.models.farm import Farm
 from app.models.identity import Organization, Role, User
-
-DEMO_PASSWORD = "Password123!"
 
 DEMO_ORGANIZATIONS = [
     {
@@ -84,13 +82,16 @@ DEMO_FARMS = [
 
 
 def seed_demo_data() -> None:
+    if settings.APP_ENV != "development" or not settings.DEMO_PASSWORD:
+        return
+
     engine = create_engine(settings.MIGRATION_DATABASE_URL, pool_pre_ping=True)
     try:
         with Session(engine) as session:
             if session.scalar(select(Role.code).limit(1)) is None:
                 return
 
-            password_hash = hash_password(DEMO_PASSWORD)
+            password_hash = hash_password(settings.DEMO_PASSWORD)
 
             for org_data in DEMO_ORGANIZATIONS:
                 org = session.get(Organization, org_data["id"])

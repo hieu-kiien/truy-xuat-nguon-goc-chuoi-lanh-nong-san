@@ -1,9 +1,4 @@
-import {
-  DEMO_ACCOUNTS,
-  ORG_TYPE_LABELS,
-  type DemoAccount,
-  type SessionUser,
-} from '../types'
+import { ORG_TYPE_LABELS, type SessionUser } from '../types'
 import type { WorkspaceTab } from './FarmWorkspace'
 
 interface WorkspaceTopbarProps {
@@ -11,11 +6,9 @@ interface WorkspaceTopbarProps {
   activeTab: WorkspaceTab
   canReadFarms: boolean
   searchQuery: string
-  switchingAccount: boolean
   isDark: boolean
   onToggleSidebar: () => void
   onSearchChange: (value: string) => void
-  onQuickSwitch: (account: DemoAccount) => void
   onRefresh: () => void
   onToggleTheme: () => void
 }
@@ -25,11 +18,9 @@ export function WorkspaceTopbar({
   activeTab,
   canReadFarms,
   searchQuery,
-  switchingAccount,
   isDark,
   onToggleSidebar,
   onSearchChange,
-  onQuickSwitch,
   onRefresh,
   onToggleTheme,
 }: WorkspaceTopbarProps) {
@@ -45,11 +36,13 @@ export function WorkspaceTopbar({
           Menu
         </button>
         <h1 className="topbar-title">
-          {activeTab === 'overview'
-            ? 'Bảng điều khiển Vùng trồng & Giám sát Chuỗi lạnh'
-            : activeTab === 'security'
-              ? 'Ma trận Phân quyền RBAC & Cô lập Đa tổ chức (RLS)'
-              : 'Kiểm chứng Toàn vẹn Chuỗi Sự kiện (SHA-256 + RFC 8785)'}
+          {activeTab === 'lots'
+            ? 'Danh sách lô'
+            : activeTab === 'overview'
+              ? 'Bảng điều khiển Vùng trồng & Giám sát Chuỗi lạnh'
+              : activeTab === 'security'
+                ? 'Ma trận Phân quyền RBAC & Cô lập Đa tổ chức (RLS)'
+                : 'Kiểm chứng Toàn vẹn Chuỗi Sự kiện (SHA-256 + RFC 8785)'}
         </h1>
         <span className="topbar-divider">|</span>
         <span className="status-badge status-done">
@@ -58,31 +51,6 @@ export function WorkspaceTopbar({
       </div>
 
       <div className="topbar-actions">
-        <div
-          className="tenant-switcher-group"
-          role="group"
-          aria-label="Chuyển đổi nhanh tài khoản Demo"
-        >
-          <span className="tenant-switcher-label">Đổi nhanh phiên:</span>
-          {DEMO_ACCOUNTS.map((acc) => {
-            const isCurrent = acc.email === user.email
-            return (
-              <button
-                key={acc.email}
-                type="button"
-                disabled={switchingAccount}
-                onClick={() => onQuickSwitch(acc)}
-                className={`tenant-pill-btn ${
-                  isCurrent ? 'tenant-pill-btn-active' : ''
-                }`}
-                title={`Chuyển sang ${acc.label} (${acc.email})`}
-              >
-                {acc.shortName}
-              </button>
-            )
-          })}
-        </div>
-
         {activeTab === 'overview' && canReadFarms && (
           <input
             type="search"
@@ -94,13 +62,15 @@ export function WorkspaceTopbar({
           />
         )}
 
-        <button
-          type="button"
-          className="ds-button ds-button-secondary ds-button-sm"
-          onClick={onRefresh}
-        >
-          Làm mới
-        </button>
+        {activeTab === 'overview' && canReadFarms && (
+          <button
+            type="button"
+            className="ds-button ds-button-secondary ds-button-sm"
+            onClick={onRefresh}
+          >
+            Làm mới
+          </button>
+        )}
 
         <button
           type="button"

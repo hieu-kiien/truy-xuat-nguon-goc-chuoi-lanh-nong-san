@@ -53,13 +53,15 @@
 Yêu cầu máy tính đã cài đặt và bật **Docker Desktop**. Chạy lệnh sau tại thư mục gốc của dự án:
 
 ```bash
+cp .env.example .env
+# Set unique local values for DB_PASSWORD, DB_ADMIN_PASSWORD, and DEMO_PASSWORD.
 docker compose up --build -d
 ```
 
 Sau khi các container khởi động hoàn tất:
 - **Giao diện Web:** http://localhost:5173
 - **Tài liệu API (Swagger UI):** http://localhost:8000/docs
-- **Cơ sở dữ liệu PostgreSQL:** `localhost:5432` (Database: `ttcs_db`, User: `admin`)
+- **Cơ sở dữ liệu PostgreSQL:** `localhost:5432` (database: `ttcs_db`)
 
 Để dừng toàn bộ dịch vụ:
 ```bash
@@ -80,8 +82,8 @@ python -m venv .venv
 
 pip install -r requirements-dev.txt
 cp .env.example .env
-
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Set DB_PASSWORD and DB_ADMIN_PASSWORD to different local secrets.
+python -m app.startup
 ```
 
 #### Frontend (React + Vite)
@@ -117,6 +119,10 @@ Hệ thống được thiết lập cơ chế triển khai liên tục (Continuo
 
 - **Web Staging:** https://ttcs-frontend-staging.onrender.com
 - **API Staging:** https://ttcs-backend-staging.onrender.com/docs
+
+Staging creates the application database role at startup and runs migrations
+with the separate migration role. Demo accounts are seeded only for local
+development when DEMO_PASSWORD is configured.
 
 ## Quy trình đóng góp
 

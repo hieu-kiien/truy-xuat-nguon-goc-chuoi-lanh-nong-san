@@ -51,6 +51,13 @@ export interface FarmPayload {
   longitude: number | string
 }
 
+export interface Lot {
+  id: string
+  organization_id: string
+  farm_id: string
+  name: string
+}
+
 export const ROLE_LABELS: Record<RoleCode, string> = {
   grower: 'Nông hộ / Trang trại',
   cooperative: 'Hợp tác xã',
@@ -71,12 +78,17 @@ export const ORG_TYPE_LABELS: Record<OrganizationType, string> = {
 }
 
 export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
-  grower: ['auth:session', 'farms:read', 'farms:write'],
-  cooperative: ['auth:session'],
-  transporter: ['auth:session'],
-  distributor: ['auth:session'],
+  grower: ['auth:session', 'farms:read', 'farms:write', 'lots:read'],
+  cooperative: ['auth:session', 'lots:read'],
+  transporter: ['auth:session', 'lots:read'],
+  distributor: ['auth:session', 'lots:read'],
   inspector: ['auth:session', 'lots:read_all'],
-  organization_admin: ['auth:session', 'farms:read', 'farms:write'],
+  organization_admin: [
+    'auth:session',
+    'farms:read',
+    'farms:write',
+    'lots:read',
+  ],
   system_admin: ['auth:session'],
 }
 
@@ -87,47 +99,3 @@ export function hasPermission(role: RoleCode, permission: string): boolean {
   }
   return permission === 'lots:read' && perms.includes('lots:read_all')
 }
-
-export interface DemoAccount {
-  shortName: string
-  label: string
-  organization: string
-  roleText: string
-  email: string
-  password: string
-  description: string
-}
-
-export const DEMO_ACCOUNTS: DemoAccount[] = [
-  {
-    shortName: 'Cầu Đất (Grower)',
-    label: 'Nông hộ Cầu Đất — Tổ chức A',
-    organization: 'Nông trại Cầu Đất Đà Lạt',
-    roleText: 'grower · Quyền: farms:read, farms:write',
-    email: 'grower@caudat.vn',
-    password: 'Password123!',
-    description:
-      'Quản lý danh mục thửa đất Đà Lạt. Chỉ nhìn thấy vùng trồng thuộc Tổ chức A.',
-  },
-  {
-    shortName: 'Mộc Châu (Admin)',
-    label: 'Quản trị HTX Mộc Châu — Tổ chức B',
-    organization: 'Hợp tác xã Nông sản Mộc Châu',
-    roleText: 'organization_admin · Cô lập dữ liệu đa tổ chức (RLS)',
-    email: 'admin@mocchau.vn',
-    password: 'Password123!',
-    description:
-      'Kiểm chứng PostgreSQL Row-Level Security: Chỉ hiển thị vùng trồng của Mộc Châu.',
-  },
-  {
-    shortName: 'Thanh tra (Inspector)',
-    label: 'Thanh tra viên — Cơ quan Kiểm định',
-    organization: 'Chi cục Quản lý Chất lượng Nông lâm sản',
-    roleText: 'inspector · Quyền: lots:read_all (Chặn farms:read)',
-    email: 'inspector@chicuc.gov.vn',
-    password: 'Password123!',
-    description:
-      'Kiểm chứng RBAC chặn truy cập trái phép (403 Forbidden) khi gọi API vùng trồng.',
-  },
-]
-

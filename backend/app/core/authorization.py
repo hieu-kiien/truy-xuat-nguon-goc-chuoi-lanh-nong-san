@@ -9,12 +9,14 @@ from app.core.auth import Principal, get_current_principal
 logger = logging.getLogger(__name__)
 
 ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
-    "grower": frozenset({"auth:session", "farms:read", "farms:write"}),
-    "cooperative": frozenset({"auth:session"}),
-    "transporter": frozenset({"auth:session"}),
-    "distributor": frozenset({"auth:session"}),
+    "grower": frozenset({"auth:session", "farms:read", "farms:write", "lots:read"}),
+    "cooperative": frozenset({"auth:session", "lots:read"}),
+    "transporter": frozenset({"auth:session", "lots:read"}),
+    "distributor": frozenset({"auth:session", "lots:read"}),
     "inspector": frozenset({"auth:session", "lots:read_all"}),
-    "organization_admin": frozenset({"auth:session", "farms:read", "farms:write"}),
+    "organization_admin": frozenset(
+        {"auth:session", "farms:read", "farms:write", "lots:read"}
+    ),
     "system_admin": frozenset({"auth:session"}),
 }
 

@@ -22,7 +22,6 @@ router = APIRouter()
 session_router = APIRouter(dependencies=[Depends(enforce_route_permission)])
 AUTH_ERROR = "Email hoặc mật khẩu không đúng."
 MAX_FAILED_ATTEMPTS = 5
-LOCK_MINUTES = 15
 
 
 def _session_user(user: User, organization: Organization, role: Role) -> SessionUser:
@@ -62,26 +61,19 @@ def login(
         if not is_locked and user.is_active and not password_ok:
             user.failed_login_attempts += 1
             if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
-                user.locked_until = now + timedelta(minutes=LOCK_MINUTES)
+                user.locked_until = now + timedelta(minutes=settings.LOGIN_LOCK_MINUTES)
 
         db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=AUTH_ERROR)
 
     user.failed_login_attempts = 0
     user.locked_until = None
-    set_db_context(db, login_organization_id=user.organization_id)
     organization = db.get(Organization, user.organization_id)
     role = db.get(Role, user.role_code)
     if organization is None or role is None or not organization.is_active:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=AUTH_ERROR)
 
-    set_db_context(
-        db,
-        organization_id=user.organization_id,
-        user_id=user.id,
-        role=role.code,
-    )
     token = new_session_token()
     db.add(
         AuthSession(
@@ -102,7 +94,6 @@ def login(
         samesite="lax",
         path="/",
     )
-    response.headers["X-Session-Token"] = token
     return _session_user(user, organization, role)
 
 
@@ -130,9 +121,7 @@ def logout(
     principal: Annotated[Principal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Response:
-    token = request.cookies.get(settings.SESSION_COOKIE_NAME) or request.headers.get(
-        "X-Session-Token"
-    )
+    token = request.cookies.get(settings.SESSION_COOKIE_NAME)
     if token:
         auth_session = db.scalar(
             select(AuthSession).where(

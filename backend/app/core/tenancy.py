@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal
+from app.core.authorization import has_permission
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +17,16 @@ def _require_tenant_column(model: Any) -> None:
         raise TypeError(f"{model.__name__} must have an organization_id column")
 
 
-def tenant_select(model: Any, principal: Principal):
+def tenant_select(model: Any, principal: Principal | None = None):
     """Build a database-filtered query for an organization-owned model."""
+    if principal is None:
+        raise ValueError("Tenant context is required for organization-owned queries")
+
     _require_tenant_column(model)
 
-    if model.__tablename__ == "lots" and principal.role == "inspector":
+    if model.__tablename__ == "lots" and has_permission(
+        principal.role, "lots:read_all"
+    ):
         return select(model)
 
     return select(model).where(model.organization_id == principal.organization_id)

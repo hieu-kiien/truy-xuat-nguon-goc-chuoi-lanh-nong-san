@@ -7,6 +7,7 @@ from sqlalchemy import (
     Index,
     Numeric,
     String,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -18,9 +19,10 @@ class Farm(Base):
     __tablename__ = "farms"
     __table_args__ = (
         CheckConstraint(
-            "area_ha > 0 AND area_ha <> 'NaN'::numeric",
+            "area_ha > 0 AND area_ha < 'Infinity'::numeric",
             name="ck_farms_area_positive",
         ),
+        CheckConstraint("length(btrim(name)) > 0", name="ck_farms_name_nonblank"),
         CheckConstraint(
             "latitude >= -90 AND latitude <= 90", name="ck_farms_latitude_range"
         ),
@@ -28,6 +30,7 @@ class Farm(Base):
             "longitude >= -180 AND longitude <= 180", name="ck_farms_longitude_range"
         ),
         Index("ix_farms_organization_id", "organization_id"),
+        UniqueConstraint("id", "organization_id", name="uq_farms_id_organization_id"),
     )
 
     id: Mapped[UUID] = mapped_column(

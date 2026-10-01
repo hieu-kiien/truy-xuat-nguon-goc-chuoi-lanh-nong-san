@@ -1,20 +1,20 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
-import { createFarm, getFarms, login, updateFarm } from '../services/api'
+import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
+import { createFarm, getFarms, updateFarm } from '../services/api'
 import {
   hasPermission,
   ROLE_LABELS,
   ROLE_PERMISSIONS,
-  type DemoAccount,
   type Farm,
   type SessionUser,
 } from '../types'
 import { FarmFormPanel } from './FarmFormPanel'
 import { IntegrityPanel } from './IntegrityPanel'
+import { LotsPanel } from './LotsPanel'
 import { SecurityPanel } from './SecurityPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
 
-export type WorkspaceTab = 'overview' | 'security' | 'integrity'
+export type WorkspaceTab = 'lots' | 'overview' | 'security' | 'integrity'
 
 interface FarmWorkspaceProps {
   user: SessionUser
@@ -22,7 +22,6 @@ interface FarmWorkspaceProps {
   isDark: boolean
   onToggleTheme: () => void
   onTabChange: (tab: WorkspaceTab) => void
-  onSwitchUser: (user: SessionUser) => void
   onLogout: () => void
   onNotify: (message: string) => void
 }
@@ -33,17 +32,16 @@ export function FarmWorkspace({
   isDark,
   onToggleTheme,
   onTabChange,
-  onSwitchUser,
   onLogout,
   onNotify,
 }: FarmWorkspaceProps) {
   const canReadFarms = hasPermission(user.role, 'farms:read')
   const canWriteFarms = hasPermission(user.role, 'farms:write')
+  const canReadLots = hasPermission(user.role, 'lots:read')
   const grantedPermissions = ROLE_PERMISSIONS[user.role] ?? []
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [switchingAccount, setSwitchingAccount] = useState(false)
 
   const [farms, setFarms] = useState<Farm[]>([])
   const [loadingFarms, setLoadingFarms] = useState<boolean>(canReadFarms)
@@ -55,6 +53,7 @@ export function FarmWorkspace({
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const [formFeedback, setFormFeedback] = useState<{
     type: 'success' | 'error'
     message: string
@@ -106,25 +105,6 @@ export function FarmWorkspace({
     }
   }, [canReadFarms])
 
-  const handleQuickSwitch = async (account: DemoAccount) => {
-    if (account.email === user.email || switchingAccount) return
-    setSwitchingAccount(true)
-    try {
-      const nextUser = await login({
-        email: account.email,
-        password: account.password,
-      })
-      onNotify(`Đã chuyển sang phiên: ${nextUser.organization_name}`)
-      onSwitchUser(nextUser)
-    } catch (err) {
-      onNotify(
-        err instanceof Error ? err.message : 'Không thể chuyển đổi tài khoản'
-      )
-    } finally {
-      setSwitchingAccount(false)
-    }
-  }
-
   const resetForm = () => {
     setEditingFarm(null)
     setName('')
@@ -146,6 +126,9 @@ export function FarmWorkspace({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (savingRef.current) return
+
+    savingRef.current = true
     setSaving(true)
     setFormFeedback(null)
 
@@ -183,6 +166,7 @@ export function FarmWorkspace({
         message: err instanceof Error ? err.message : 'Không thể lưu vùng trồng',
       })
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -253,11 +237,9 @@ export function FarmWorkspace({
             activeTab={activeTab}
             canReadFarms={canReadFarms}
             searchQuery={searchQuery}
-            switchingAccount={switchingAccount}
             isDark={isDark}
             onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
             onSearchChange={setSearchQuery}
-            onQuickSwitch={(acc) => void handleQuickSwitch(acc)}
             onRefresh={() => void refreshFarms()}
             onToggleTheme={onToggleTheme}
           />
@@ -335,6 +317,8 @@ export function FarmWorkspace({
                 </article>
               </div>
             </section>
+
+            {activeTab === 'lots' && <LotsPanel canReadLots={canReadLots} />}
 
             {activeTab === 'overview' && (
               <>

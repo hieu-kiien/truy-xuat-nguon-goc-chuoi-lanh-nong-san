@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type FocusEvent } from 'react'
 import { API_BASE_URL, login } from '../services/api'
-import { DEMO_ACCOUNTS, type DemoAccount, type SessionUser } from '../types'
+import type { SessionUser } from '../types'
 
 interface LoginViewProps {
   backendOnline: boolean | null
@@ -17,8 +17,8 @@ export function LoginView({
   onLoginSuccess,
   onNotify,
 }: LoginViewProps) {
-  const [email, setEmail] = useState('grower@caudat.vn')
-  const [password, setPassword] = useState('Password123!')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -64,13 +64,6 @@ export function LoginView({
     }
 
     await executeLogin(email, password)
-  }
-
-  const applyDemoAccount = (account: DemoAccount) => {
-    setEmail(account.email)
-    setPassword(account.password)
-    setErrorMessage(null)
-    onNotify(`Đã điền tài khoản: ${account.email}`)
   }
 
   return (
@@ -226,55 +219,18 @@ export function LoginView({
 
           <aside className="panel-card auth-panel">
             <div className="panel-head">
-              <h2>Kịch bản Kiểm thử Nhanh (3 Tổ chức Demo)</h2>
-              <span className="panel-sub">Bấm để điền hoặc vào thẳng</span>
+              <h2>Bảo vệ phiên đăng nhập</h2>
             </div>
 
             <div className="demo-cards-stack">
-              {DEMO_ACCOUNTS.map((account) => {
-                const isSelected = email === account.email
-                return (
-                  <div
-                    key={account.email}
-                    className={`account-card ${
-                      isSelected ? 'account-card-active' : ''
-                    }`}
-                  >
-                    <div className="account-card-header">
-                      <span className="account-card-title">{account.label}</span>
-                      <code>{account.email}</code>
-                    </div>
-                    <div className="account-card-role">{account.roleText}</div>
-                    <p className="account-card-desc">{account.description}</p>
-                    <div className="account-card-actions">
-                      <span className="panel-sub">
-                        Đơn vị: <strong>{account.organization}</strong>
-                      </span>
-                      <div className="action-row">
-                        <button
-                          type="button"
-                          className="ds-button ds-button-secondary ds-button-xs"
-                          onClick={() => applyDemoAccount(account)}
-                        >
-                          Điền form
-                        </button>
-                        <button
-                          type="button"
-                          className="ds-button ds-button-brand ds-button-xs"
-                          disabled={submitting}
-                          onClick={() => {
-                            setEmail(account.email)
-                            setPassword(account.password)
-                            void executeLogin(account.email, account.password)
-                          }}
-                        >
-                          Vào ngay
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
+              <p className="demo-sticker-role">
+                Phiên đăng nhập sử dụng cookie HttpOnly; mã phiên không được đưa
+                vào JavaScript hoặc lưu trong Web Storage.
+              </p>
+              <p className="demo-sticker-desc">
+                Tài khoản demo chỉ được khởi tạo trong môi trường phát triển cục
+                bộ, không được nhúng thông tin đăng nhập vào giao diện.
+              </p>
             </div>
           </aside>
         </div>
