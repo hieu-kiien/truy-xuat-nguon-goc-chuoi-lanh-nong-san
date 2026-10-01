@@ -81,8 +81,8 @@ export function IntegrityPanel({
               Chuỗi Băm Sự kiện Chuỗi lạnh (SHA-256 + RFC 8785)
             </h2>
             <p className="panel-sub">
-              Liên kết mật mã chống sửa lén nhật ký nhiệt độ — hiệu năng xác minh:
-              147.856 sự kiện/giây
+              Liên kết mật mã chống sửa lén nhật ký nhiệt độ — CI kiểm thử 1.000
+              sự kiện ghi và xác minh trong dưới 500 ms mỗi pha
             </p>
           </div>
 
@@ -103,13 +103,13 @@ export function IntegrityPanel({
           <table className="data-table">
             <thead>
               <tr>
-                <th>TT</th>
-                {!compact && <th>Thời gian (UTC)</th>}
-                <th>Công đoạn</th>
-                <th>Nhiệt độ / Ẩm</th>
-                <th>Prev Hash</th>
-                <th>SHA-256 Hash</th>
-                <th>Trạng thái</th>
+                <th scope="col">TT</th>
+                {!compact && <th scope="col">Thời gian (UTC)</th>}
+                <th scope="col">Công đoạn</th>
+                <th scope="col">Nhiệt độ / Ẩm</th>
+                <th scope="col">Prev Hash</th>
+                <th scope="col">SHA-256 Hash</th>
+                <th scope="col">Trạng thái</th>
               </tr>
             </thead>
             <tbody>
@@ -196,7 +196,7 @@ export function IntegrityPanel({
           <section className="panel-card panel-box">
             <div className="panel-head">
               <h2>Thông số Kiến trúc Toàn vẹn Dữ liệu (N3-4)</h2>
-              <span className="status-badge status-done">Chuẩn Công nghiệp</span>
+              <span className="status-badge status-done">Có kiểm thử CI</span>
             </div>
             <div className="info-grid-2">
               <div className="info-item">
@@ -208,12 +208,12 @@ export function IntegrityPanel({
                 <strong className="info-item-value">RFC 8785 (JCS)</strong>
               </div>
               <div className="info-item">
-                <span className="info-item-label">Thông lượng Kiểm chứng</span>
-                <strong className="info-item-value">147.856 sự kiện / giây</strong>
+                <span className="info-item-label">Kích thước Benchmark</span>
+                <strong className="info-item-value">1.000 sự kiện / lần</strong>
               </div>
               <div className="info-item">
-                <span className="info-item-label">Độ trễ Trung bình</span>
-                <strong className="info-item-value">0,0068 ms / bản ghi</strong>
+                <span className="info-item-label">Ngưỡng Kiểm thử</span>
+                <strong className="info-item-value">&lt; 500 ms / mỗi pha</strong>
               </div>
             </div>
           </section>
