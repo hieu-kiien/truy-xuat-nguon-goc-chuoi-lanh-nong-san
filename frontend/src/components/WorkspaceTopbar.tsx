@@ -39,7 +39,8 @@ export function WorkspaceTopbar({
         <button
           type="button"
           className="dashboard-menu-btn"
-          aria-label="Mở thanh điều hướng"
+          aria-label="Mở hoặc đóng thanh điều hướng"
+          aria-controls="dashboard-sidebar"
           onClick={onToggleSidebar}
         >
           Menu
@@ -51,7 +52,7 @@ export function WorkspaceTopbar({
               ? 'Ma trận Phân quyền RBAC & Cô lập Đa tổ chức (RLS)'
               : 'Kiểm chứng Toàn vẹn Chuỗi Sự kiện (SHA-256 + RFC 8785)'}
         </h1>
-        <span className="topbar-divider">|</span>
+        <span className="topbar-divider" aria-hidden="true">|</span>
         <span className="status-badge status-done">
           {ORG_TYPE_LABELS[user.organization_type]}
         </span>
@@ -71,6 +72,7 @@ export function WorkspaceTopbar({
                 key={acc.email}
                 type="button"
                 disabled={switchingAccount}
+                aria-pressed={isCurrent}
                 onClick={() => onQuickSwitch(acc)}
                 className={`tenant-pill-btn ${
                   isCurrent ? 'tenant-pill-btn-active' : ''
@@ -106,6 +108,7 @@ export function WorkspaceTopbar({
           type="button"
           className="ds-button ds-button-secondary ds-button-sm"
           onClick={onToggleTheme}
+          aria-label={isDark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
         >
           {isDark ? 'Sáng' : 'Tối'}
         </button>
