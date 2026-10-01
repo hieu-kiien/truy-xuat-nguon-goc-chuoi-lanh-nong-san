@@ -148,7 +148,7 @@
  * 520px. Those generic nth-child labels do not match the farm, RBAC and hash
  * tables. Keep semantic table headers and allow horizontal scrolling instead.
  */
-@container (width < 520px) {
+@media (max-width: 520px) {
   .data-table {
     display: table;
     min-width: 680px;
