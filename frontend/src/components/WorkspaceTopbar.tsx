@@ -1,3 +1,4 @@
+import { DEMO_LOGIN_ENABLED } from '../services/api'
 import {
   DEMO_ACCOUNTS,
   ORG_TYPE_LABELS,
@@ -58,30 +59,32 @@ export function WorkspaceTopbar({
       </div>
 
       <div className="topbar-actions">
-        <div
-          className="tenant-switcher-group"
-          role="group"
-          aria-label="Chuyển đổi nhanh tài khoản Demo"
-        >
-          <span className="tenant-switcher-label">Đổi nhanh phiên:</span>
-          {DEMO_ACCOUNTS.map((acc) => {
-            const isCurrent = acc.email === user.email
-            return (
-              <button
-                key={acc.email}
-                type="button"
-                disabled={switchingAccount}
-                onClick={() => onQuickSwitch(acc)}
-                className={`tenant-pill-btn ${
-                  isCurrent ? 'tenant-pill-btn-active' : ''
-                }`}
-                title={`Chuyển sang ${acc.label} (${acc.email})`}
-              >
-                {acc.shortName}
-              </button>
-            )
-          })}
-        </div>
+        {DEMO_LOGIN_ENABLED && (
+          <div
+            className="tenant-switcher-group"
+            role="group"
+            aria-label="Chuyển đổi nhanh tài khoản Demo"
+          >
+            <span className="tenant-switcher-label">Đổi nhanh phiên:</span>
+            {DEMO_ACCOUNTS.map((acc) => {
+              const isCurrent = acc.email === user.email
+              return (
+                <button
+                  key={acc.email}
+                  type="button"
+                  disabled={switchingAccount}
+                  onClick={() => onQuickSwitch(acc)}
+                  className={`tenant-pill-btn ${
+                    isCurrent ? 'tenant-pill-btn-active' : ''
+                  }`}
+                  title={`Chuyển sang ${acc.label} (${acc.email})`}
+                >
+                  {acc.shortName}
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {activeTab === 'overview' && canReadFarms && (
           <input
