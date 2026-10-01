@@ -80,6 +80,15 @@ input:focus-visible,
   border-radius: var(--radius-sm);
 }
 
+.form-field input[aria-invalid='true'] {
+  border-color: var(--fg-danger);
+  background-color: var(--danger-soft);
+}
+
+.form-field input[aria-invalid='true'] + .field-error {
+  display: block;
+}
+
 /* Chart bars are real buttons so keyboard and assistive-technology users can
  * trigger the same detail toast as pointer users. Remove native button chrome
  * without removing focus indication.
