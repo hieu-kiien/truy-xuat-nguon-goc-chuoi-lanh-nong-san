@@ -30,15 +30,15 @@ export function WorkspaceSidebar({
   useEffect(() => {
     if (!sidebarOpen) return
 
+    const mobileQuery = window.matchMedia('(max-width: 1024px)')
+    if (!mobileQuery.matches) return
+
     const previousOverflow = document.body.style.overflow
     const dashboardMain = document.querySelector<HTMLElement>('.dashboard-main')
     document.body.style.overflow = 'hidden'
     if (dashboardMain) dashboardMain.inert = true
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      onCloseSidebar()
+    const restoreMenuFocus = () => {
       window.requestAnimationFrame(() => {
         document
           .querySelector<HTMLButtonElement>('[aria-controls="dashboard-sidebar"]')
@@ -46,9 +46,22 @@ export function WorkspaceSidebar({
       })
     }
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      onCloseSidebar()
+      restoreMenuFocus()
+    }
+
+    const handleViewportChange = (event: MediaQueryListEvent) => {
+      if (!event.matches) onCloseSidebar()
+    }
+
     document.addEventListener('keydown', handleKeyDown)
+    mobileQuery.addEventListener('change', handleViewportChange)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
+      mobileQuery.removeEventListener('change', handleViewportChange)
       document.body.style.overflow = previousOverflow
       if (dashboardMain) dashboardMain.inert = false
     }
