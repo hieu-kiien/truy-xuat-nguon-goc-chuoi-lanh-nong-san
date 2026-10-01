@@ -5,12 +5,15 @@ import {
   type RoleCode,
   type SessionUser,
 } from '../types'
-import { RbacPacketInspector } from './RbacPacketInspector'
+import {
+  RbacPacketInspector,
+  type ProbeResult,
+} from './RbacPacketInspector'
 
 interface SecurityPanelProps {
   user: SessionUser
-  rbacProbeResult: string | null
-  onRunProbe: () => void
+  rbacProbeResult: ProbeResult | null
+  onRunProbe: () => Promise<void> | void
 }
 
 const ALL_ROLES: RoleCode[] = [
@@ -32,7 +35,6 @@ export function SecurityPanel({
 
   return (
     <div className="info-stack">
-      {/* Interactive Visual RBAC Packet Inspector Flow */}
       <RbacPacketInspector
         user={user}
         rbacProbeResult={rbacProbeResult}
@@ -156,7 +158,7 @@ CREATE POLICY farms_tenant_isolation ON farms
                         )}
                       </td>
                     </tr>
-                  );
+                  )
                 })}
               </tbody>
             </table>

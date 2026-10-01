@@ -2,7 +2,6 @@ import { useState } from 'react'
 
 interface ColdChainPipelineProps {
   tamperSimulated?: boolean
-  currentStageIndex?: number
   onStageClick?: (stageId: string) => void
 }
 
@@ -12,13 +11,11 @@ interface PipelineStage {
   title: string
   subtitle: string
   temp: string
-  status: 'normal' | 'active' | 'warning' | 'done'
   icon: string
 }
 
 export function ColdChainPipeline({
   tamperSimulated = false,
-  currentStageIndex = 3,
   onStageClick,
 }: ColdChainPipelineProps) {
   const [selectedStage, setSelectedStage] = useState<string | null>(null)
@@ -30,7 +27,6 @@ export function ColdChainPipeline({
       title: 'Vùng trồng',
       subtitle: 'Định vị GPS WGS84',
       temp: '18.5°C',
-      status: 'done',
       icon: '🌱',
     },
     {
@@ -39,7 +35,6 @@ export function ColdChainPipeline({
       title: 'Thu hoạch',
       subtitle: 'Phân loại & Niêm phong',
       temp: '14.2°C',
-      status: 'done',
       icon: '🌾',
     },
     {
@@ -48,7 +43,6 @@ export function ColdChainPipeline({
       title: 'Cấp đông nhanh',
       subtitle: 'Hạ nhiệt sơ bộ',
       temp: '3.8°C',
-      status: 'done',
       icon: '❄️',
     },
     {
@@ -57,7 +51,6 @@ export function ColdChainPipeline({
       title: 'Vận chuyển xe lạnh',
       subtitle: tamperSimulated ? 'Vi phạm nhiệt độ!' : 'Giám sát hành trình IoT',
       temp: tamperSimulated ? '99.9°C' : '3.5°C',
-      status: tamperSimulated ? 'warning' : 'active',
       icon: '🚛',
     },
     {
@@ -66,7 +59,6 @@ export function ColdChainPipeline({
       title: 'Kho phân phối',
       subtitle: tamperSimulated ? 'Đứt chuỗi xác minh' : 'Đối soát mã băm nhập kho',
       temp: '4.0°C',
-      status: tamperSimulated ? 'warning' : currentStageIndex >= 4 ? 'done' : 'active',
       icon: '🏬',
     },
   ]
@@ -114,6 +106,7 @@ export function ColdChainPipeline({
                   isSelected ? 'step-selected' : ''
                 }`}
                 onClick={() => handleStageSelect(stage.id)}
+                aria-pressed={isSelected}
                 title={`Bấm để xem chi tiết chặng: ${stage.title}`}
               >
                 <div className="step-node-header">

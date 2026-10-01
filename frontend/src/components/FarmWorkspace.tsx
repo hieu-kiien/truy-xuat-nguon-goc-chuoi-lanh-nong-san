@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
-import { createFarm, getFarms, login, updateFarm } from '../services/api'
+import {
+  ApiError,
+  createFarm,
+  getFarms,
+  login,
+  updateFarm,
+} from '../services/api'
 import {
   hasPermission,
   ROLE_LABELS,
@@ -13,7 +19,10 @@ import { FarmFormPanel } from './FarmFormPanel'
 import { GpsRadarBadge } from './GpsRadarBadge'
 import { IntegrityPanel } from './IntegrityPanel'
 import { NumberTicker } from './NumberTicker'
-import { RbacPacketInspector } from './RbacPacketInspector'
+import {
+  RbacPacketInspector,
+  type ProbeResult,
+} from './RbacPacketInspector'
 import { SecurityPanel } from './SecurityPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
@@ -64,7 +73,7 @@ export function FarmWorkspace({
     message: string
   } | null>(null)
 
-  const [rbacProbeResult, setRbacProbeResult] = useState<string | null>(null)
+  const [rbacProbeResult, setRbacProbeResult] = useState<ProbeResult | null>(null)
   const [tamperSimulated, setTamperSimulated] = useState(false)
 
   const refreshFarms = useCallback(async () => {
@@ -192,20 +201,49 @@ export function FarmWorkspace({
   }
 
   const runForbiddenProbe = async () => {
-    setRbacProbeResult('Đang gửi GET /api/v1/farms/ tới Backend...')
+    setRbacProbeResult({
+      kind: 'pending',
+      status: null,
+      message: 'Đang gửi GET /api/v1/farms/ tới Backend...',
+    })
+
     try {
       await getFarms()
-      setRbacProbeResult(
-        '200 OK — Vai trò hiện tại được phép truy cập danh sách vùng trồng.'
-      )
+      setRbacProbeResult({
+        kind: 'allowed',
+        status: 200,
+        message: '200 OK — Vai trò hiện tại được phép truy cập danh sách vùng trồng.',
+      })
       onNotify('Kiểm tra API thành công (200 OK)')
     } catch (err) {
-      if (err instanceof Error) {
-        setRbacProbeResult(
-          `403 Forbidden — Backend đã chặn truy cập theo đúng ma trận RBAC: "${err.message}"`
-        )
-        onNotify('Backend đã chặn truy cập trái phép (403 Forbidden)')
+      if (err instanceof ApiError) {
+        if (err.status === 403) {
+          setRbacProbeResult({
+            kind: 'denied',
+            status: 403,
+            message: `403 Forbidden — Backend đã chặn truy cập theo ma trận RBAC: "${err.message}"`,
+          })
+          onNotify('Backend đã chặn truy cập trái phép (403 Forbidden)')
+          return
+        }
+
+        setRbacProbeResult({
+          kind: 'error',
+          status: err.status,
+          message: `HTTP ${err.status} — Không thể hoàn tất kiểm tra quyền: "${err.message}"`,
+        })
+        onNotify(`Kiểm tra API thất bại (HTTP ${err.status})`)
+        return
       }
+
+      const message =
+        err instanceof Error ? err.message : 'Lỗi kết nối không xác định'
+      setRbacProbeResult({
+        kind: 'error',
+        status: null,
+        message: `Không thể kết nối Backend khi kiểm tra quyền: "${message}"`,
+      })
+      onNotify('Không thể kết nối Backend để kiểm tra quyền')
     }
   }
 
@@ -405,8 +443,17 @@ export function FarmWorkspace({
                       </div>
 
                       {rbacProbeResult && (
-                        <div className="alert-box alert-error alert-spaced">
-                          {rbacProbeResult}
+                        <div
+                          className={`alert-box alert-spaced ${
+                            rbacProbeResult.kind === 'allowed'
+                              ? 'alert-success'
+                              : rbacProbeResult.kind === 'pending'
+                                ? ''
+                                : 'alert-error'
+                          }`}
+                          role="status"
+                        >
+                          {rbacProbeResult.message}
                         </div>
                       )}
                     </section>
@@ -584,7 +631,7 @@ export function FarmWorkspace({
                   <RbacPacketInspector
                     user={user}
                     rbacProbeResult={rbacProbeResult}
-                    onRunProbe={() => void runForbiddenProbe()}
+                    onRunProbe={runForbiddenProbe}
                   />
                 </div>
               </>
@@ -594,7 +641,7 @@ export function FarmWorkspace({
               <SecurityPanel
                 user={user}
                 rbacProbeResult={rbacProbeResult}
-                onRunProbe={() => void runForbiddenProbe()}
+                onRunProbe={runForbiddenProbe}
               />
             )}
 

@@ -1,9 +1,15 @@
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ROLE_LABELS, type SessionUser } from '../types'
+
+export type ProbeResult = {
+  kind: 'pending' | 'allowed' | 'denied' | 'error'
+  status: number | null
+  message: string
+}
 
 interface RbacPacketInspectorProps {
   user: SessionUser
-  rbacProbeResult: string | null
+  rbacProbeResult: ProbeResult | null
   onRunProbe: () => Promise<void> | void
 }
 
@@ -22,9 +28,14 @@ export function RbacPacketInspector({
   onRunProbe,
 }: RbacPacketInspectorProps) {
   const [phase, setPhase] = useState<ProbePhase>('idle')
+  const [runId, setRunId] = useState(0)
   const timersRef = useRef<number[]>([])
 
-  // Cleanup all timers on unmount to prevent leaks
+  const clearTimers = () => {
+    timersRef.current.forEach((id) => window.clearTimeout(id))
+    timersRef.current = []
+  }
+
   useEffect(() => {
     return () => {
       timersRef.current.forEach((id) => window.clearTimeout(id))
@@ -32,26 +43,24 @@ export function RbacPacketInspector({
     }
   }, [])
 
-  // Sync animation phase strictly with the actual backend response
   useEffect(() => {
-    if (phase === 'evaluating') {
-      if (rbacProbeResult?.startsWith('200')) {
-        const timer = window.setTimeout(() => {
-          setPhase('permitted')
-        }, 150)
-        timersRef.current.push(timer)
-      } else if (rbacProbeResult?.startsWith('403')) {
-        const timer = window.setTimeout(() => {
-          setPhase('rejected')
-        }, 150)
-        timersRef.current.push(timer)
-      } else if (rbacProbeResult && !rbacProbeResult.startsWith('Đang')) {
-        const timer = window.setTimeout(() => {
-          setPhase('error')
-        }, 150)
-        timersRef.current.push(timer)
-      }
-    }
+    if (phase !== 'evaluating' || !rbacProbeResult) return
+
+    const nextPhase: ProbePhase | null =
+      rbacProbeResult.kind === 'allowed'
+        ? 'permitted'
+        : rbacProbeResult.kind === 'denied'
+          ? 'rejected'
+          : rbacProbeResult.kind === 'error'
+            ? 'error'
+            : null
+
+    if (!nextPhase) return
+
+    const timer = window.setTimeout(() => {
+      setPhase(nextPhase)
+    }, 150)
+    timersRef.current.push(timer)
   }, [rbacProbeResult, phase])
 
   const handleInspect = () => {
@@ -59,19 +68,15 @@ export function RbacPacketInspector({
       return
     }
 
-    timersRef.current.forEach((id) => window.clearTimeout(id))
-    timersRef.current = []
-
-    // Step 1: Packet leaves caller
+    clearTimers()
+    setRunId((current) => current + 1)
     setPhase('dispatching')
 
-    // Step 2: Packet arrives at FastAPI gateway
     const timer1 = window.setTimeout(() => {
       setPhase('gateway')
     }, 220)
     timersRef.current.push(timer1)
 
-    // Step 3: Packet reaches RBAC enforcer and fires real backend query
     const timer2 = window.setTimeout(() => {
       setPhase('evaluating')
       void onRunProbe()
@@ -82,6 +87,8 @@ export function RbacPacketInspector({
   const isBusy = phase === 'dispatching' || phase === 'gateway' || phase === 'evaluating'
   const isPermitted = phase === 'permitted'
   const isRejected = phase === 'rejected'
+  const isError = phase === 'error'
+  const showOutcome = Boolean(rbacProbeResult && rbacProbeResult.kind !== 'pending' && !isBusy)
 
   return (
     <div
@@ -112,7 +119,6 @@ export function RbacPacketInspector({
       </div>
 
       <div className="circuit-stages-track">
-        {/* Stage 1: Caller */}
         <div className={`circuit-node ${phase === 'dispatching' ? 'node-active' : ''}`}>
           <div className="circuit-node-badge caller-badge">
             <span className="node-icon-symbol" aria-hidden="true">
@@ -124,7 +130,6 @@ export function RbacPacketInspector({
           <code className="circuit-node-meta">{user.email}</code>
         </div>
 
-        {/* Bus 1: Caller -> Gateway */}
         <div
           className={`circuit-bus ${
             phase === 'dispatching' || phase === 'gateway' || phase === 'evaluating' || isPermitted || isRejected
@@ -134,10 +139,9 @@ export function RbacPacketInspector({
           aria-hidden="true"
         >
           <span className="bus-wire" />
-          <span className="bus-packet packet-1" />
+          <span key={`packet-1-${runId}`} className="bus-packet packet-1" />
         </div>
 
-        {/* Stage 2: Gateway */}
         <div className={`circuit-node ${phase === 'gateway' ? 'node-active' : ''}`}>
           <div className="circuit-node-badge gateway-badge">
             <span className="node-icon-symbol" aria-hidden="true">
@@ -149,7 +153,6 @@ export function RbacPacketInspector({
           <code className="circuit-node-meta">Cookie + SHA-256</code>
         </div>
 
-        {/* Bus 2: Gateway -> RBAC */}
         <div
           className={`circuit-bus ${
             phase === 'gateway' || phase === 'evaluating' || isPermitted || isRejected
@@ -159,10 +162,9 @@ export function RbacPacketInspector({
           aria-hidden="true"
         >
           <span className="bus-wire" />
-          <span className="bus-packet packet-2" />
+          <span key={`packet-2-${runId}`} className="bus-packet packet-2" />
         </div>
 
-        {/* Stage 3: RBAC Policy Engine */}
         <div
           className={`circuit-node ${
             isRejected ? 'node-blocked' : isPermitted ? 'node-passed' : phase === 'evaluating' ? 'node-active' : ''
@@ -184,11 +186,10 @@ export function RbacPacketInspector({
               isPermitted ? 'pill-permitted' : isRejected ? 'pill-rejected' : 'pill-neutral'
             }`}
           >
-            {isPermitted ? 'Cho phép' : isRejected ? 'Chặn (403)' : 'Đang đợi...'}
+            {isPermitted ? 'Cho phép' : isRejected ? 'Chặn (403)' : isError ? 'Lỗi kiểm tra' : 'Đang đợi...'}
           </span>
         </div>
 
-        {/* Bus 3: RBAC -> PostgreSQL (Only active when backend verified 200 OK) */}
         <div
           className={`circuit-bus ${
             isPermitted
@@ -200,10 +201,11 @@ export function RbacPacketInspector({
           aria-hidden="true"
         >
           <span className="bus-wire" />
-          {isPermitted && <span className="bus-packet packet-3" />}
+          {isPermitted && (
+            <span key={`packet-3-${runId}`} className="bus-packet packet-3" />
+          )}
         </div>
 
-        {/* Stage 4: PostgreSQL RLS */}
         <div
           className={`circuit-node ${
             isRejected ? 'node-unreachable' : isPermitted ? 'node-passed' : ''
@@ -222,15 +224,16 @@ export function RbacPacketInspector({
         </div>
       </div>
 
-      {rbacProbeResult && (
+      {showOutcome && rbacProbeResult && (
         <div
           className={`circuit-outcome-box ${
             isPermitted ? 'outcome-success' : isRejected ? 'outcome-danger' : 'outcome-neutral'
           }`}
           role="status"
+          aria-live="polite"
         >
           <div className="outcome-icon" aria-hidden="true">
-            {isPermitted ? '✅' : isRejected ? '🚫' : 'ℹ️'}
+            {isPermitted ? '✅' : isRejected ? '🚫' : '⚠️'}
           </div>
           <div className="outcome-text">
             <strong>
@@ -238,9 +241,11 @@ export function RbacPacketInspector({
                 ? '200 OK — Backend Cho phép Truy cập'
                 : isRejected
                   ? '403 Forbidden — Backend Chặn Theo Ma trận RBAC'
-                  : 'Kết quả Thẩm tra'}
+                  : rbacProbeResult.status
+                    ? `HTTP ${rbacProbeResult.status} — Lỗi khi Thẩm tra`
+                    : 'Lỗi kết nối khi Thẩm tra'}
             </strong>
-            <p>{rbacProbeResult}</p>
+            <p>{rbacProbeResult.message}</p>
           </div>
         </div>
       )}
