@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
-import { createFarm, getFarms, login, updateFarm } from '../services/api'
+import {
+  ApiError,
+  createFarm,
+  getFarms,
+  login,
+  updateFarm,
+} from '../services/api'
 import {
   hasPermission,
   ROLE_LABELS,
@@ -8,8 +14,15 @@ import {
   type Farm,
   type SessionUser,
 } from '../types'
+import { ColdChainPipeline } from './ColdChainPipeline'
 import { FarmFormPanel } from './FarmFormPanel'
+import { GpsRadarBadge } from './GpsRadarBadge'
 import { IntegrityPanel } from './IntegrityPanel'
+import { NumberTicker } from './NumberTicker'
+import {
+  RbacPacketInspector,
+  type ProbeResult,
+} from './RbacPacketInspector'
 import { SecurityPanel } from './SecurityPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
@@ -60,7 +73,7 @@ export function FarmWorkspace({
     message: string
   } | null>(null)
 
-  const [rbacProbeResult, setRbacProbeResult] = useState<string | null>(null)
+  const [rbacProbeResult, setRbacProbeResult] = useState<ProbeResult | null>(null)
   const [tamperSimulated, setTamperSimulated] = useState(false)
 
   const refreshFarms = useCallback(async () => {
@@ -188,20 +201,49 @@ export function FarmWorkspace({
   }
 
   const runForbiddenProbe = async () => {
-    setRbacProbeResult('Đang gửi GET /api/v1/farms/ tới Backend...')
+    setRbacProbeResult({
+      kind: 'pending',
+      status: null,
+      message: 'Đang gửi GET /api/v1/farms/ tới Backend...',
+    })
+
     try {
       await getFarms()
-      setRbacProbeResult(
-        '200 OK — Vai trò hiện tại được phép truy cập danh sách vùng trồng.'
-      )
+      setRbacProbeResult({
+        kind: 'allowed',
+        status: 200,
+        message: '200 OK — Vai trò hiện tại được phép truy cập danh sách vùng trồng.',
+      })
       onNotify('Kiểm tra API thành công (200 OK)')
     } catch (err) {
-      if (err instanceof Error) {
-        setRbacProbeResult(
-          `403 Forbidden — Backend đã chặn truy cập theo đúng ma trận RBAC: "${err.message}"`
-        )
-        onNotify('Backend đã chặn truy cập trái phép (403 Forbidden)')
+      if (err instanceof ApiError) {
+        if (err.status === 403) {
+          setRbacProbeResult({
+            kind: 'denied',
+            status: 403,
+            message: `403 Forbidden — Backend đã chặn truy cập theo ma trận RBAC: "${err.message}"`,
+          })
+          onNotify('Backend đã chặn truy cập trái phép (403 Forbidden)')
+          return
+        }
+
+        setRbacProbeResult({
+          kind: 'error',
+          status: err.status,
+          message: `HTTP ${err.status} — Không thể hoàn tất kiểm tra quyền: "${err.message}"`,
+        })
+        onNotify(`Kiểm tra API thất bại (HTTP ${err.status})`)
+        return
       }
+
+      const message =
+        err instanceof Error ? err.message : 'Lỗi kết nối không xác định'
+      setRbacProbeResult({
+        kind: 'error',
+        status: null,
+        message: `Không thể kết nối Backend khi kiểm tra quyền: "${message}"`,
+      })
+      onNotify('Không thể kết nối Backend để kiểm tra quyền')
     }
   }
 
@@ -281,7 +323,13 @@ export function FarmWorkspace({
                 <article className="stat-card panel-card">
                   <p className="stat-label">Vùng trồng thuộc đơn vị</p>
                   <p className="stat-value">
-                    {canReadFarms ? `${farms.length} vùng` : 'Chặn (403)'}
+                    {canReadFarms ? (
+                      <>
+                        <NumberTicker value={farms.length} /> vùng
+                      </>
+                    ) : (
+                      'Chặn (403)'
+                    )}
                   </p>
                   <p className="stat-trend">
                     {canReadFarms
@@ -293,12 +341,20 @@ export function FarmWorkspace({
                 <article className="stat-card panel-card">
                   <p className="stat-label">Tổng diện tích canh tác</p>
                   <p className="stat-value">
-                    {canReadFarms ? `${totalAreaHa.toFixed(2)} ha` : '—'}
+                    {canReadFarms ? (
+                      <NumberTicker value={totalAreaHa} decimalPlaces={2} suffix=" ha" />
+                    ) : (
+                      '—'
+                    )}
                   </p>
                   <p className="stat-trend">
-                    {canReadFarms
-                      ? `TB: ${avgAreaHa.toFixed(2)} ha / thửa`
-                      : 'Bị giới hạn theo RBAC'}
+                    {canReadFarms ? (
+                      <>
+                        TB: <NumberTicker value={avgAreaHa} decimalPlaces={2} suffix=" ha" /> / thửa
+                      </>
+                    ) : (
+                      'Bị giới hạn theo RBAC'
+                    )}
                   </p>
                 </article>
 
@@ -313,7 +369,15 @@ export function FarmWorkspace({
                 </article>
 
                 <article className="stat-card panel-card">
-                  <p className="stat-label">Chuỗi băm sự kiện (N3-4)</p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <p className="stat-label">Chuỗi băm sự kiện (N3-4)</p>
+                    <span
+                      className={`chill-pulse-indicator ${
+                        tamperSimulated ? 'chill-danger' : 'chill-optimal'
+                      }`}
+                      title={tamperSimulated ? 'Cảnh báo vi phạm nhiệt độ!' : 'Nhiệt độ tối ưu 0°C – 4°C'}
+                    />
+                  </div>
                   <p className="stat-value">
                     {tamperSimulated ? 'Lỗi Hash!' : '4/4 Hợp lệ'}
                   </p>
@@ -338,6 +402,8 @@ export function FarmWorkspace({
 
             {activeTab === 'overview' && (
               <>
+                <ColdChainPipeline tamperSimulated={tamperSimulated} />
+
                 <div className="dashboard-split-main">
                   {!canReadFarms ? (
                     <section className="panel-card panel-box">
@@ -377,8 +443,17 @@ export function FarmWorkspace({
                       </div>
 
                       {rbacProbeResult && (
-                        <div className="alert-box alert-error alert-spaced">
-                          {rbacProbeResult}
+                        <div
+                          className={`alert-box alert-spaced ${
+                            rbacProbeResult.kind === 'allowed'
+                              ? 'alert-success'
+                              : rbacProbeResult.kind === 'pending'
+                                ? ''
+                                : 'alert-error'
+                          }`}
+                          role="status"
+                        >
+                          {rbacProbeResult.message}
                         </div>
                       )}
                     </section>
@@ -481,19 +556,11 @@ export function FarmWorkspace({
                                       </div>
                                     </td>
                                     <td>
-                                      <div className="coord-inline">
-                                        <code>
-                                          {farm.latitude}, {farm.longitude}
-                                        </code>
-                                        <a
-                                          href={`https://www.google.com/maps?q=${farm.latitude},${farm.longitude}`}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="map-external-link"
-                                        >
-                                          Bản đồ
-                                        </a>
-                                      </div>
+                                      <GpsRadarBadge
+                                        latitude={farm.latitude}
+                                        longitude={farm.longitude}
+                                        farmName={farm.name}
+                                      />
                                     </td>
                                     <td>
                                       {canWriteFarms && (
@@ -561,72 +628,11 @@ export function FarmWorkspace({
                     }}
                   />
 
-                  <section className="panel-card panel-box">
-                    <div className="panel-head">
-                      <h2>
-                        Trạng thái Cô lập Đa tổ chức (RLS) &amp; Phân quyền RBAC (N3-6)
-                      </h2>
-                      <button
-                        type="button"
-                        className="ds-button ds-button-secondary ds-button-xs"
-                        onClick={() => onTabChange('security')}
-                      >
-                        Chi tiết ma trận
-                      </button>
-                    </div>
-
-                    <div className="info-grid-2">
-                      <div className="info-item">
-                        <span className="info-item-label">
-                          Biến phiên PostgreSQL (app.current_organization)
-                        </span>
-                        <code>{user.organization_id}</code>
-                      </div>
-
-                      <div className="info-item">
-                        <span className="info-item-label">
-                          Quyền hạn RBAC được cấp cho {user.role}
-                        </span>
-                        <div className="badge-row">
-                          {grantedPermissions.map((perm) => (
-                            <span
-                              key={perm}
-                              className="status-badge status-done"
-                            >
-                              {perm}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="action-row alert-spaced">
-                      <button
-                        type="button"
-                        className="ds-button ds-button-brand ds-button-xs"
-                        onClick={() => void runForbiddenProbe()}
-                      >
-                        Kiểm tra API: GET /api/v1/farms/
-                      </button>
-                      <span className="panel-sub">
-                        Đổi nhanh sang tài khoản Mộc Châu hoặc Thanh tra trên
-                        thanh công cụ để so sánh kết quả
-                      </span>
-                    </div>
-
-                    {rbacProbeResult && (
-                      <div
-                        className={`alert-box alert-spaced ${
-                          rbacProbeResult.startsWith('200')
-                            ? 'alert-success'
-                            : 'alert-error'
-                        }`}
-                        role="status"
-                      >
-                        {rbacProbeResult}
-                      </div>
-                    )}
-                  </section>
+                  <RbacPacketInspector
+                    user={user}
+                    rbacProbeResult={rbacProbeResult}
+                    onRunProbe={runForbiddenProbe}
+                  />
                 </div>
               </>
             )}
@@ -635,7 +641,7 @@ export function FarmWorkspace({
               <SecurityPanel
                 user={user}
                 rbacProbeResult={rbacProbeResult}
-                onRunProbe={() => void runForbiddenProbe()}
+                onRunProbe={runForbiddenProbe}
               />
             )}
 
