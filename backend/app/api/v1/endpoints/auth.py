@@ -125,16 +125,22 @@ def demo_login(
     db: Annotated[Session, Depends(get_db)],
 ) -> SessionUser:
     if not settings.demo_login_enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=DEMO_AUTH_ERROR)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=DEMO_AUTH_ERROR
+        )
 
     email = str(payload.email).strip().lower()
     if email not in DEMO_EMAILS:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=DEMO_AUTH_ERROR)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=DEMO_AUTH_ERROR
+        )
 
     set_db_context(db, login_email=email)
     user = db.scalar(select(User).where(User.email == email).with_for_update())
     if user is None or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=DEMO_AUTH_ERROR)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=DEMO_AUTH_ERROR
+        )
 
     user.failed_login_attempts = 0
     user.locked_until = None
