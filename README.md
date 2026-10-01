@@ -61,7 +61,8 @@ Docker Compose bật chế độ demo cho môi trường phát triển, vì vậ
 Sau khi các container khởi động hoàn tất:
 - **Giao diện Web:** http://localhost:5173
 - **Tài liệu API (Swagger UI):** http://localhost:8000/docs
-- **Cơ sở dữ liệu PostgreSQL:** `localhost:5432` (Database: `ttcs_db`, User: `admin`)
+- **Cơ sở dữ liệu PostgreSQL:** `localhost:5432` (Database: `ttcs_db`, User quản trị: `admin`)
+- **Kết nối ứng dụng:** backend dùng role `ttcs_app` tách biệt để chính sách PostgreSQL RLS được áp dụng trên request runtime.
 
 Để dừng toàn bộ dịch vụ:
 ```bash
@@ -83,8 +84,15 @@ python -m venv .venv
 pip install -r requirements-dev.txt
 cp .env.example .env
 
+# Sau khi đã điền DB_PASSWORD và DB_ADMIN_PASSWORD trong .env:
+python -m app.bootstrap_db_role
+alembic upgrade head
+python -m app.seed_demo
+
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+`bootstrap_db_role` tạo/cập nhật role runtime `ttcs_app` theo nguyên tắc least privilege. Migration và seed dùng tài khoản quản trị riêng; API request dùng `ttcs_app`. Không cấu hình hai vai trò này thành cùng một database user.
 
 #### Frontend (React + Vite)
 
@@ -122,7 +130,7 @@ Hệ thống được thiết lập cơ chế triển khai liên tục (Continuo
 - **Web Staging:** https://ttcs-frontend-staging.onrender.com
 - **API Staging:** https://ttcs-backend-staging.onrender.com/docs
 
-Staging bật chế độ demo có chủ đích để phục vụ kiểm thử. Endpoint demo chỉ chấp nhận các tài khoản nằm trong allowlist và vẫn phát hành session theo cơ chế phiên chung của hệ thống.
+Staging bật chế độ demo có chủ đích để phục vụ kiểm thử. Endpoint demo chỉ chấp nhận các tài khoản nằm trong allowlist và vẫn phát hành session theo cơ chế phiên chung của hệ thống. Backend staging bootstrap một role `ttcs_app` có mật khẩu sinh tự động; migration/seed sử dụng credential quản trị riêng, còn request API chạy bằng `ttcs_app` để RLS không phụ thuộc vào quyền của database owner.
 
 ## Quy trình đóng góp
 
