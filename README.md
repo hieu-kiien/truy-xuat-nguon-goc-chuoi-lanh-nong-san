@@ -56,6 +56,8 @@ Yêu cầu máy tính đã cài đặt và bật **Docker Desktop**. Chạy lệ
 docker compose up --build -d
 ```
 
+Docker Compose bật chế độ demo cho môi trường phát triển, vì vậy có thể dùng các nút **Vào demo/Đổi nhanh phiên** mà không cần một mật khẩu demo được công khai trong mã nguồn. Chế độ này bị chặn khi `APP_ENV=production`.
+
 Sau khi các container khởi động hoàn tất:
 - **Giao diện Web:** http://localhost:5173
 - **Tài liệu API (Swagger UI):** http://localhost:8000/docs
@@ -90,11 +92,13 @@ Mở một cửa sổ terminal mới:
 
 ```bash
 cd frontend
-npm install
+npm ci
 cp .env.example .env.local
 
 npm run dev
 ```
+
+Để bật đăng nhập demo một chạm khi chạy trực tiếp, đặt `ENABLE_DEMO_LOGIN=true` trong `backend/.env` và `VITE_ENABLE_DEMO_LOGIN=true` trong `frontend/.env.local`. Không bật `ENABLE_DEMO_LOGIN` trong môi trường production.
 
 ## Các lệnh hỗ trợ phát triển
 
@@ -117,6 +121,8 @@ Hệ thống được thiết lập cơ chế triển khai liên tục (Continuo
 
 - **Web Staging:** https://ttcs-frontend-staging.onrender.com
 - **API Staging:** https://ttcs-backend-staging.onrender.com/docs
+
+Staging bật chế độ demo có chủ đích để phục vụ kiểm thử. Endpoint demo chỉ chấp nhận các tài khoản nằm trong allowlist và vẫn phát hành session theo cơ chế phiên chung của hệ thống.
 
 ## Quy trình đóng góp
 

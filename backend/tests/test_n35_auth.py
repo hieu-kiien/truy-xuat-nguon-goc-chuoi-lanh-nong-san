@@ -4,6 +4,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import update
 
+from app.api.v1.endpoints import auth as auth_endpoint
 from app.core.config import settings
 from app.core.security import hash_session_token
 from app.main import app
@@ -97,3 +98,36 @@ async def test_login_error_is_generic_and_fifth_failure_locks_for_15_minutes(
         )
         assert correct_while_locked.status_code == 401
         assert correct_while_locked.json() == unknown.json()
+
+
+@pytest.mark.asyncio
+async def test_demo_login_requires_flag_allowlist_and_non_production(
+    identity_factory, monkeypatch
+):
+    identity = identity_factory()
+    monkeypatch.setattr(settings, "ENABLE_DEMO_LOGIN", True)
+    monkeypatch.setattr(settings, "APP_ENV", "staging")
+    monkeypatch.setattr(auth_endpoint, "DEMO_EMAILS", frozenset({identity.email}))
+
+    async with _client() as client:
+        not_allowlisted = await client.post(
+            "/api/v1/auth/demo-login",
+            json={"email": "not-demo@example.com"},
+        )
+        assert not_allowlisted.status_code == 404
+
+        response = await client.post(
+            "/api/v1/auth/demo-login",
+            json={"email": identity.email},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["email"] == identity.email
+        assert (await client.get("/api/v1/auth/me")).status_code == 200
+
+    monkeypatch.setattr(settings, "APP_ENV", "production")
+    async with _client() as client:
+        blocked_in_production = await client.post(
+            "/api/v1/auth/demo-login",
+            json={"email": identity.email},
+        )
+        assert blocked_in_production.status_code == 404

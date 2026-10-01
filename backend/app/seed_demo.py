@@ -1,6 +1,7 @@
 """Seed initial demo organizations, users, and farms for staging and local development."""
 
 from decimal import Decimal
+from secrets import token_urlsafe
 from uuid import UUID
 
 from sqlalchemy import create_engine, select
@@ -10,8 +11,6 @@ from app.core.config import settings
 from app.core.security import hash_password
 from app.models.farm import Farm
 from app.models.identity import Organization, Role, User
-
-DEMO_PASSWORD = "Password123!"
 
 DEMO_ORGANIZATIONS = [
     {
@@ -84,13 +83,14 @@ DEMO_FARMS = [
 
 
 def seed_demo_data() -> None:
+    if settings.APP_ENV.lower() == "production":
+        return
+
     engine = create_engine(settings.MIGRATION_DATABASE_URL, pool_pre_ping=True)
     try:
         with Session(engine) as session:
             if session.scalar(select(Role.code).limit(1)) is None:
                 return
-
-            password_hash = hash_password(DEMO_PASSWORD)
 
             for org_data in DEMO_ORGANIZATIONS:
                 org = session.get(Organization, org_data["id"])
@@ -107,6 +107,10 @@ def seed_demo_data() -> None:
             session.flush()
 
             for user_data in DEMO_USERS:
+                # Demo accounts enter through /auth/demo-login. Each account gets
+                # an independent random ordinary password which is immediately
+                # discarded, so no reusable demo password is shipped or shared.
+                disabled_password_hash = hash_password(token_urlsafe(48))
                 existing_user = session.scalar(
                     select(User).where(User.email == user_data["email"])
                 )
@@ -118,12 +122,16 @@ def seed_demo_data() -> None:
                             role_code=user_data["role_code"],
                             email=user_data["email"],
                             full_name=user_data["full_name"],
-                            password_hash=password_hash,
+                            password_hash=disabled_password_hash,
                             failed_login_attempts=0,
                             locked_until=None,
                             is_active=True,
                         )
                     )
+                else:
+                    existing_user.password_hash = disabled_password_hash
+                    existing_user.failed_login_attempts = 0
+                    existing_user.locked_until = None
 
             session.flush()
 

@@ -8,6 +8,10 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=1024)
 
 
+class DemoLoginRequest(BaseModel):
+    email: EmailStr
+
+
 class SessionUser(BaseModel):
     id: UUID
     email: EmailStr

@@ -37,6 +37,7 @@ services:
       - DB_ADMIN_PASSWORD=password123
       - APP_ENV=development
       - DEBUG=True
+      - ENABLE_DEMO_LOGIN=True
       - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
     depends_on:
       database:
@@ -48,6 +49,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_ENABLE_DEMO_LOGIN: "true"
     container_name: ttcs_frontend
     restart: unless-stopped
     ports:
