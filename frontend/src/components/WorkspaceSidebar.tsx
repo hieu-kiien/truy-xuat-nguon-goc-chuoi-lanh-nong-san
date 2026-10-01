@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { API_BASE_URL } from '../services/api'
 import { ROLE_LABELS, type SessionUser } from '../types'
 import type { WorkspaceTab } from './FarmWorkspace'
@@ -19,6 +20,53 @@ export function WorkspaceSidebar({
   onTabChange,
   onLogout,
 }: WorkspaceSidebarProps) {
+  useEffect(() => {
+    const menuButton = document.querySelector<HTMLButtonElement>(
+      '[aria-controls="dashboard-sidebar"]'
+    )
+    menuButton?.setAttribute('aria-expanded', String(sidebarOpen))
+  }, [sidebarOpen])
+
+  useEffect(() => {
+    if (!sidebarOpen) return
+
+    const mobileQuery = window.matchMedia('(max-width: 1024px)')
+    if (!mobileQuery.matches) return
+
+    const previousOverflow = document.body.style.overflow
+    const dashboardMain = document.querySelector<HTMLElement>('.dashboard-main')
+    document.body.style.overflow = 'hidden'
+    if (dashboardMain) dashboardMain.inert = true
+
+    const restoreMenuFocus = () => {
+      window.requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLButtonElement>('[aria-controls="dashboard-sidebar"]')
+          ?.focus()
+      })
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      onCloseSidebar()
+      restoreMenuFocus()
+    }
+
+    const handleViewportChange = (event: MediaQueryListEvent) => {
+      if (!event.matches) onCloseSidebar()
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    mobileQuery.addEventListener('change', handleViewportChange)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      mobileQuery.removeEventListener('change', handleViewportChange)
+      document.body.style.overflow = previousOverflow
+      if (dashboardMain) dashboardMain.inert = false
+    }
+  }, [sidebarOpen, onCloseSidebar])
+
   const selectTab = (tab: WorkspaceTab) => {
     onTabChange(tab)
     onCloseSidebar()
@@ -26,6 +74,7 @@ export function WorkspaceSidebar({
 
   return (
     <aside
+      id="dashboard-sidebar"
       className={`dashboard-sidebar ${
         sidebarOpen ? 'dashboard-sidebar-open' : ''
       }`}
@@ -50,6 +99,7 @@ export function WorkspaceSidebar({
                 <button
                   type="button"
                   onClick={() => selectTab('overview')}
+                  aria-current={activeTab === 'overview' ? 'page' : undefined}
                   className={`dashboard-nav-item ${
                     activeTab === 'overview' ? 'dashboard-nav-item-active' : ''
                   }`}
@@ -62,6 +112,7 @@ export function WorkspaceSidebar({
                 <button
                   type="button"
                   onClick={() => selectTab('security')}
+                  aria-current={activeTab === 'security' ? 'page' : undefined}
                   className={`dashboard-nav-item ${
                     activeTab === 'security' ? 'dashboard-nav-item-active' : ''
                   }`}
@@ -74,6 +125,7 @@ export function WorkspaceSidebar({
                 <button
                   type="button"
                   onClick={() => selectTab('integrity')}
+                  aria-current={activeTab === 'integrity' ? 'page' : undefined}
                   className={`dashboard-nav-item ${
                     activeTab === 'integrity' ? 'dashboard-nav-item-active' : ''
                   }`}
@@ -88,6 +140,7 @@ export function WorkspaceSidebar({
                   target="_blank"
                   rel="noreferrer"
                   className="dashboard-nav-item"
+                  aria-label="Mở OpenAPI Swagger trong tab mới"
                 >
                   <span>OpenAPI Swagger</span>
                   <span className="nav-tag">API</span>
@@ -101,7 +154,7 @@ export function WorkspaceSidebar({
             <div className="sidebar-specs-box">
               <div className="sidebar-spec-row">
                 <span className="sidebar-spec-key">PostgreSQL RLS</span>
-                <span className="sidebar-spec-val">FORCE ON</span>
+                <span className="sidebar-spec-val">ENABLED</span>
               </div>
               <div className="sidebar-spec-row">
                 <span className="sidebar-spec-key">Tenant ID</span>

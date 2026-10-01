@@ -4,12 +4,13 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.core.auth import Principal
 from app.core.authorization import has_permission
+from app.core.config import settings
 from app.core.database import SessionLocal, set_db_context
 from app.core.tenancy import get_tenant_record, tenant_select
 from app.main import app
@@ -63,6 +64,31 @@ async def test_route_without_permission_is_denied_and_logged(identity_factory, c
             getattr(record, "event", None) == "authorization.route_missing_permission"
             for record in caplog.records
         )
+
+
+def test_application_role_is_least_privilege_and_rls_is_enabled(admin_session):
+    role = admin_session.execute(
+        text(
+            "SELECT rolsuper, rolcreaterole, rolcreatedb, rolreplication, rolbypassrls "
+            "FROM pg_catalog.pg_roles WHERE rolname = :role"
+        ),
+        {"role": settings.DB_USER},
+    ).one()
+    assert tuple(role) == (False, False, False, False, False)
+
+    rows = admin_session.execute(
+        text(
+            "SELECT relname, relrowsecurity FROM pg_catalog.pg_class "
+            "WHERE relname IN ('organizations', 'users', 'sessions', 'farms')"
+        )
+    ).all()
+    rls_by_table = {name: enabled for name, enabled in rows}
+    assert rls_by_table == {
+        "organizations": True,
+        "users": True,
+        "sessions": True,
+        "farms": True,
+    }
 
 
 def test_rls_scopes_organization_users_and_login_lookup(identity_factory):

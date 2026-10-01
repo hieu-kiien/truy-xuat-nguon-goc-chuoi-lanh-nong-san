@@ -1,4 +1,5 @@
 import type {
+  DemoLoginRequest,
   Farm,
   FarmPayload,
   HealthResponse,
@@ -23,6 +24,7 @@ function resolveBaseUrl(): string {
 }
 
 export const API_BASE_URL = resolveBaseUrl()
+export const DEMO_LOGIN_ENABLED = import.meta.env.VITE_ENABLE_DEMO_LOGIN === 'true'
 
 export class ApiError extends Error {
   status: number
@@ -109,11 +111,27 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const checkHealth = () => request<HealthResponse>('/')
 
-export const login = (payload: LoginRequest) =>
-  request<SessionUser>('/api/v1/auth/login', {
+export const demoLogin = (payload: DemoLoginRequest) =>
+  request<SessionUser>('/api/v1/auth/demo-login', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
+
+export const login = (payload: LoginRequest) => {
+  if (!payload.password) {
+    if (!DEMO_LOGIN_ENABLED) {
+      return Promise.reject(
+        new ApiError(404, 'Đăng nhập demo đang tắt ở môi trường này')
+      )
+    }
+    return demoLogin({ email: payload.email })
+  }
+
+  return request<SessionUser>('/api/v1/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email: payload.email, password: payload.password }),
+  })
+}
 
 export const getCurrentUser = () => request<SessionUser>('/api/v1/auth/me')
 

@@ -13,7 +13,7 @@ help:
 
 install:
 	cd backend && python -m venv .venv && .venv/Scripts/pip install -r requirements-dev.txt
-	cd frontend && npm install
+	cd frontend && npm ci
 
 dev-backend:
 	cd backend && .venv/Scripts/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -25,11 +25,11 @@ test:
 	cd backend && .venv/Scripts/pytest tests/ -v
 
 lint:
-	cd backend && .venv/Scripts/ruff check app/ tests/
+	cd backend && .venv/Scripts/ruff check app/ tests/ alembic/
 	cd frontend && npm run lint
 
 lint-fix:
-	cd backend && .venv/Scripts/ruff check --fix app/ tests/ && .venv/Scripts/ruff format app/ tests/
+	cd backend && .venv/Scripts/ruff check --fix app/ tests/ alembic/ && .venv/Scripts/ruff format app/ tests/ alembic/
 
 migrate:
 	cd backend && .venv/Scripts/alembic upgrade head

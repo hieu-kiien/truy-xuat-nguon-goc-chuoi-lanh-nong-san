@@ -1,5 +1,10 @@
 import { useState, type FormEvent, type FocusEvent } from 'react'
-import { API_BASE_URL, login } from '../services/api'
+import {
+  API_BASE_URL,
+  DEMO_LOGIN_ENABLED,
+  demoLogin,
+  login,
+} from '../services/api'
 import { DEMO_ACCOUNTS, type DemoAccount, type SessionUser } from '../types'
 
 interface LoginViewProps {
@@ -18,7 +23,7 @@ export function LoginView({
   onNotify,
 }: LoginViewProps) {
   const [email, setEmail] = useState('grower@caudat.vn')
-  const [password, setPassword] = useState('Password123!')
+  const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -53,6 +58,22 @@ export function LoginView({
     }
   }
 
+  const executeDemoLogin = async (targetEmail: string) => {
+    setSubmitting(true)
+    setErrorMessage(null)
+    try {
+      const user = await demoLogin({ email: targetEmail.trim() })
+      onNotify(`Đã mở phiên demo: ${user.full_name}`)
+      onLoginSuccess(user)
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : 'Không thể mở phiên demo'
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = event.currentTarget
@@ -68,9 +89,9 @@ export function LoginView({
 
   const applyDemoAccount = (account: DemoAccount) => {
     setEmail(account.email)
-    setPassword(account.password)
+    setPassword('')
     setErrorMessage(null)
-    onNotify(`Đã điền tài khoản: ${account.email}`)
+    onNotify(`Đã điền email demo: ${account.email}`)
   }
 
   return (
@@ -120,7 +141,7 @@ export function LoginView({
             <section className="panel-card auth-panel">
               <div className="panel-head">
                 <h2>Đăng nhập Phiên Làm việc (N3-5)</h2>
-                <span className="status-badge status-done">Argon2id + Cookie</span>
+                <span className="status-badge status-done">Argon2id + Session</span>
               </div>
 
               {errorMessage && (
@@ -214,7 +235,7 @@ export function LoginView({
                 </div>
                 <div className="info-item">
                   <span className="info-item-label">N3-6 · Đa tổ chức &amp; Phân quyền</span>
-                  <strong className="info-item-value">PostgreSQL FORCE RLS</strong>
+                  <strong className="info-item-value">PostgreSQL RLS</strong>
                 </div>
                 <div className="info-item">
                   <span className="info-item-label">N3-7 · Danh mục Vùng trồng</span>
@@ -227,7 +248,11 @@ export function LoginView({
           <aside className="panel-card auth-panel">
             <div className="panel-head">
               <h2>Kịch bản Kiểm thử Nhanh (3 Tổ chức Demo)</h2>
-              <span className="panel-sub">Bấm để điền hoặc vào thẳng</span>
+              <span className="panel-sub">
+                {DEMO_LOGIN_ENABLED
+                  ? 'Phiên demo không sử dụng mật khẩu công khai'
+                  : 'Demo một chạm đang tắt ở môi trường này'}
+              </span>
             </div>
 
             <div className="demo-cards-stack">
@@ -256,20 +281,22 @@ export function LoginView({
                           className="ds-button ds-button-secondary ds-button-xs"
                           onClick={() => applyDemoAccount(account)}
                         >
-                          Điền form
+                          Điền email
                         </button>
-                        <button
-                          type="button"
-                          className="ds-button ds-button-brand ds-button-xs"
-                          disabled={submitting}
-                          onClick={() => {
-                            setEmail(account.email)
-                            setPassword(account.password)
-                            void executeLogin(account.email, account.password)
-                          }}
-                        >
-                          Vào ngay
-                        </button>
+                        {DEMO_LOGIN_ENABLED && (
+                          <button
+                            type="button"
+                            className="ds-button ds-button-brand ds-button-xs"
+                            disabled={submitting}
+                            onClick={() => {
+                              setEmail(account.email)
+                              setPassword('')
+                              void executeDemoLogin(account.email)
+                            }}
+                          >
+                            Vào demo
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

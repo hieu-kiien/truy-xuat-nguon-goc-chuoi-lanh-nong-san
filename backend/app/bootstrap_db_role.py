@@ -11,9 +11,14 @@ def bootstrap_database_role() -> None:
     admin_url = settings.MIGRATION_DATABASE_URL
 
     if app_url.username == admin_url.username:
-        return
+        raise RuntimeError(
+            "Application and migration database users must be different; "
+            "configure a least-privilege DB_USER for runtime requests"
+        )
     if not app_url.password or not admin_url.password:
         raise RuntimeError("Database passwords must be configured through environment")
+    if not admin_url.database:
+        raise RuntimeError("Database name is required to provision the application role")
 
     engine = create_engine(admin_url)
     try:
@@ -26,7 +31,10 @@ def bootstrap_database_role() -> None:
                 )
                 row = cursor.fetchone()
                 if not row or not row[0]:
-                    return
+                    raise RuntimeError(
+                        "Migration database user must have CREATEROLE permission "
+                        "to provision the least-privilege application role"
+                    )
 
                 cursor.execute(
                     "SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = %s",
@@ -47,6 +55,12 @@ def bootstrap_database_role() -> None:
                     ).format(
                         sql.Identifier(settings.DB_USER),
                         sql.Literal(app_url.password),
+                    )
+                )
+                cursor.execute(
+                    sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(
+                        sql.Identifier(admin_url.database),
+                        sql.Identifier(settings.DB_USER),
                     )
                 )
     finally:

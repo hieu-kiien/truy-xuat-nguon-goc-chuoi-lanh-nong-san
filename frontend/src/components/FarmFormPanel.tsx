@@ -231,8 +231,8 @@ export function FarmFormPanel({
 
           <div
             className="chart-bars"
-            role="img"
-            aria-label="Biểu đồ diện tích các vùng trồng"
+            role="group"
+            aria-label="Biểu đồ diện tích các vùng trồng. Có thể chọn từng cột để xem chi tiết."
           >
             {farms.map((farm, idx) => {
               const area = Number(farm.area_ha) || 0
@@ -243,10 +243,12 @@ export function FarmFormPanel({
               return (
                 <div key={farm.id} className="chart-bar-col">
                   <span className="chart-bar-value">{area.toFixed(1)}</span>
-                  <div
+                  <button
+                    type="button"
                     className="chart-bar"
                     style={{ height: `${heightPct}%` }}
                     title={`${farm.name}: ${area.toFixed(2)} ha`}
+                    aria-label={`${farm.name}: ${area.toFixed(2)} hecta`}
                     onClick={() =>
                       onNotify(
                         `${farm.name} — Diện tích: ${area.toFixed(2)} ha`

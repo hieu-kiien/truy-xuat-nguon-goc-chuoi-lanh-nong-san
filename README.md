@@ -56,10 +56,13 @@ Yêu cầu máy tính đã cài đặt và bật **Docker Desktop**. Chạy lệ
 docker compose up --build -d
 ```
 
+Docker Compose bật chế độ demo cho môi trường phát triển, vì vậy có thể dùng các nút **Vào demo/Đổi nhanh phiên** mà không cần một mật khẩu demo được công khai trong mã nguồn. Chế độ này bị chặn khi `APP_ENV=production`.
+
 Sau khi các container khởi động hoàn tất:
 - **Giao diện Web:** http://localhost:5173
 - **Tài liệu API (Swagger UI):** http://localhost:8000/docs
-- **Cơ sở dữ liệu PostgreSQL:** `localhost:5432` (Database: `ttcs_db`, User: `admin`)
+- **Cơ sở dữ liệu PostgreSQL:** `localhost:5432` (Database: `ttcs_db`, User quản trị: `admin`)
+- **Kết nối ứng dụng:** backend dùng role `ttcs_app` tách biệt để chính sách PostgreSQL RLS được áp dụng trên request runtime.
 
 Để dừng toàn bộ dịch vụ:
 ```bash
@@ -81,8 +84,15 @@ python -m venv .venv
 pip install -r requirements-dev.txt
 cp .env.example .env
 
+# Sau khi đã điền DB_PASSWORD và DB_ADMIN_PASSWORD trong .env:
+python -m app.bootstrap_db_role
+alembic upgrade head
+python -m app.seed_demo
+
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+`bootstrap_db_role` tạo/cập nhật role runtime `ttcs_app` theo nguyên tắc least privilege. Migration và seed dùng tài khoản quản trị riêng; API request dùng `ttcs_app`. Không cấu hình hai vai trò này thành cùng một database user.
 
 #### Frontend (React + Vite)
 
@@ -90,11 +100,13 @@ Mở một cửa sổ terminal mới:
 
 ```bash
 cd frontend
-npm install
+npm ci
 cp .env.example .env.local
 
 npm run dev
 ```
+
+Để bật đăng nhập demo một chạm khi chạy trực tiếp, đặt `ENABLE_DEMO_LOGIN=true` trong `backend/.env` và `VITE_ENABLE_DEMO_LOGIN=true` trong `frontend/.env.local`. Không bật `ENABLE_DEMO_LOGIN` trong môi trường production.
 
 ## Các lệnh hỗ trợ phát triển
 
@@ -117,6 +129,8 @@ Hệ thống được thiết lập cơ chế triển khai liên tục (Continuo
 
 - **Web Staging:** https://ttcs-frontend-staging.onrender.com
 - **API Staging:** https://ttcs-backend-staging.onrender.com/docs
+
+Staging bật chế độ demo có chủ đích để phục vụ kiểm thử. Endpoint demo chỉ chấp nhận các tài khoản nằm trong allowlist và vẫn phát hành session theo cơ chế phiên chung của hệ thống. Backend staging bootstrap một role `ttcs_app` có mật khẩu sinh tự động; migration/seed sử dụng credential quản trị riêng, còn request API chạy bằng `ttcs_app` để RLS không phụ thuộc vào quyền của database owner.
 
 ## Quy trình đóng góp
 

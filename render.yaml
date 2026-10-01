@@ -7,37 +7,77 @@ services:
     branch: main
     autoDeploy: true
     buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: cd backend && alembic upgrade head && python -m app.seed_demo && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: cd backend && python -m app.bootstrap_db_role && alembic upgrade head && python -m app.seed_demo && unset DB_ADMIN_PASSWORD && exec uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
     envVars:
       - key: APP_ENV
         value: staging
       - key: DEBUG
         value: "False"
+      - key: ENABLE_DEMO_LOGIN
+        value: "True"
       - key: ALLOWED_ORIGINS
-        value: https://ttcs-frontend-staging.onrender.com,http://localhost:5173,http://localhost:3000
-      - key: DATABASE_URL_ENV
+        value: https://ttcs-frontend-staging.onrender.com
+      - key: DB_HOST
         fromDatabase:
           name: ttcs-postgres-staging
-          property: connectionString
-      - key: MIGRATION_DATABASE_URL_ENV
+          property: host
+      - key: DB_PORT
         fromDatabase:
           name: ttcs-postgres-staging
-          property: connectionString
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ttcs-postgres-staging
+          property: database
+      - key: DB_USER
+        value: ttcs_app
+      - key: DB_PASSWORD
+        generateValue: true
+      - key: DB_ADMIN_USER
+        fromDatabase:
+          name: ttcs-postgres-staging
+          property: user
+      - key: DB_ADMIN_PASSWORD
+        fromDatabase:
+          name: ttcs-postgres-staging
+          property: password
 
   - type: web
     name: ttcs-frontend-staging
     runtime: static
     branch: main
     autoDeploy: true
-    buildCommand: cd frontend && npm install && npm run build
+    buildCommand: cd frontend && npm ci && npm run build
     staticPublishPath: ./frontend/dist
     routes:
       - type: rewrite
         source: /*
         destination: /index.html
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; connect-src 'self' https://ttcs-backend-staging.onrender.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: "camera=(), microphone=(), geolocation=()"
+      - path: /assets/*
+        name: Cache-Control
+        value: "public, max-age=31536000, immutable"
     envVars:
       - key: VITE_API_BASE_URL
         value: https://ttcs-backend-staging.onrender.com
+      - key: VITE_ENABLE_DEMO_LOGIN
+        value: "true"
 
 databases:
   - name: ttcs-postgres-staging
@@ -45,3 +85,4 @@ databases:
     plan: free
     databaseName: ttcs_staging
     user: admin
+    ipAllowList: []
