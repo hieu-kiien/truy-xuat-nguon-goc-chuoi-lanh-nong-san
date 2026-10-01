@@ -34,7 +34,7 @@ export function SecurityPanel({
       <section className="panel-card panel-box">
         <div className="panel-head">
           <h2>Ngữ cảnh Phiên &amp; Cô lập Đa tổ chức (PostgreSQL RLS)</h2>
-          <span className="status-badge status-done">FORCE RLS: BẬT</span>
+          <span className="status-badge status-done">RLS: BẬT</span>
         </div>
 
         <div className="info-grid-2">
