@@ -11,6 +11,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<SessionUser | null>(null)
   const [initializing, setInitializing] = useState(true)
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('overview')
+  const changeTab = useCallback((tab: WorkspaceTab) => setActiveTab(tab), [])
   const [isDark, setIsDark] = useState<boolean>(() => {
     try {
       return localStorage.getItem(THEME_STORAGE_KEY) === 'dark'
@@ -89,31 +90,36 @@ export default function App() {
     }
   }, [])
 
+  useEffect(() => () => { if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current) }, [])
+
   const handleLogout = async () => {
-    await logout()
-    setCurrentUser(null)
-    notify('Đã đăng xuất khỏi phiên làm việc')
+    try {
+      await logout()
+      setCurrentUser(null)
+      notify('Đã đăng xuất khỏi phiên làm việc')
+    } catch (error) {
+      notify(error instanceof Error ? `Chưa thể đăng xuất trên máy chủ: ${error.message}` : 'Không thể đăng xuất; vui lòng thử lại.')
+    }
   }
 
   return (
     <>
       {initializing ? (
-        <div className="login-hero section-pattern init-screen">
-          <div className="panel-card init-card">
-            <h2>AgroChain đang khởi tạo...</h2>
-            <p className="panel-sub">
-              Đang đồng bộ trạng thái phiên làm việc với máy chủ
-            </p>
+        <div className="init-screen">
+          <div className="init-card"><span className="init-mark">AC</span><span className="micro-label">SECURE WORKSPACE</span>
+            <h2>Đang khởi tạo AgroChain.</h2>
+            <p>Đồng bộ phiên làm việc với máy chủ…</p>
           </div>
         </div>
       ) : currentUser ? (
         <FarmWorkspace
           key={currentUser.id}
           user={currentUser}
+          backendOnline={backendOnline}
           activeTab={activeTab}
           isDark={isDark}
           onToggleTheme={toggleTheme}
-          onTabChange={(tab) => setActiveTab(tab)}
+          onTabChange={changeTab}
           onSwitchUser={(nextUser) => setCurrentUser(nextUser)}
           onLogout={() => void handleLogout()}
           onNotify={notify}
