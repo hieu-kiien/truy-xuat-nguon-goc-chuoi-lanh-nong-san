@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   deploy-staging:
-    name: Deploy to Staging
+    name: Trigger staging rollout
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -35,7 +35,5 @@ jobs:
             echo "No deploy hook configured; waiting for the Render GitHub auto-deploy integration."
           fi
 
-      - name: Verify actual frontend rollout and API health
-        env:
-          EXPECTED_COMMIT: ${{ github.sha }}
-        run: python scripts/verify_staging.py
+      # Verify rollout separately with scripts/verify_staging.py.
+      # A blocking check here can deadlock Render's After CI Checks Pass mode.
