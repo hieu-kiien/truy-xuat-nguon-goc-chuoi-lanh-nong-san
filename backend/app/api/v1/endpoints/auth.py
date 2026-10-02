@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.auth import Principal, get_current_principal
+from app.core.auth import Principal, extract_session_token, get_current_principal
 from app.core.authorization import enforce_route_permission, require_permission
 from app.core.config import settings
 from app.core.database import get_db, set_db_context
@@ -94,6 +94,7 @@ def login(
         samesite="lax",
         path="/",
     )
+    response.headers["X-Session-Token"] = token
     return _session_user(user, organization, role)
 
 
@@ -121,7 +122,7 @@ def logout(
     principal: Annotated[Principal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Response:
-    token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    token = extract_session_token(request)
     if token:
         auth_session = db.scalar(
             select(AuthSession).where(
@@ -140,5 +141,6 @@ def logout(
         samesite="lax",
         path="/",
     )
+    response.headers["X-Session-Token"] = ""
     response.status_code = status.HTTP_204_NO_CONTENT
     return response

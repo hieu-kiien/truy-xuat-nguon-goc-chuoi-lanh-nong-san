@@ -24,10 +24,26 @@ class Principal:
     role: str
 
 
+def extract_session_token(request: Request) -> str | None:
+    token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if token:
+        return token
+
+    header_token = request.headers.get("X-Session-Token")
+    if header_token:
+        return header_token
+
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header[7:].strip()
+
+    return None
+
+
 def get_current_principal(
     request: Request, db: Annotated[Session, Depends(get_db)]
 ) -> Principal:
-    token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    token = extract_session_token(request)
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Cần đăng nhập."
