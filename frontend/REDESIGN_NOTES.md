@@ -42,9 +42,9 @@ Không dùng hiệu ứng scramble hash, số telemetry loop giả, magnetic con
 
 ## Tiếp cận
 
-Semantic HTML, main/heading/nav, native form/range/details và table. Tương tác có click/keyboard tương đương; không bắt buộc hover. Modal trap Tab, Escape, inert và trả focus về trigger nếu còn tồn tại, nếu không về heading hiện tại. Điều hướng phân hệ focus heading; không chiếm lại focus khi đóng overlay. Mobile có menu phiên và logout.
+Semantic HTML, main/heading/nav, native form/range/details và table. Tương tác có click/keyboard tương đương; không bắt buộc hover. Modal trap Tab, Escape, inert và trả focus về trigger nếu còn tồn tại, nếu không về heading hiện tại. Điều hướng phân hệ đưa cuộn về đầu và focus heading; không chiếm lại focus khi đóng overlay. Mobile có menu phiên và logout.
 
-Hash và lỗi nhiệt độc lập; màu có text/shape. Dữ liệu nội suy ghi rõ, evidence tham chiếu event ghi gần nhất. SVG chart có phần HTML tương đương. Đã kiểm tra tương phản các token chữ/trạng thái/focus bằng công thức WCAG; screen reader, layout/contrast thực và 200% zoom còn cần browser QA.
+Hash và lỗi nhiệt độc lập; màu có text/shape. Dữ liệu nội suy ghi rõ, evidence tham chiếu event ghi gần nhất. SVG chart có phần HTML tương đương. Đã kiểm tra tương phản các token chữ/trạng thái/focus bằng công thức WCAG; browser automation đã kiểm tra focus/keyboard, hai theme, reduced motion và 5 kích thước viewport. Screen reader thủ công, tương phản từng pixel và 200% zoom còn cần đánh giá trực tiếp.
 
 ## Hiệu năng
 

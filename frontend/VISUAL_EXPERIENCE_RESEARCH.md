@@ -3,7 +3,7 @@
 > Cập nhật triển khai 2026-10-02: Gateway drag/snap, shared lens/cursor, camera route/GPS, hash/bit diff và replay, tenant membranes và mobile chain đã được viết. Các bảng ý tưởng bên dưới ghi trạng thái lúc nghiên cứu, không phải inventory cuối. Xem REDESIGN_NOTES.md và VALIDATION.md cho trạng thái hiện tại và giới hạn kiểm chứng.
 
 
-> Gateway đã được mở rộng sau lượt nghiên cứu: route drag/snap, native range/bàn phím, hai simulation độc lập và SHA-256 thật. Xem [GATEWAY_IMPLEMENTATION.md](GATEWAY_IMPLEMENTATION.md) để biết trạng thái triển khai/kiểm thử hiện tại. Các ghi chú về Gateway tĩnh hoặc rail cũ bên dưới là lịch sử trước cập nhật; rail được thay bằng trạng thái auth theo request thật. Shared transitions của workspace vẫn chưa triển khai.
+> Gateway đã được mở rộng sau lượt nghiên cứu: route drag/snap, native range/bàn phím, hai simulation độc lập và SHA-256 thật. Xem [GATEWAY_IMPLEMENTATION.md](GATEWAY_IMPLEMENTATION.md) để biết trạng thái triển khai/kiểm thử hiện tại. Các ghi chú về Gateway tĩnh hoặc rail cũ bên dưới là lịch sử trước cập nhật; rail được thay bằng trạng thái auth theo request thật. Shared lens/cursor và native View Transitions đã triển khai ở lượt hoàn thiện; xem inventory cuối.
 
 Ngày: 02/10/2026. Mục tiêu đã được người dùng làm rõ: một frontend React rất đẹp, thú vị khi tương tác và có dấu ấn thị giác. Không lấy diễn thuyết hay tour hướng dẫn làm trung tâm. Hướng người dùng chọn: **bản đồ + pháp chứng dữ liệu**.
 
@@ -11,7 +11,7 @@ Ngày: 02/10/2026. Mục tiêu đã được người dùng làm rõ: một fron
 
 React + TypeScript + Vite + CSS hiện tại đủ để xây dựng trải nghiệm này. Chưa thấy bế tắc kỹ thuật buộc phải thay framework. Sự khác biệt cần đến từ bố cục, typography, chất liệu và sự liên tục giữa các biểu diễn dữ liệu; số lượng animation không tự tạo ra chất lượng.
 
-Code local đã có nền tảng mới: Gateway, Trace, Atlas Map/List/Compare, Journey, Integrity, Security, palette và tour tùy chọn. Có SHA-256 thật chạy bằng Web Crypto, source diff và trạng thái ancestry; có route packet và GPS selection ring chạy hữu hạn. **Chưa có** chuyển tiếp chung giữa bản đồ/timeline/hash, camera bản đồ hoàn chỉnh, inspector morph thực, lens hay radial theme reveal. Build/lint đã qua ở lượt trước; chưa có bằng chứng QA hình ảnh hoặc kiểm thử đầy đủ phiên đăng nhập/backend. Báo cáo này bổ sung nghiên cứu và quyết định thiết kế, không tuyên bố đã triển khai các ý tưởng mới.
+Bản hoàn thiện đã có Gateway, Trace, Atlas Map/List/Compare, Journey, Integrity, Security, palette và guide tùy chọn; có camera, selection map/time/hash chung, SHA-256 thật, replay và diff. Không dùng radial theme reveal hoặc inspector morph FLIP chỉ để trang trí. Research giữ lại ý tưởng và giới hạn truy cập nguồn; trạng thái triển khai/kiểm chứng cuối nằm ở [REDESIGN_NOTES.md](REDESIGN_NOTES.md) và [VALIDATION.md](VALIDATION.md).
 
 ## Cách đọc bằng chứng nghiên cứu
 
@@ -137,7 +137,7 @@ Không chọn full-screen particle, cursor takeover, nền 3D chạy liên tục
 - Direct manipulation không easing dữ liệu theo sau; camera có thể ease-out ngắn. Animation bị ngắt phải đi đến trạng thái mới hợp lệ, không khóa controls.
 - Light: giấy đất/off-white, graphite, crop green có giới hạn, frost cho nhiệt độ. Dark: graphite rộng, bằng chứng nổi sáng, amber cảnh báo, đỏ chỉ failure. Dark không cần giống cyberpunk.
 - Mỗi view có một vùng thị giác chủ đạo. Diện tích chính dành cho map/trace/evidence; thông tin phụ có thể là rail hoặc chữ trên canvas thay vì card đồng kích thước.
-- Sửa typography trước khi thêm hiệu ứng: body 14–16px; labels quan trọng 11–12px trở lên; heading fluid khoảng 36–88px. Code hiện có nhiều nhãn 7–10px; cần nâng lên, không dùng giảm font để vừa layout.
+- Sửa typography trước khi thêm hiệu ứng: body 14–16px; labels quan trọng 11–12px trở lên; heading fluid khoảng 36–88px. Lượt hoàn thiện đã nâng nhãn dữ liệu lên tối thiểu 11px; không giảm font để vừa layout.
 - [Be Vietnam Pro metadata](https://github.com/google/fonts/blob/main/ofl/bevietnampro/METADATA.pb) và [IBM Plex Mono metadata](https://github.com/google/fonts/blob/main/ofl/ibmplexmono/METADATA.pb) chính thức có subset Vietnamese và license OFL, đã đọc qua GitHub connector. Đề xuất phục vụ font local, kèm license; chưa thêm font asset vào repo. Kiểm tra font thực, shaping dấu và fallback khi triển khai.
 
 ## Vướng mắc: đâu là giới hạn thật?
@@ -150,8 +150,8 @@ Không chọn full-screen particle, cursor takeover, nền 3D chạy liên tục
 | Permissions-Policy chặn geolocation | Không lấy vị trí browser người dùng | Dùng GPS trong record; không gọi tọa độ fixture là GPS live |
 | API không xuất per-layer spans | Không đo được thời gian RBAC/Tenant/RLS từ frontend | Actual request pending/status/rows; diagram nội bộ là mô hình suy từ code, không packet tracing thật |
 | Web Crypto cần secure context | Hash có thể không chạy trên HTTP LAN tùy deployment | HTTPS production/localhost dev; thông báo lỗi thật, không hash placeholder |
-| CUA từ chối origin preview local; Playwright package có nhưng thiếu browser executables | Chưa chụp/QA desktop/mobile/reduced-motion trong môi trường này | Chạy QA ở môi trường local/CI có browser hoặc preview truy cập được; không dùng build thay screenshot |
-| Không có backend + PostgreSQL test đang cấu hình/khả dụng trong workspace | Chưa kiểm nghiệm mọi role/login/RLS/create/edit end-to-end | Dùng môi trường backend/database test được cấu hình; không đưa password vào source hay đọc secret ra log |
+| Browser local bị chặn | Không chạy Chromium trong workspace | Đã chạy browser thật trên GitHub Actions: desktop/tablet/mobile, hai theme, native reduced motion; có ảnh chụp |
+| Không có PostgreSQL local | Cần môi trường test độc lập | Đã chạy FastAPI + PostgreSQL 16 trong CI, kiểm thử login thật/demo/roles/persistence/isolation; credential ngẫu nhiên không log/upload |
 
 Nguồn kiểm tra: `frontend/nginx.conf`, `render.yaml`, `backend/app/api/v1/router.py`, `backend/app/api/v1/endpoints/farms.py`, `backend/app/schemas/farm.py`, `backend/app/core/authorization.py`, `backend/app/core/tenancy.py`, `frontend/src/services`, `frontend/src/domain/demoScenario.ts`.
 
@@ -167,13 +167,13 @@ Mục tiêu 60fps không phải lời bảo đảm. Đo frame time, long task, l
 
 Nguồn kỹ thuật: [web.dev animation guide](https://web.dev/articles/animations-guide), [MDN startViewTransition](https://developer.mozilla.org/en-US/docs/Web/API/Document/startViewTransition), [WAI modal dialog](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/), [MDN reduced motion](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-reduced-motion).
 
-## Thứ tự làm tiếp để tăng chất lượng thật
+## Trình tự triển khai được dùng
 
 1. Typography, tỷ lệ canvas, palette light/dark và layout mobile; đưa labels về kích thước đọc được. Giữ tour là phụ.
 2. Nối selected event toàn cục; tạo một lát cắt hoàn chỉnh map → time → evidence. Kiểm tra focus/interrupt/reduced-motion trước mở rộng.
 3. Nâng Farm Atlas thành canvas có camera + marker inspector, giữ nguyên create/edit/services và UUID.
 4. Nâng hash replay/diff/fracture; thử ba trạng thái độc lập: bình thường, excursion nhưng hash hợp lệ, tamper làm mismatch/ancestry invalid.
 5. Security request visual gắn real status, caption mô hình kiến trúc; theme reveal/lens chỉ thêm sau khi các vùng chính ổn.
-6. Khi browser/backend sẵn sàng: build/lint; screenshots desktop/tablet/mobile light/dark; keyboard/200% zoom/reduced motion; login/demo, Grower/Admin/Inspector, allowed/403, create/edit/RLS bằng dữ liệu test. Hiện chưa đóng các mục này.
+6. Khi browser/backend sẵn sàng: build/lint; screenshots desktop/tablet/mobile light/dark; keyboard/200% zoom/reduced motion; login/demo, Grower/Admin/Inspector, allowed/403, create/edit/RLS bằng dữ liệu test. Browser automation và backend CI đã chạy; screen reader thủ công, 200% zoom và profiling máy thật vẫn chưa được xác nhận.
 
 Tiêu chí thành công: người dùng tự muốn thử thêm một tương tác vì nó đẹp và giải thích được dữ liệu; CRUD/auth vẫn dùng ngay được; toàn bộ sản phẩm có một ngôn ngữ thị giác chung. Không cần diễn thuyết để hiểu sức hút đó.

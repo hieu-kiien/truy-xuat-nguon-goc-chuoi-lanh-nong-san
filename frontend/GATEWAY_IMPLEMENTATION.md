@@ -2,7 +2,7 @@
 
 > Báo cáo này ghi bước triển khai Gateway trước cập nhật workspace. Kết quả tổng thể mới nhất ở [VALIDATION.md](VALIDATION.md); package Playwright chỉ là dev dependency mới, không dependency runtime.
 
-Đã triển khai trong working tree `codex/agrochain-redesign`. Chưa push/merge/deploy. Đây là bản mở rộng của frontend local đang được thiết kế lại, không phải một bản thay đổi backend.
+Đã đưa vào nhánh `codex/agrochain-spatial-redesign` và PR #8. Chưa merge/deploy. Đây là bản mở rộng của frontend local đang được thiết kế lại, không phải một bản thay đổi backend.
 
 ## Trải nghiệm đã có
 
@@ -42,8 +42,8 @@ Không có package runtime mới. Services, types, backend, CSP và permission p
 - Static render bằng Vite SSR + React server renderer: qua với demo bật và tắt; xác nhận form/autocomplete, range/labels, bốn nút chặng, disclosure tính toán chưa xong không claim verified, trạng thái demo theo cấu hình và ID không trùng. Static render không thay browser interaction test.
 - `git diff --check`: qua. Không có diff trong `src/services`, `src/types` hoặc backend.
 
-## Chưa kiểm chứng trong browser
+## Kiểm chứng browser bổ sung
 
-Môi trường hiện tại thiếu browser executable; CUA đã từ chối local preview ở lần kiểm tra trước. Vì vậy chưa có screenshot desktop/mobile, kiểm tra focus/touch thực, screen reader, dark/light rendering, reduced-motion rendering hay đo FPS. Chưa có backend/database test khả dụng để chạy login thật/demo theo role end-to-end. Các mục đó vẫn mở, không dùng build/SSR để tuyên bố đã qua.
+GitHub Actions đã chạy Gateway cùng toàn bộ workspace trên 7 cấu hình: desktop light/dark, tablet, mobile light/dark, 320px và native reduced motion. Các bài Gateway kiểm tra drag/snap, range/bàn phím, heat/tamper độc lập, focus lỗi, auth tổng hợp và logout. Bộ live dùng production entry, FastAPI + PostgreSQL thật để kiểm tra login credential, demo ba vai trò, session reload/logout, allowed/403 và farms persistence/isolation.
 
-Khi có preview/browser: thử 1440×1000, 1024×768, 768×1024, 390×844 và 320×740 ở light/dark; Tab toàn màn hình; drag/cancel/snap/click sau drag; range arrows/Home/End; heat và tamper riêng/kết hợp/reset; Web Crypto failure; login invalid/pending/error/success, demo bật/tắt. Kiểm tra không che form và không overflow ngang ở 200% zoom.
+Ảnh Gateway desktop/mobile được chụp bằng Chromium thật. Build size và kết quả tổng thể mới nhất ở [VALIDATION.md](VALIDATION.md). Screen reader thủ công, 200% zoom, FPS/CLS trên thiết bị thật chưa được xác nhận.
