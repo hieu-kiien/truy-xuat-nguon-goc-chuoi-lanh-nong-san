@@ -11,8 +11,13 @@ const go = async (page, role = 'grower', project) => {
 const navigate = async (page, name) => {
   await page.getByRole('button', { name, exact: true }).click()
   await expect(page.locator('main h1')).toBeFocused()
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
 }
 const capture = async (page, info, name) => {
+  await page.evaluate(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+    return new Promise(requestAnimationFrame)
+  })
   await page.screenshot({ path: info.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' })
   await info.attach(name, { path: info.outputPath(`${name}.png`), contentType: 'image/png' })
 }

@@ -132,6 +132,7 @@ export function FarmWorkspace({
     focusedTabRef.current = activeTab
     if (guideOpen || paletteOpen) return
     const frame = requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' })
       const heading = mainRef.current?.querySelector('h1')
       heading?.setAttribute('tabindex', '-1')
       heading?.focus({ preventScroll: true })

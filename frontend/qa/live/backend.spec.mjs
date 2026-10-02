@@ -52,6 +52,10 @@ for (const [index, role, status] of [[0, 'grower', 200], [1, 'organization_admin
       await navigate(page, 'Farm Atlas')
       await expect(page.getByRole('button', { name: 'Thêm thửa', exact: true })).toHaveCount(0)
     }
+    await page.evaluate(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+      return new Promise(requestAnimationFrame)
+    })
     await page.screenshot({ path: info.outputPath(`real-${role}.png`), fullPage: true, animations: 'disabled' })
   })
 }
@@ -98,6 +102,10 @@ test('major production-entry screens with real API session', async ({ page }, in
   page.on('pageerror', (error) => errors.push(error.message))
   const capture = async (name) => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy()
+    await page.evaluate(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+      return new Promise(requestAnimationFrame)
+    })
     await page.screenshot({ path: info.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' })
   }
   await page.goto('/')
