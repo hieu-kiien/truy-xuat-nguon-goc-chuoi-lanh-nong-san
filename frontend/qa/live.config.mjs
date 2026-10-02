@@ -6,8 +6,8 @@ export default defineConfig({
   expect: { timeout: 8000 },
   workers: 1,
   retries: 0,
-  reporter: [['list'], ['html', { outputFolder: 'live-report', open: 'never' }]],
-  outputDir: 'live-results',
+  reporter: [['list'], ['html', { outputFolder: fileURLToPath(new URL('../live-report/', import.meta.url)), open: 'never' }]],
+  outputDir: fileURLToPath(new URL('../live-results/', import.meta.url)),
   // No trace/network body artifacts: credential tests use an ephemeral generated password.
   use: { baseURL: 'http://127.0.0.1:5175', trace: 'off', screenshot: 'only-on-failure' },
   webServer: [
