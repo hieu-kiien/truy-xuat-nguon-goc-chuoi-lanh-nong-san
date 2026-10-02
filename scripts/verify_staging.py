@@ -24,7 +24,7 @@ def main():
     if not re.fullmatch(r"[a-fA-F0-9]{40}", expected):
         raise SystemExit("EXPECTED_COMMIT must be a full commit SHA.")
 
-    deadline = time.monotonic() + 600
+    deadline = time.monotonic() + 300
     frontend = "https://ttcs-frontend-staging.onrender.com/"
     backend = "https://ttcs-backend-staging.onrender.com/"
     while time.monotonic() < deadline:
@@ -45,7 +45,7 @@ def main():
         time.sleep(10)
 
     raise SystemExit(
-        "Staging did not serve the expected commit within 10 minutes. "
+        "Staging did not serve the expected commit within 5 minutes. "
         "Check the Render service linked repository, branch, build command and deploy logs."
     )
 
