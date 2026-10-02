@@ -1,4 +1,5 @@
 import { defineConfig } from 'playwright/test'
+import { fileURLToPath } from 'node:url'
 export default defineConfig({
   testDir: './live',
   timeout: 45000,
@@ -10,8 +11,8 @@ export default defineConfig({
   // No trace/network body artifacts: credential tests use an ephemeral generated password.
   use: { baseURL: 'http://127.0.0.1:5175', trace: 'off', screenshot: 'only-on-failure' },
   webServer: [
-    { command: 'cd ../backend && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000', url: 'http://127.0.0.1:8000/', timeout: 30000, reuseExistingServer: false },
-    { command: 'npm run dev -- --host 127.0.0.1 --port 5175 --strictPort', url: 'http://127.0.0.1:5175', timeout: 30000, reuseExistingServer: false,
+    { cwd: fileURLToPath(new URL('../../backend/', import.meta.url)), command: 'python -m uvicorn app.main:app --host 127.0.0.1 --port 8000', url: 'http://127.0.0.1:8000/', timeout: 30000, reuseExistingServer: false },
+    { cwd: fileURLToPath(new URL('../', import.meta.url)), command: 'npm run dev -- --host 127.0.0.1 --port 5175 --strictPort', url: 'http://127.0.0.1:5175', timeout: 30000, reuseExistingServer: false,
       env: { VITE_API_BASE_URL: 'http://127.0.0.1:8000', VITE_ENABLE_DEMO_LOGIN: 'true' } },
   ],
   projects: [

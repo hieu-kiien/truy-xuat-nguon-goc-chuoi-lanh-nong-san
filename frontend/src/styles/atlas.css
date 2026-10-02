@@ -7,3 +7,5 @@
 .atlas-inspector h2 { overflow-wrap: anywhere; }
 
 .farm-form input, .gateway-form input, .search-field { border-color: var(--muted); }
+
+.farm-marker-label { overflow: hidden; text-overflow: ellipsis; }

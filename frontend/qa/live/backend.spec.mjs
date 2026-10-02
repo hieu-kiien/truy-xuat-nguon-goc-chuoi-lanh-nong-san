@@ -92,3 +92,28 @@ test('real farm create/edit persists stable UUID; other tenant cannot list or ac
     expect(access.status()).toBe(403)
   } finally { await other.dispose() }
 })
+
+test('major production-entry screens with real API session', async ({ page }, info) => {
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const capture = async (name) => {
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBeTruthy()
+    await page.screenshot({ path: info.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' })
+  }
+  await page.goto('/')
+  await expect(page.locator('.secure-gateway')).toBeVisible()
+  await capture('gateway')
+  await page.getByRole('button', { name: /^Vào demo/ }).first().click()
+  await expect(page.locator('.workspace-shell')).toBeVisible()
+  await expect(page.locator('.lens-seal')).toContainText('Seal hợp lệ')
+  await capture('trace')
+  for (const [name, screen] of [['Farm Atlas', 'atlas'], ['Cold Chain', 'journey'], ['Forensics', 'forensics'], ['Security X-Ray', 'security'], ['Demo mode', 'field-guide']]) {
+    await navigate(page, name)
+    if (screen === 'security') {
+      await page.getByRole('button', { name: 'Gửi GET thực', exact: true }).click()
+      await expect(page.locator('.xray-result')).toContainText('200 OK')
+    }
+    await capture(screen)
+  }
+  expect(errors).toEqual([])
+})
