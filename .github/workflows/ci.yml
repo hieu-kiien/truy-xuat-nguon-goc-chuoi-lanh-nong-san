@@ -121,6 +121,11 @@ jobs:
           cd frontend
           npm run lint
 
+      - name: Run frontend domain tests
+        run: |
+          cd frontend
+          npm test
+
       - name: Build production bundle
         run: |
           cd frontend

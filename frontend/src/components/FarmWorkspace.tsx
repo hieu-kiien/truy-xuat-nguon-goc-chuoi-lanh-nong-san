@@ -1,23 +1,25 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
-import { createFarm, getFarms, login, updateFarm } from '../services/api'
-import {
-  hasPermission,
-  ROLE_LABELS,
-  ROLE_PERMISSIONS,
-  type DemoAccount,
-  type Farm,
-  type SessionUser,
-} from '../types'
-import { FarmFormPanel } from './FarmFormPanel'
-import { IntegrityPanel } from './IntegrityPanel'
-import { SecurityPanel } from './SecurityPanel'
-import { WorkspaceSidebar } from './WorkspaceSidebar'
-import { WorkspaceTopbar } from './WorkspaceTopbar'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
+import { flushSync } from 'react-dom'
+import { inspectJourney, stageProgress } from '../domain/journeyModel'
+import { JourneyLens } from './JourneyLens'
+import { createFarm, getFarms, login, updateFarm, ApiError, DEMO_LOGIN_ENABLED } from '../services/api'
+import { calculateDemoHashChain, DEMO_CHAPTERS, type DemoHashBlock } from '../domain/demoScenario'
+import { DEMO_ACCOUNTS, hasPermission, ROLE_LABELS, type DemoAccount, type Farm, type FarmPayload, type SessionUser } from '../types'
+import { CommandPalette } from './CommandPalette'
+import { ColdChainJourney } from './ColdChainJourney'
+import { DemoGuide } from './DemoGuide'
+import { FarmAtlas } from './FarmAtlas'
+import { Icon, type IconName } from './Icons'
+import { IntegrityLab } from './IntegrityLab'
+import { PresentationMode } from './PresentationMode'
+import { SecurityXray, type AccessProbeState } from './SecurityXray'
+import { TraceCommandCenter } from './TraceCommandCenter'
 
-export type WorkspaceTab = 'overview' | 'security' | 'integrity'
+export type WorkspaceTab = 'overview' | 'farms' | 'journey' | 'integrity' | 'security' | 'presentation'
 
 interface FarmWorkspaceProps {
   user: SessionUser
+  backendOnline: boolean | null
   activeTab: WorkspaceTab
   isDark: boolean
   onToggleTheme: () => void
@@ -27,8 +29,27 @@ interface FarmWorkspaceProps {
   onNotify: (message: string) => void
 }
 
+const NAV_ITEMS: Array<{ id: WorkspaceTab; label: string; compact: string; icon: IconName }> = [
+  { id: 'overview', label: 'Trace', compact: 'Trace', icon: 'trace' },
+  { id: 'farms', label: 'Farm Atlas', compact: 'Atlas', icon: 'atlas' },
+  { id: 'journey', label: 'Cold Chain', compact: 'Journey', icon: 'journey' },
+  { id: 'integrity', label: 'Forensics', compact: 'Integrity', icon: 'integrity' },
+  { id: 'security', label: 'Security X-Ray', compact: 'Security', icon: 'security' },
+  { id: 'presentation', label: 'Demo mode', compact: 'Guide', icon: 'presentation' },
+]
+
+const PAGE_LABELS: Record<WorkspaceTab, { eyebrow: string; title: string }> = {
+  overview: { eyebrow: 'MISSION CONTROL', title: 'Trace Command Center' },
+  farms: { eyebrow: 'SPATIAL REGISTER', title: 'Farm Atlas' },
+  journey: { eyebrow: 'COLD CHAIN TELEMETRY', title: 'Cold Chain Journey' },
+  integrity: { eyebrow: 'DATA INTEGRITY', title: 'Integrity Forensics Lab' },
+  security: { eyebrow: 'REQUEST INSPECTOR', title: 'Security X-Ray' },
+  presentation: { eyebrow: 'PRESENTATION MODE', title: 'Field Guide' },
+}
+
 export function FarmWorkspace({
   user,
+  backendOnline,
   activeTab,
   isDark,
   onToggleTheme,
@@ -39,622 +60,209 @@ export function FarmWorkspace({
 }: FarmWorkspaceProps) {
   const canReadFarms = hasPermission(user.role, 'farms:read')
   const canWriteFarms = hasPermission(user.role, 'farms:write')
-  const grantedPermissions = ROLE_PERMISSIONS[user.role] ?? []
-
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [switchingAccount, setSwitchingAccount] = useState(false)
-
   const [farms, setFarms] = useState<Farm[]>([])
-  const [loadingFarms, setLoadingFarms] = useState<boolean>(canReadFarms)
-  const [listError, setListError] = useState<string | null>(null)
-
-  const [editingFarm, setEditingFarm] = useState<Farm | null>(null)
-  const [name, setName] = useState('')
-  const [areaHa, setAreaHa] = useState('')
-  const [latitude, setLatitude] = useState('')
-  const [longitude, setLongitude] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [formFeedback, setFormFeedback] = useState<{
-    type: 'success' | 'error'
-    message: string
-  } | null>(null)
-
-  const [rbacProbeResult, setRbacProbeResult] = useState<string | null>(null)
-  const [tamperSimulated, setTamperSimulated] = useState(false)
+  const [loadingFarms, setLoadingFarms] = useState(canReadFarms)
+  const [farmError, setFarmError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [journeyProgress, setJourneyProgress] = useState(0)
+  const focusedTabRef = useRef<WorkspaceTab | null>(null)
+  const mainRef = useRef<HTMLElement>(null)
+  const transitionRef = useRef<ViewTransition | null>(null)
+  const setSelectedStage = useCallback((index: number) => setJourneyProgress(stageProgress(Math.max(0, Math.min(3, index)))), [])
+  const [temperatureExcursion, setTemperatureExcursion] = useState(false)
+  const [tampered, setTampered] = useState(false)
+  const [chainResult, setChainResult] = useState<{ key: string; blocks: DemoHashBlock[]; error: string | null } | null>(null)
+  const [probe, setProbe] = useState<AccessProbeState>({ status: 'idle' })
+  const [switchingAccount, setSwitchingAccount] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
+  const [guideChapter, setGuideChapter] = useState(0)
+  const [paletteOpen, setPaletteOpen] = useState(false)
 
   const refreshFarms = useCallback(async () => {
-    if (!canReadFarms) return
+    if (!canReadFarms) {
+      setFarms([])
+      setLoadingFarms(false)
+      return
+    }
     setLoadingFarms(true)
-    setListError(null)
+    setFarmError(null)
     try {
-      const data = await getFarms()
-      setFarms(data)
+      setFarms(await getFarms())
     } catch (err) {
-      setListError(
-        err instanceof Error ? err.message : 'Không thể tải danh sách vùng trồng'
-      )
+      setFarmError(err instanceof Error ? err.message : 'Không thể tải danh sách vùng trồng.')
     } finally {
       setLoadingFarms(false)
     }
   }, [canReadFarms])
 
+  const refreshNow = useCallback(() => { void refreshFarms() }, [refreshFarms])
+  const closePalette = useCallback(() => setPaletteOpen(false), [])
+  const closeGuide = useCallback(() => setGuideOpen(false), [])
+  const toggleTamper = useCallback(() => setTampered((current) => !current), [])
+  const toggleExcursion = useCallback(() => setTemperatureExcursion((current) => !current), [])
+
   useEffect(() => {
-    if (!canReadFarms) return
-    let cancelled = false
+    void Promise.resolve().then(refreshFarms)
+  }, [refreshFarms])
 
-    getFarms()
-      .then((data) => {
-        if (!cancelled) {
-          setFarms(data)
-          setLoadingFarms(false)
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setListError(
-            err instanceof Error
-              ? err.message
-              : 'Không thể tải danh sách vùng trồng'
-          )
-          setLoadingFarms(false)
-        }
-      })
+  useEffect(() => {
+    let current = true
+    const key = `${tampered}:${temperatureExcursion}`
+    void calculateDemoHashChain({ tampered, temperatureExcursion })
+      .then((blocks) => { if (current) setChainResult({ key, blocks, error: null }) })
+      .catch((err: unknown) => { if (current) setChainResult({ key, blocks: [], error: err instanceof Error ? err.message : 'Không thể tính SHA-256.' }) })
+    return () => { current = false }
+  }, [tampered, temperatureExcursion])
 
-    return () => {
-      cancelled = true
+  const selectedStage = inspectJourney(journeyProgress, temperatureExcursion).nearest
+
+  const navigate = useCallback((tab: WorkspaceTab) => {
+    if (tab === activeTab) return
+    transitionRef.current?.skipTransition()
+    if (typeof document.startViewTransition === 'function' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const transition = document.startViewTransition(() => flushSync(() => onTabChange(tab)))
+      transitionRef.current = transition
+      void transition.ready.catch(() => {})
+      void transition.finished.finally(() => { if (transitionRef.current === transition) transitionRef.current = null }).catch(() => {})
+    } else onTabChange(tab)
+  }, [activeTab, onTabChange])
+
+  useEffect(() => {
+    if (focusedTabRef.current === activeTab) return
+    focusedTabRef.current = activeTab
+    if (guideOpen || paletteOpen) return
+    const frame = requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+      const heading = mainRef.current?.querySelector('h1')
+      heading?.setAttribute('tabindex', '-1')
+      heading?.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [activeTab, guideOpen, paletteOpen])
+
+  useEffect(() => () => transitionRef.current?.skipTransition(), [])
+
+  const chainKey = `${tampered}:${temperatureExcursion}`
+  const chain = chainResult?.key === chainKey ? chainResult.blocks : []
+  const chainError = chainResult?.key === chainKey ? chainResult.error : null
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setPaletteOpen(true)
+      }
     }
-  }, [canReadFarms])
+    document.addEventListener('keydown', handleShortcut)
+    return () => document.removeEventListener('keydown', handleShortcut)
+  }, [])
 
-  const handleQuickSwitch = async (account: DemoAccount) => {
-    if (account.email === user.email || switchingAccount) return
+  const saveFarm = useCallback(async (id: string | null, payload: FarmPayload): Promise<Farm> => {
+    if (!canWriteFarms) throw new ApiError(403, 'Vai trò hiện tại không có quyền farms:write.')
+    const saved = id ? await updateFarm(id, payload) : await createFarm(payload)
+    setFarms((current) => id ? current.map((farm) => farm.id === saved.id ? saved : farm) : [...current, saved])
+    await onNotify(id ? `Đã cập nhật ${saved.name}` : `Đã thêm vùng trồng ${saved.name}`)
+    return saved
+  }, [canWriteFarms, onNotify])
+
+  const runProbe = useCallback(async () => {
+    setProbe({ status: 'pending' })
+    try {
+      const visible = await getFarms()
+      setProbe({ status: 'allowed', httpStatus: 200, visibleRows: visible.length, records: visible.map(({ id, name, organization_id }) => ({ id, name, organization_id })) })
+      onNotify(`GET /api/v1/farms/ trả 200 OK · ${visible.length} bản ghi tenant-visible`)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        setProbe({ status: 'blocked', httpStatus: 403, message: err.message })
+        onNotify('GET /api/v1/farms/ bị chặn tại RBAC (403)')
+      } else if (err instanceof ApiError && err.status === 401) {
+        setProbe({ status: 'unauthenticated', httpStatus: 401, message: err.message })
+        onNotify('Phiên đăng nhập đã hết hạn (401)')
+      } else {
+        const message = err instanceof Error ? err.message : 'Request thất bại.'
+        setProbe({ status: 'error', httpStatus: err instanceof ApiError ? err.status : null, message })
+      }
+    }
+  }, [onNotify])
+
+  const switchDemoAccount = async (account: DemoAccount) => {
+    if (!DEMO_LOGIN_ENABLED || switchingAccount || account.email === user.email) return
     setSwitchingAccount(true)
     try {
-      const nextUser = await login({
-        email: account.email,
-        password: account.password,
-      })
-      onNotify(`Đã chuyển sang phiên: ${nextUser.organization_name}`)
+      const nextUser = await login({ email: account.email })
+      onNotify(`Đã chuyển phiên sang ${nextUser.organization_name}`)
       onSwitchUser(nextUser)
     } catch (err) {
-      onNotify(
-        err instanceof Error ? err.message : 'Không thể chuyển đổi tài khoản'
-      )
+      onNotify(err instanceof Error ? err.message : 'Không thể đổi tài khoản demo.')
     } finally {
       setSwitchingAccount(false)
     }
   }
 
-  const resetForm = () => {
-    setEditingFarm(null)
-    setName('')
-    setAreaHa('')
-    setLatitude('')
-    setLongitude('')
+  const selectGuideChapter = useCallback((index: number) => {
+    const nextIndex = Math.max(0, Math.min(index, DEMO_CHAPTERS.length - 1))
+    setGuideChapter(nextIndex)
+    const tab = DEMO_CHAPTERS[nextIndex].tab as WorkspaceTab
+    onTabChange(tab)
+    setSelectedStage(nextIndex === 0 ? 0 : nextIndex === 1 ? 2 : 2)
+  }, [onTabChange, setSelectedStage])
+
+  const startGuide = (index: number) => {
+    selectGuideChapter(index)
+    setGuideOpen(true)
   }
 
-  const startEdit = (farm: Farm) => {
-    setEditingFarm(farm)
-    setName(farm.name)
-    setAreaHa(String(farm.area_ha))
-    setLatitude(String(farm.latitude))
-    setLongitude(String(farm.longitude))
-    setFormFeedback(null)
-    onTabChange('overview')
-    onNotify(`Đang chỉnh sửa: ${farm.name}`)
-  }
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setSaving(true)
-    setFormFeedback(null)
-
-    try {
-      const payload = {
-        name: name.trim(),
-        area_ha: areaHa.trim(),
-        latitude: latitude.trim(),
-        longitude: longitude.trim(),
-      }
-
-      if (editingFarm) {
-        const updated = await updateFarm(editingFarm.id, payload)
-        setFarms((prev) =>
-          prev.map((item) => (item.id === updated.id ? updated : item))
-        )
-        setFormFeedback({
-          type: 'success',
-          message: `Đã cập nhật "${updated.name}" (UUID cố định: ${updated.id.slice(0, 8)}...).`,
-        })
-        onNotify(`Đã lưu cập nhật: ${updated.name}`)
-      } else {
-        const created = await createFarm(payload)
-        setFarms((prev) => [...prev, created])
-        setFormFeedback({
-          type: 'success',
-          message: `Đã thêm vùng trồng "${created.name}".`,
-        })
-        onNotify(`Đã thêm vùng trồng: ${created.name}`)
-      }
-      resetForm()
-    } catch (err) {
-      setFormFeedback({
-        type: 'error',
-        message: err instanceof Error ? err.message : 'Không thể lưu vùng trồng',
-      })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const runForbiddenProbe = async () => {
-    setRbacProbeResult('Đang gửi GET /api/v1/farms/ tới Backend...')
-    try {
-      await getFarms()
-      setRbacProbeResult(
-        '200 OK — Vai trò hiện tại được phép truy cập danh sách vùng trồng.'
-      )
-      onNotify('Kiểm tra API thành công (200 OK)')
-    } catch (err) {
-      if (err instanceof Error) {
-        setRbacProbeResult(
-          `403 Forbidden — Backend đã chặn truy cập theo đúng ma trận RBAC: "${err.message}"`
-        )
-        onNotify('Backend đã chặn truy cập trái phép (403 Forbidden)')
-      }
-    }
-  }
-
-  const filteredFarms = farms.filter((f) => {
-    const q = searchQuery.trim().toLowerCase()
-    if (!q) return true
-    return (
-      f.name.toLowerCase().includes(q) ||
-      f.id.toLowerCase().includes(q) ||
-      String(f.latitude).includes(q) ||
-      String(f.longitude).includes(q)
-    )
-  })
-
-  const totalAreaHa = farms.reduce(
-    (sum, item) => sum + (Number(item.area_ha) || 0),
-    0
-  )
-  const avgAreaHa = farms.length > 0 ? totalAreaHa / farms.length : 0
-  const maxAreaHa = Math.max(
-    ...farms.map((item) => Number(item.area_ha) || 1),
-    5
-  )
+  const page = PAGE_LABELS[activeTab]
+  const activeNavigation = useMemo(() => NAV_ITEMS.find((item) => item.id === activeTab), [activeTab])
 
   return (
-    <div className="application-shell">
-      {sidebarOpen && (
-        <button
-          type="button"
-          className="dashboard-overlay"
-          aria-label="Đóng thanh điều hướng"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <>
+      <div className="workspace-shell">
+        <a className="workspace-skip" href="#mission-content">Đi tới nội dung</a>
+        <aside className="workspace-dock" aria-label="Điều hướng chính">
+          <a className="dock-brand" href="#mission-content" aria-label="AgroChain, về Trace Command Center" onClick={(event) => { event.preventDefault(); navigate('overview') }}><Icon name="agro" size={22} /></a>
+          <span className="dock-separator" />
+          <nav className="dock-nav">
+            {NAV_ITEMS.map((item) => <button key={item.id} type="button" className={activeTab === item.id ? 'dock-item dock-item-active' : 'dock-item'} aria-label={item.label} aria-current={activeTab === item.id ? 'page' : undefined} title={item.label} onClick={() => navigate(item.id)}><Icon name={item.icon} size={19} /><span>{item.compact}</span></button>)}
+          </nav>
+          <div className="dock-bottom"><span className={`dock-api-state ${backendOnline === true ? 'dock-api-online' : backendOnline === false ? 'dock-api-offline' : ''}`} title={backendOnline === true ? 'API online' : backendOnline === false ? 'API offline' : 'API connecting'} /><span className="dock-bottom-label">API</span></div>
+        </aside>
 
-      <div className="dashboard-layout">
-        <WorkspaceSidebar
-          user={user}
-          activeTab={activeTab}
-          sidebarOpen={sidebarOpen}
-          onCloseSidebar={() => setSidebarOpen(false)}
-          onTabChange={onTabChange}
-          onLogout={onLogout}
-        />
+        <div className="workspace-main-frame">
+          <header className="workspace-topbar">
+            <div className="workspace-breadcrumb"><span>{page.eyebrow}</span><Icon name="chevron" size={14} /><strong>{page.title}</strong></div>
+            <div className="workspace-tools">
+              <span className="topbar-api"><i className={`api-indicator ${backendOnline === true ? 'api-indicator-online' : backendOnline === false ? 'api-indicator-offline' : ''}`} />{backendOnline === true ? 'API live' : backendOnline === false ? 'API offline' : 'Connecting'}</span>
+              {DEMO_LOGIN_ENABLED && <details className="identity-switcher"><summary aria-label="Chuyển tài khoản demo" title="Đổi phiên demo"><span className="switcher-avatars"><i>G</i><i>A</i><i>I</i></span><span className="switcher-label">Switch role</span><Icon name="chevron" size={13} /></summary><div className="switcher-menu"><span className="micro-label">DEMO IDENTITY</span>{[['grower@caudat.vn', 'Cầu Đất / Grower'], ['admin@mocchau.vn', 'Mộc Châu / Org admin'], ['inspector@chicuc.gov.vn', 'Thanh tra / Inspector']].map(([email, label]) => <button key={email} type="button" disabled={switchingAccount || email === user.email} aria-current={email === user.email ? 'true' : undefined} onClick={() => { const account = DEMO_ACCOUNTS.find((item) => item.email === email); if (account) void switchDemoAccount(account) }}><span className="switcher-menu-dot" />{label}{email === user.email && <small>HIỆN TẠI</small>}</button>)}</div></details>}
+              <details className="mobile-session-menu"><summary aria-label="Tài khoản và phiên làm việc"><Icon name="shield" size={19} /></summary><div><strong>{user.full_name}</strong><small>{ROLE_LABELS[user.role]}</small>{DEMO_LOGIN_ENABLED && DEMO_ACCOUNTS.map((account) => <button type="button" key={account.email} disabled={switchingAccount || account.email === user.email} onClick={() => void switchDemoAccount(account)}>{account.shortName}</button>)}<button type="button" onClick={onLogout}><Icon name="logout" size={16} />Đăng xuất</button></div></details>
+              <button type="button" className="command-trigger" onClick={() => setPaletteOpen(true)} aria-haspopup="dialog"><Icon name="search" size={16} /><span>Jump to…</span><kbd>⌘ K</kbd></button>
+              <button type="button" className="icon-button" aria-label={isDark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'} title={isDark ? 'Giao diện sáng' : 'Giao diện tối'} onClick={onToggleTheme}><Icon name={isDark ? 'sun' : 'moon'} size={17} /></button>
+              <div className="current-identity" title={`${user.full_name} · ${user.email}`}><span className="identity-avatar">{user.full_name.trim().slice(0, 1).toLocaleUpperCase()}</span><span className="identity-copy"><strong>{user.full_name}</strong><small>{ROLE_LABELS[user.role]}</small></span></div>
+              <button type="button" className="icon-button logout-button" aria-label="Đăng xuất" title="Đăng xuất" onClick={onLogout}><Icon name="logout" size={17} /></button>
+            </div>
+          </header>
 
-        <div className="dashboard-main">
-          <WorkspaceTopbar
-            user={user}
-            activeTab={activeTab}
-            canReadFarms={canReadFarms}
-            searchQuery={searchQuery}
-            switchingAccount={switchingAccount}
-            isDark={isDark}
-            onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
-            onSearchChange={setSearchQuery}
-            onQuickSwitch={(acc) => void handleQuickSwitch(acc)}
-            onRefresh={() => void refreshFarms()}
-            onToggleTheme={onToggleTheme}
-          />
-
-          <main className="dashboard-content">
-            <section aria-label="Chỉ số vận hành tổng hợp">
-              <div className="stats-grid">
-                <article className="stat-card panel-card">
-                  <p className="stat-label">Đơn vị thành viên (Tenant)</p>
-                  <p
-                    className="stat-value stat-value-sans"
-                    title={user.organization_name}
-                  >
-                    {user.organization_name}
-                  </p>
-                  <p className="stat-trend">
-                    ID: {user.organization_id.slice(0, 8)}...
-                  </p>
-                </article>
-
-                <article className="stat-card panel-card">
-                  <p className="stat-label">Vùng trồng thuộc đơn vị</p>
-                  <p className="stat-value">
-                    {canReadFarms ? `${farms.length} vùng` : 'Chặn (403)'}
-                  </p>
-                  <p className="stat-trend">
-                    {canReadFarms
-                      ? 'Cô lập bởi PostgreSQL RLS'
-                      : 'Không có quyền farms:read'}
-                  </p>
-                </article>
-
-                <article className="stat-card panel-card">
-                  <p className="stat-label">Tổng diện tích canh tác</p>
-                  <p className="stat-value">
-                    {canReadFarms ? `${totalAreaHa.toFixed(2)} ha` : '—'}
-                  </p>
-                  <p className="stat-trend">
-                    {canReadFarms
-                      ? `TB: ${avgAreaHa.toFixed(2)} ha / thửa`
-                      : 'Bị giới hạn theo RBAC'}
-                  </p>
-                </article>
-
-                <article className="stat-card panel-card">
-                  <p className="stat-label">Vai trò &amp; Quyền RBAC</p>
-                  <p className="stat-value stat-value-sans">
-                    {ROLE_LABELS[user.role]}
-                  </p>
-                  <p className="stat-trend">
-                    <code>{user.role}</code> ({grantedPermissions.length} quyền)
-                  </p>
-                </article>
-
-                <article className="stat-card panel-card">
-                  <p className="stat-label">Chuỗi băm sự kiện (N3-4)</p>
-                  <p className="stat-value">
-                    {tamperSimulated ? 'Lỗi Hash!' : '4/4 Hợp lệ'}
-                  </p>
-                  <p
-                    className={`stat-trend ${
-                      tamperSimulated ? 'stat-trend-danger' : ''
-                    }`}
-                  >
-                    {tamperSimulated
-                      ? 'Phát hiện can thiệp tại #03'
-                      : 'SHA-256 · 147,8k sự kiện/s'}
-                  </p>
-                </article>
-
-                <article className="stat-card panel-card">
-                  <p className="stat-label">Bảo mật phiên (N3-5)</p>
-                  <p className="stat-value stat-value-sans">Argon2id + Cookie</p>
-                  <p className="stat-trend">Khóa 15p nếu sai mật khẩu 5 lần</p>
-                </article>
-              </div>
-            </section>
-
-            {activeTab === 'overview' && (
-              <>
-                <div className="dashboard-split-main">
-                  {!canReadFarms ? (
-                    <section className="panel-card panel-box">
-                      <div className="panel-head">
-                        <h2>
-                          Chặn Truy cập Danh mục Vùng trồng theo RBAC (N3-6)
-                        </h2>
-                        <span className="status-badge status-danger">
-                          HTTP 403 Forbidden
-                        </span>
-                      </div>
-                      <p className="panel-sub">
-                        Tài khoản <strong>{user.email}</strong> đang mang vai trò{' '}
-                        <code>{user.role}</code> (quyền được cấp:{' '}
-                        <code>{grantedPermissions.join(', ')}</code>). Theo thiết
-                        kế bảo mật N3-6, vai trò Thanh tra viên chỉ đọc lô hàng (
-                        <code>lots:read_all</code>) và bị chặn truy cập trực tiếp
-                        vào API quản lý vùng trồng (<code>farms:read</code>,{' '}
-                        <code>farms:write</code>).
-                      </p>
-
-                      <div className="action-row alert-spaced">
-                        <button
-                          type="button"
-                          className="ds-button ds-button-brand ds-button-sm"
-                          onClick={() => void runForbiddenProbe()}
-                        >
-                          Gửi thử GET /api/v1/farms/ (Kiểm chứng chặn 403)
-                        </button>
-                        <button
-                          type="button"
-                          className="ds-button ds-button-secondary ds-button-sm"
-                          onClick={() => onTabChange('security')}
-                        >
-                          Mở Ma trận Phân quyền đầy đủ
-                        </button>
-                      </div>
-
-                      {rbacProbeResult && (
-                        <div className="alert-box alert-error alert-spaced">
-                          {rbacProbeResult}
-                        </div>
-                      )}
-                    </section>
-                  ) : (
-                    <section
-                      className="data-table-wrapper panel-card"
-                      aria-labelledby="farms-table-title"
-                    >
-                      <div className="data-table-header">
-                        <div>
-                          <h2 id="farms-table-title" className="section-title">
-                            Danh mục Vùng trồng &amp; Thửa đất ({filteredFarms.length}
-                            )
-                          </h2>
-                          <p className="panel-sub">
-                            Dữ liệu lọc tự động theo{' '}
-                            <code>
-                              organization_id = {user.organization_id.slice(0, 8)}
-                              ...
-                            </code>{' '}
-                            tại tầng PostgreSQL RLS
-                          </p>
-                        </div>
-                        <span className="status-badge status-done">
-                          UUID Bất biến (N3-7)
-                        </span>
-                      </div>
-
-                      {listError && (
-                        <div className="alert-box alert-error table-alert">
-                          {listError}
-                        </div>
-                      )}
-
-                      <div className="table-scroll">
-                        <table className="data-table">
-                          <thead>
-                            <tr>
-                              <th scope="col">Mã UUID</th>
-                              <th scope="col">Tên Vùng trồng / Thửa đất</th>
-                              <th scope="col">Diện tích</th>
-                              <th scope="col">Tỷ trọng</th>
-                              <th scope="col">Tọa độ GPS (WGS84)</th>
-                              <th scope="col">Thao tác</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {loadingFarms ? (
-                              <tr>
-                                <td colSpan={6} className="cell-center">
-                                  Đang tải danh sách vùng trồng...
-                                </td>
-                              </tr>
-                            ) : filteredFarms.length === 0 ? (
-                              <tr>
-                                <td colSpan={6} className="cell-center">
-                                  Không có vùng trồng nào khớp với bộ lọc.
-                                </td>
-                              </tr>
-                            ) : (
-                              filteredFarms.map((farm) => {
-                                const areaNum = Number(farm.area_ha) || 0
-                                const sharePct =
-                                  totalAreaHa > 0
-                                    ? Math.round((areaNum / totalAreaHa) * 100)
-                                    : 0
-                                return (
-                                  <tr
-                                    key={farm.id}
-                                    className={
-                                      editingFarm?.id === farm.id
-                                        ? 'row-editing'
-                                        : undefined
-                                    }
-                                  >
-                                    <td>
-                                      <code title={farm.id}>
-                                        {farm.id.slice(0, 8)}...
-                                      </code>
-                                    </td>
-                                    <th scope="row" className="cell-strong">
-                                      {farm.name}
-                                    </th>
-                                    <td>
-                                      <span className="status-badge status-done">
-                                        {areaNum.toFixed(2)} ha
-                                      </span>
-                                    </td>
-                                    <td>
-                                      <div className="area-bar-cell">
-                                        <div className="area-bar-track">
-                                          <div
-                                            className="area-bar-fill"
-                                            style={{ width: `${sharePct}%` }}
-                                          />
-                                        </div>
-                                        <span className="area-bar-pct">
-                                          {sharePct}%
-                                        </span>
-                                      </div>
-                                    </td>
-                                    <td>
-                                      <div className="coord-inline">
-                                        <code>
-                                          {farm.latitude}, {farm.longitude}
-                                        </code>
-                                        <a
-                                          href={`https://www.google.com/maps?q=${farm.latitude},${farm.longitude}`}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="map-external-link"
-                                        >
-                                          Bản đồ
-                                        </a>
-                                      </div>
-                                    </td>
-                                    <td>
-                                      {canWriteFarms && (
-                                        <button
-                                          type="button"
-                                          className="ds-button ds-button-secondary ds-button-xs"
-                                          onClick={() => startEdit(farm)}
-                                        >
-                                          Sửa
-                                        </button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                )
-                              })
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
-                  )}
-
-                  <FarmFormPanel
-                    canReadFarms={canReadFarms}
-                    canWriteFarms={canWriteFarms}
-                    farms={farms}
-                    totalAreaHa={totalAreaHa}
-                    maxAreaHa={maxAreaHa}
-                    editingFarm={editingFarm}
-                    name={name}
-                    areaHa={areaHa}
-                    latitude={latitude}
-                    longitude={longitude}
-                    saving={saving}
-                    formFeedback={formFeedback}
-                    onNameChange={setName}
-                    onAreaChange={setAreaHa}
-                    onLatChange={setLatitude}
-                    onLngChange={setLongitude}
-                    onApplyPreset={(preset) => {
-                      setName(preset.name)
-                      setAreaHa(preset.area_ha)
-                      setLatitude(preset.latitude)
-                      setLongitude(preset.longitude)
-                      setFormFeedback(null)
-                      onNotify(`Đã điền mẫu: ${preset.name}`)
-                    }}
-                    onSubmit={handleSubmit}
-                    onCancelEdit={resetForm}
-                    onNotify={onNotify}
-                  />
-                </div>
-
-                <div className="dashboard-split-equal">
-                  <IntegrityPanel
-                    compact
-                    tamperSimulated={tamperSimulated}
-                    onToggleTamper={() => {
-                      setTamperSimulated((prev) => !prev)
-                      onNotify(
-                        !tamperSimulated
-                          ? 'Đã mô phỏng sửa lén nhiệt độ tại sự kiện #03!'
-                          : 'Đã khôi phục dữ liệu gốc hợp lệ.'
-                      )
-                    }}
-                  />
-
-                  <section className="panel-card panel-box">
-                    <div className="panel-head">
-                      <h2>
-                        Trạng thái Cô lập Đa tổ chức (RLS) &amp; Phân quyền RBAC (N3-6)
-                      </h2>
-                      <button
-                        type="button"
-                        className="ds-button ds-button-secondary ds-button-xs"
-                        onClick={() => onTabChange('security')}
-                      >
-                        Chi tiết ma trận
-                      </button>
-                    </div>
-
-                    <div className="info-grid-2">
-                      <div className="info-item">
-                        <span className="info-item-label">
-                          Biến phiên PostgreSQL (app.current_organization)
-                        </span>
-                        <code>{user.organization_id}</code>
-                      </div>
-
-                      <div className="info-item">
-                        <span className="info-item-label">
-                          Quyền hạn RBAC được cấp cho {user.role}
-                        </span>
-                        <div className="badge-row">
-                          {grantedPermissions.map((perm) => (
-                            <span
-                              key={perm}
-                              className="status-badge status-done"
-                            >
-                              {perm}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="action-row alert-spaced">
-                      <button
-                        type="button"
-                        className="ds-button ds-button-brand ds-button-xs"
-                        onClick={() => void runForbiddenProbe()}
-                      >
-                        Kiểm tra API: GET /api/v1/farms/
-                      </button>
-                      <span className="panel-sub">
-                        Đổi nhanh sang tài khoản Mộc Châu hoặc Thanh tra trên
-                        thanh công cụ để so sánh kết quả
-                      </span>
-                    </div>
-
-                    {rbacProbeResult && (
-                      <div
-                        className={`alert-box alert-spaced ${
-                          rbacProbeResult.startsWith('200')
-                            ? 'alert-success'
-                            : 'alert-error'
-                        }`}
-                        role="status"
-                      >
-                        {rbacProbeResult}
-                      </div>
-                    )}
-                  </section>
-                </div>
-              </>
-            )}
-
-            {activeTab === 'security' && (
-              <SecurityPanel
-                user={user}
-                rbacProbeResult={rbacProbeResult}
-                onRunProbe={() => void runForbiddenProbe()}
-              />
-            )}
-
-            {activeTab === 'integrity' && (
-              <IntegrityPanel
-                tamperSimulated={tamperSimulated}
-                onToggleTamper={() => {
-                  setTamperSimulated((prev) => !prev)
-                  onNotify(
-                    !tamperSimulated
-                      ? 'Đã mô phỏng sửa lén nhiệt độ tại sự kiện #03!'
-                      : 'Đã khôi phục dữ liệu gốc hợp lệ.'
-                  )
-                }}
-              />
-            )}
+          <main ref={mainRef} className={`workspace-main ${activeTab === 'presentation' ? 'workspace-main-presentation' : ''}`} id="mission-content" tabIndex={-1}>
+            {(['overview', 'journey', 'integrity'] as WorkspaceTab[]).includes(activeTab) && <JourneyLens tab={activeTab} selected={selectedStage} block={chain[selectedStage]} onNavigate={navigate} />}
+            {chainError && <div className="workspace-chain-error notice notice-error" role="alert">Không thể tính SHA-256: {chainError}</div>}
+            {activeTab === 'overview' && <TraceCommandCenter progress={journeyProgress} onProgress={setJourneyProgress} selectedStage={selectedStage} temperatureExcursion={temperatureExcursion} chain={chain} onSelectStage={setSelectedStage} onOpenJourney={() => navigate('journey')} onOpenIntegrity={() => navigate('integrity')} />}
+            {activeTab === 'farms' && <FarmAtlas farms={farms} loading={loadingFarms} error={farmError} canRead={canReadFarms} canWrite={canWriteFarms} searchQuery={searchQuery} onSearchChange={setSearchQuery} onRefresh={() => void refreshFarms()} onSave={saveFarm} />}
+            {activeTab === 'journey' && <ColdChainJourney progress={journeyProgress} onProgress={setJourneyProgress} selectedStage={selectedStage} temperatureExcursion={temperatureExcursion} tampered={tampered} chain={chain} onSelectStage={setSelectedStage} onToggleExcursion={() => { setTemperatureExcursion((current) => !current); onNotify(temperatureExcursion ? 'Đã khôi phục fixture sensor.' : 'Đã tạo ngoại lệ nhiệt cục bộ; integrity được tính riêng.') }} onOpenIntegrity={() => navigate('integrity')} />}
+            {activeTab === 'integrity' && <IntegrityLab key={`${tampered}:${temperatureExcursion}`} chain={chain} chainError={chainError} tampered={tampered} temperatureExcursion={temperatureExcursion} selectedStage={selectedStage} onSelectStage={setSelectedStage} onToggleTamper={() => { setSelectedStage(2); setTampered((current) => !current); onNotify(tampered ? 'Đã khôi phục payload fixture.' : 'Đã sửa temp_c cục bộ và tính lại SHA-256 thật.') }} />}
+            {activeTab === 'security' && <SecurityXray user={user} probe={probe} onProbe={() => void runProbe()} demoLoginEnabled={DEMO_LOGIN_ENABLED} />}
+            {activeTab === 'presentation' && <PresentationMode onStart={startGuide} />}
           </main>
+
+          <footer className="workspace-footer"><span><i className={`api-indicator ${backendOnline === true ? 'api-indicator-online' : backendOnline === false ? 'api-indicator-offline' : ''}`} />{backendOnline === true ? 'Backend reachable' : backendOnline === false ? 'Backend unavailable' : 'Checking backend'}</span><span className="footer-tenant">TENANT / {user.organization_id.slice(0, 8).toUpperCase()}</span><span className="footer-mode">{activeNavigation?.label ?? 'Workspace'} · SESSION {user.id.slice(0, 8).toUpperCase()}</span></footer>
         </div>
+
+        <nav className="mobile-dock" aria-label="Điều hướng chính">
+          {NAV_ITEMS.map((item) => <button key={item.id} type="button" className={activeTab === item.id ? 'mobile-dock-item mobile-dock-item-active' : 'mobile-dock-item'} aria-label={item.label} aria-current={activeTab === item.id ? 'page' : undefined} onClick={() => navigate(item.id)}><Icon name={item.icon} size={18} /><span>{item.compact}</span></button>)}
+        </nav>
       </div>
-    </div>
+
+      {guideOpen && <DemoGuide chapterIndex={guideChapter} tampered={tampered} temperatureExcursion={temperatureExcursion} probe={probe} onClose={closeGuide} onSelectChapter={selectGuideChapter} onToggleTamper={toggleTamper} onToggleExcursion={toggleExcursion} onProbe={() => void runProbe()} />}
+      {paletteOpen && <CommandPalette onClose={closePalette} onNavigate={navigate} onRefresh={refreshNow} onToggleTheme={onToggleTheme} />}
+    </>
   )
 }

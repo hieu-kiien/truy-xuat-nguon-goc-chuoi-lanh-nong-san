@@ -1,0 +1,106 @@
+name: Frontend Visual QA
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['frontend/src/**', 'frontend/qa/**', 'frontend/tests/**', 'frontend/package*.json', 'frontend/*config*', 'frontend/*.html', 'frontend/.nvmrc', '.github/workflows/frontend-visual.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run build:preview
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agrochain-visual-qa
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          retention-days: 14
+
+  live-backend:
+    name: Browser + FastAPI + PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: agrochain_browser_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-test-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d agrochain_browser_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: agrochain_browser_test
+      DB_USER: ttcs_app
+      DB_PASSWORD: app-test-password
+      DB_ADMIN_USER: postgres
+      DB_ADMIN_PASSWORD: postgres-test-password
+      # Explicit demo enablement only inside the disposable CI database.
+      APP_ENV: development
+      DEBUG: 'false'
+      ENABLE_DEMO_LOGIN: 'true'
+      ALLOWED_ORIGINS: '["http://127.0.0.1:5175"]'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+      - run: pip install -r backend/requirements-dev.txt
+      - name: Prepare disposable database and browser identities
+        working-directory: backend
+        run: |
+          python -m app.bootstrap_db_role
+          alembic upgrade head
+          PYTHONPATH=. python ../frontend/qa/seed_live.py
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:live
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agrochain-live-browser-qa
+          path: |
+            frontend/live-results/
+            frontend/live-report/
+          retention-days: 14

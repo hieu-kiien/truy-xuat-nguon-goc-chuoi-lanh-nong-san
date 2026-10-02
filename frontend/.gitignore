@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+dist-preview
+
+playwright-report/
+test-results/
+
+qa/.live-credentials.json
+live-results/
+live-report/
