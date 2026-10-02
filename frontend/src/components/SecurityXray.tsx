@@ -97,7 +97,7 @@ export function SecurityXray({ user, probe, onProbe, demoLoginEnabled }: Securit
         <section className="surface session-context" aria-labelledby="session-heading">
           <div className="section-heading"><div><span className="micro-label">SESSION CONTEXT</span><h2 id="session-heading">Danh tính và tenant</h2></div><span className="state-pill state-normal">Authenticated</span></div>
           <dl className="detail-list"><div><dt>Người dùng</dt><dd>{user.full_name}<small>{user.email}</small></dd></div><div><dt>Vai trò</dt><dd>{ROLE_LABELS[user.role]} <code>{user.role}</code></dd></div><div><dt>Tổ chức</dt><dd>{user.organization_name}<small>{user.organization_type}</small></dd></div><div><dt>Tenant ID</dt><dd><code>{user.organization_id}</code></dd></div><div><dt>Quyền hiện tại</dt><dd className="permission-list">{currentPermissions.map((permission) => <code key={permission}>{permission}</code>)}</dd></div></dl>
-          <p className="security-footnote">Frontend không đọc hoặc hiển thị session token. Backend phát hành phiên qua cookie bảo mật và kiểm tra quyền ở mỗi request.</p>
+          <p className="security-footnote">Bảng kiểm tra không hiển thị session token. Phiên do backend phát hành; quyền được kiểm tra ở mỗi request.</p>
         </section>
 
         <section className="surface permission-surface" aria-labelledby="permission-heading">
