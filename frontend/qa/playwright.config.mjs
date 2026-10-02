@@ -23,6 +23,6 @@ export default defineConfig({
     { name: 'mobile-light', use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 }, colorScheme: 'light' } },
     { name: 'mobile-dark', use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 }, colorScheme: 'dark' } },
     { name: 'small-mobile', use: { viewport: { width: 320, height: 740 }, colorScheme: 'light' } },
-    { name: 'reduced-motion', use: { viewport: { width: 1440, height: 1000 }, colorScheme: 'light', reducedMotion: 'reduce' } },
+    { name: 'reduced-motion', use: { viewport: { width: 1440, height: 1000 }, colorScheme: 'light', contextOptions: { reducedMotion: 'reduce' } } },
   ],
 })

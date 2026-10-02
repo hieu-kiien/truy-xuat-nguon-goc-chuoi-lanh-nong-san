@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type FocusEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type FocusEvent } from 'react'
 import { API_BASE_URL, DEMO_LOGIN_ENABLED, demoLogin, login } from '../services/api'
 import { DEMO_ACCOUNTS, type DemoAccount, type SessionUser } from '../types'
 import { Icon } from './Icons'
@@ -20,6 +20,8 @@ export function LoginView({ backendOnline, isDark, onToggleTheme, onLoginSuccess
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const errorRef = useRef<HTMLDivElement>(null)
 
+  useEffect(() => { if (errorMessage) errorRef.current?.focus() }, [errorMessage])
+
   const setInputValidity = (input: HTMLInputElement) => {
     input.setAttribute('aria-invalid', String(!input.checkValidity()))
   }
@@ -36,7 +38,6 @@ export function LoginView({ backendOnline, isDark, onToggleTheme, onLoginSuccess
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Không thể đăng nhập vào hệ thống.'
       setErrorMessage(message)
-      requestAnimationFrame(() => errorRef.current?.focus())
     } finally {
       setSubmitting(false)
     }
@@ -56,7 +57,6 @@ export function LoginView({ backendOnline, isDark, onToggleTheme, onLoginSuccess
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Không thể mở phiên demo.'
       setErrorMessage(message)
-      requestAnimationFrame(() => errorRef.current?.focus())
     } finally {
       setSubmitting(false)
     }
