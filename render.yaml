@@ -5,7 +5,7 @@ services:
     region: singapore
     plan: free
     branch: main
-    autoDeploy: false
+    autoDeploy: true
     buildCommand: cd backend && pip install -r requirements.txt
     startCommand: cd backend && python -m app.startup
     envVars:
@@ -42,7 +42,7 @@ services:
     name: ttcs-frontend-staging
     runtime: static
     branch: main
-    autoDeploy: false
+    autoDeploy: true
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/dist
     routes:
