@@ -1,6 +1,6 @@
 # Kiểm chứng AgroChain redesign — 2026-10-02
 
-Main được bảo vệ: `414eaaa2adfa901000d179f6caee9c83945f792e`. Bản thiết kế lại ở [PR #8](https://github.com/hieu-kiien/truy-xuat-nguon-goc-chuoi-lanh-nong-san/pull/8), nhánh `codex/agrochain-spatial-redesign`. Không merge/deploy, không có diff backend/services/types.
+Main hardened dùng làm nền: `414eaaa2adfa901000d179f6caee9c83945f792e`. Bản thiết kế lại đã merge qua [PR #8](https://github.com/hieu-kiien/truy-xuat-nguon-goc-chuoi-lanh-nong-san/pull/8), squash commit `0ecc365431156ee3207da1c6af6f992e8c858c38`. Không có diff backend/services/types trong redesign. **Domain staging chưa được xác nhận chạy bản mới**; trạng thái cập nhật ngày 2026-10-03 nằm ở [HANDOFF.md](../HANDOFF.md).
 
 ## Bằng chứng đã chạy
 
@@ -28,7 +28,7 @@ Các test RLS trong backend CI mới là bằng chứng database isolation; ản
 
 ## Screenshot
 
-Các ảnh chính Gateway, Trace, Atlas, Journey, Forensics, Security và Field Guide được lưu trong artifact `agrochain-live-browser-qa` (production entry, API thật) và `agrochain-visual-qa` (7 cấu hình synthetic). Artifact CI giữ 14 ngày. Bộ PNG bàn giao và nguồn chụp sẽ được ghi tại `screenshots/README.md`.
+Các ảnh chính Gateway, Trace, Atlas, Journey, Forensics, Security và Field Guide được lưu trong artifact `agrochain-live-browser-qa` (production entry, API thật) và `agrochain-visual-qa` (7 cấu hình synthetic). Artifact CI giữ 14 ngày. Bộ 14 PNG bàn giao đã commit; nguồn chụp được ghi tại [screenshots/README.md](screenshots/README.md).
 
 ## Hiệu năng và giới hạn
 
@@ -37,3 +37,7 @@ Production bundle cuối: JS **337.48 kB / gzip 102.55 kB**, CSS **107.64 kB / g
 Đã xem ảnh thật desktop/mobile ở hai theme và sửa lỗi nhãn marker tràn. Chưa kiểm chứng screen reader thủ công, browser zoom 200%, Safari/Firefox, thiết bị yếu hoặc đo FPS/CLS; không tuyên bố 60fps hay WCAG toàn ứng dụng đã được chứng nhận. Token contrast được tính bằng test, không thay thế kiểm tra từng pixel.
 
 Trace/Cold Chain là fixture local, không sensor live. Hash tính thật; tamper sửa đúng event 03 và event 04 mất ancestry. Ngoại lệ nhiệt có thể vẫn hợp lệ về mật mã. Security lấy HTTP/records thật; lớp nội bộ là mô hình suy từ code vì API không xuất per-layer spans.
+
+## Cập nhật sau merge — 2026-10-03
+
+Lượt cuối trước merge: [Visual QA 37003611730](https://github.com/hieu-kiien/truy-xuat-nguon-goc-chuoi-lanh-nong-san/actions/runs/37003611730) và [CI 37003611775](https://github.com/hieu-kiien/truy-xuat-nguon-goc-chuoi-lanh-nong-san/actions/runs/37003611775) thành công trên `9a1ee7ebb941c691fffbb3c2fd375071ad8b8538`; 71 UI passed/6 skipped, 12 API thật passed. PR #9 sửa vòng chờ CI/deploy đã merge; main `83a1ac2` CI xanh. Kiểm tra domain vẫn nhận bản frontend cũ. Những kiểm thử thành công bên trên là môi trường CI/local, không phải nghiệm thu bản redesign trên domain.

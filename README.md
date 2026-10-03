@@ -1,5 +1,7 @@
 # Hệ thống Truy xuất Nguồn gốc và Giám sát Chuỗi lạnh Nông sản
 
+**Bàn giao mới nhất (2026-10-03):** [HANDOFF.md](HANDOFF.md) — trạng thái merge/kiểm thử, cách chạy local và vướng mắc triển khai domain.
+
 Ứng dụng quản lý quy trình canh tác, theo dõi lô hàng và giám sát điều kiện bảo quản nông sản theo thời gian thực.
 
 ## Công nghệ sử dụng
