@@ -1,11 +1,14 @@
 import type {
+  CreateEventRequest,
   Farm,
   FarmPayload,
   HealthResponse,
   LoginRequest,
   Lot,
+  LotEvent,
   SessionUser,
 } from '../types'
+
 
 function resolveBaseUrl(): string {
   const envUrl = import.meta.env.VITE_API_BASE_URL
@@ -33,27 +36,6 @@ export class ApiError extends Error {
   }
 }
 
-const SESSION_STORAGE_KEY = 'ttcs_session_token'
-
-function getStoredToken(): string | null {
-  try {
-    return sessionStorage.getItem(SESSION_STORAGE_KEY)
-  } catch {
-    return null
-  }
-}
-
-function setStoredToken(token: string | null): void {
-  try {
-    if (token) {
-      sessionStorage.setItem(SESSION_STORAGE_KEY, token)
-    } else {
-      sessionStorage.removeItem(SESSION_STORAGE_KEY)
-    }
-  } catch {
-    // Ignore storage errors in restricted contexts
-  }
-}
 
 async function parseErrorMessage(response: Response): Promise<string> {
   try {
@@ -80,21 +62,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.set('Content-Type', 'application/json')
   }
 
-  const token = getStoredToken()
-  if (token) {
-    headers.set('X-Session-Token', token)
-  }
-
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
     credentials: 'include',
   })
 
-  const sessionHeader = response.headers.get('X-Session-Token')
-  if (sessionHeader) {
-    setStoredToken(sessionHeader)
-  }
 
   if (!response.ok) {
     if (
@@ -140,11 +113,7 @@ export const login = (payload: LoginRequest) =>
 export const getCurrentUser = () => request<SessionUser>('/api/v1/auth/me')
 
 export const logout = async (): Promise<void> => {
-  try {
-    await request<void>('/api/v1/auth/logout', { method: 'POST' })
-  } finally {
-    setStoredToken(null)
-  }
+  await request<void>('/api/v1/auth/logout', { method: 'POST' })
 }
 
 export const getFarms = () => request<Farm[]>('/api/v1/farms/')
@@ -165,3 +134,19 @@ export const updateFarm = (farmId: string, payload: FarmPayload) =>
     method: 'PUT',
     body: JSON.stringify(payload),
   })
+
+export const getEvents = () => request<LotEvent[]>('/api/v1/events/')
+
+export const getEvent = (eventId: string) =>
+  request<LotEvent>(`/api/v1/events/${eventId}`)
+
+export const createEvent = (payload: CreateEventRequest) =>
+  request<LotEvent>('/api/v1/events/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+// ARCHITECTURAL GUARANTEE (N3-21):
+// There are NO updateEvent or deleteEvent functions.
+// Events are strictly append-only.
+
