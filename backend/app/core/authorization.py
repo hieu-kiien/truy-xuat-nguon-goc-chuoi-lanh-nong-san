@@ -19,6 +19,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "lots:create",
             "events:read",
             "events:create",
+            "handovers:create",
+            "handovers:resolve",
         }
     ),
     "cooperative": frozenset(
@@ -28,6 +30,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "lots:read",
             "events:read",
             "events:create",
+            "handovers:create",
+            "handovers:resolve",
         }
     ),
     "transporter": frozenset(
@@ -37,6 +41,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "lots:read",
             "events:read",
             "events:create",
+            "handovers:create",
+            "handovers:resolve",
         }
     ),
     "distributor": frozenset(
@@ -46,10 +52,18 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "lots:read",
             "events:read",
             "events:create",
+            "handovers:create",
+            "handovers:resolve",
         }
     ),
     "inspector": frozenset(
-        {"auth:session", "products:read", "lots:read_all", "events:read_all"}
+        {
+            "auth:session",
+            "products:read",
+            "lots:read_all",
+            "events:read_all",
+            "events:verify",
+        }
     ),
     "organization_admin": frozenset(
         {
@@ -61,9 +75,21 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "lots:create",
             "events:read",
             "events:create",
+            "handovers:create",
+            "handovers:resolve",
         }
     ),
-    "system_admin": frozenset({"auth:session", "products:read", "products:create"}),
+    "system_admin": frozenset(
+        {
+            "auth:session",
+            "products:read",
+            "products:create",
+            "products:update",
+            "lots:read_all",
+            "events:read_all",
+            "events:verify",
+        }
+    ),
 }
 
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { createLot, getFarms } from '../services/api'
+import { ApiError, createLot, getFarms } from '../services/api'
 import type { Farm, Lot, LotPayload, Product } from '../types'
 
 interface LotCreateFormProps {
@@ -26,6 +26,7 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
   const [quantity, setQuantity] = useState('')
   const [createdLot, setCreatedLot] = useState<Lot | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     let active = true
@@ -50,6 +51,7 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
     savingRef.current = true
     setSaving(true)
     setError(null)
+    setFieldErrors({})
     setCreatedLot(null)
     const payload: LotPayload = {
       farm_id: farmId,
@@ -63,7 +65,12 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
       setQuantity('')
       onCreated(lot)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể ghi nhận lô thu hoạch.')
+      if (err instanceof ApiError && err.status === 422) {
+        setFieldErrors(err.fieldErrors)
+        setError(err.fieldErrors.farm_id || err.fieldErrors.product_id || err.fieldErrors.harvested_on || err.fieldErrors.quantity ? null : err.message)
+      } else {
+        setError(err instanceof Error ? err.message : 'Không thể ghi nhận lô thu hoạch.')
+      }
     } finally {
       savingRef.current = false
       setSaving(false)
@@ -86,9 +93,10 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
         <form className="lot-create-form" onSubmit={(event) => void submit(event)}>
           <div className="form-field">
             <label htmlFor="lot-farm">Vùng trồng</label>
-            <select id="lot-farm" value={farmId} onChange={(event) => setFarmId(event.target.value)} required>
+            <select id="lot-farm" value={farmId} aria-invalid={Boolean(fieldErrors.farm_id)} onChange={(event) => setFarmId(event.target.value)} required>
               {farms.map((farm) => <option key={farm.id} value={farm.id}>{farm.name}</option>)}
             </select>
+            {fieldErrors.farm_id && <small className="form-field-error">{fieldErrors.farm_id}</small>}
           </div>
           <div className="form-field">
             <label htmlFor="lot-product">Sản phẩm</label>
@@ -96,14 +104,17 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
               <option value="" disabled>Chọn sản phẩm</option>
               {products.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.unit})</option>)}
             </select>
+            {fieldErrors.product_id && <small className="form-field-error">{fieldErrors.product_id}</small>}
           </div>
           <div className="form-field">
             <label htmlFor="lot-harvested-on">Ngày thu hoạch</label>
-            <input id="lot-harvested-on" type="date" value={harvestedOn} max={localToday()} onChange={(event) => setHarvestedOn(event.target.value)} required />
+            <input id="lot-harvested-on" type="date" value={harvestedOn} max={localToday()} aria-invalid={Boolean(fieldErrors.harvested_on)} onChange={(event) => setHarvestedOn(event.target.value)} required />
+            {fieldErrors.harvested_on && <small className="form-field-error">{fieldErrors.harvested_on}</small>}
           </div>
           <div className="form-field">
             <label htmlFor="lot-quantity">Khối lượng ({products.find((item) => item.id === productId)?.unit ?? 'đơn vị'})</label>
-            <input id="lot-quantity" type="number" min="0.001" step="0.001" value={quantity} onChange={(event) => setQuantity(event.target.value)} required placeholder="Ví dụ: 125.5" />
+            <input id="lot-quantity" type="number" min="0.001" step="0.001" value={quantity} aria-invalid={Boolean(fieldErrors.quantity)} onChange={(event) => setQuantity(event.target.value)} required placeholder="Ví dụ: 125.5" />
+            {fieldErrors.quantity && <small className="form-field-error">{fieldErrors.quantity}</small>}
           </div>
           <button className="ds-button ds-button-brand ds-button-sm" type="submit" disabled={saving || !farmId || !productId}>
             {saving ? 'Đang ghi nhận...' : 'Tạo lô thu hoạch'}

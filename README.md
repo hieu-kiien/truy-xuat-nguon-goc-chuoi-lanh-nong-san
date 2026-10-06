@@ -1,6 +1,6 @@
 # Hệ thống Truy xuất Nguồn gốc và Giám sát Chuỗi lạnh Nông sản
 
-Ứng dụng quản lý quy trình canh tác, theo dõi lô hàng và giám sát điều kiện bảo quản nông sản theo thời gian thực.
+Ứng dụng quản lý vùng trồng, lô nông sản, bàn giao giữa các đơn vị và lịch sử truy xuất.
 
 ## Công nghệ sử dụng
 
@@ -45,6 +45,10 @@
 ├── render.yaml              # Khai báo hạ tầng đám mây (Infrastructure as Code)
 └── CONTRIBUTING.md          # Quy chuẩn làm việc nhóm và đóng góp mã nguồn
 ```
+
+## Quy tắc nhật ký sự kiện
+
+Sự kiện đã ghi nhận là append-only: API và vai trò ứng dụng trong cơ sở dữ liệu không được cập nhật hoặc xóa sự kiện. Khi cần sửa thông tin nghiệp vụ, hãy ghi thêm sự kiện mới để giữ lại lịch sử. Mã băm liên kết sự kiện với nội dung chuẩn hóa theo RFC 8785; dùng `GET /api/v1/events/lots/{lot_id}/integrity` để kiểm tra chuỗi.
 
 ## Hướng dẫn cài đặt và khởi chạy
 

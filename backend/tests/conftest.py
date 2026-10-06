@@ -4,12 +4,15 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import create_engine, delete
+from sqlalchemy import create_engine, delete, select, text
 from sqlalchemy.orm import Session
 
+from app.bootstrap_db_role import bootstrap_database_role
 from app.core.config import settings
 from app.core.security import hash_password, hash_session_token
+from app.models.event import Event
 from app.models.farm import Farm
+from app.models.handover import Handover
 from app.models.identity import AuthSession, Organization, Role, User
 from app.models.lot import Lot
 
@@ -25,7 +28,12 @@ class IdentityFixture:
 
 @pytest.fixture(scope="session")
 def admin_engine():
-    engine = create_engine(settings.MIGRATION_DATABASE_URL, pool_pre_ping=True)
+    engine = create_engine(
+        settings.MIGRATION_DATABASE_URL,
+        connect_args={"connect_timeout": 5},
+        pool_pre_ping=True,
+    )
+    bootstrap_database_role()
     yield engine
     engine.dispose()
 
@@ -96,18 +104,30 @@ def identity_factory(
 
     yield create_identity
 
+    if created_organizations:
+        lot_ids = list(
+            admin_session.scalars(
+                select(Lot.id).where(Lot.organization_id.in_(created_organizations))
+            ).all()
+        )
+        if lot_ids:
+            with admin_session.begin_nested():
+                admin_session.execute(text("ALTER TABLE events DISABLE TRIGGER USER"))
+                admin_session.execute(
+                    delete(Handover).where(Handover.lot_id.in_(lot_ids))
+                )
+                admin_session.execute(delete(Event).where(Event.lot_id.in_(lot_ids)))
+                admin_session.execute(delete(Lot).where(Lot.id.in_(lot_ids)))
+                admin_session.execute(text("ALTER TABLE events ENABLE TRIGGER USER"))
+        admin_session.execute(
+            delete(Farm).where(Farm.organization_id.in_(created_organizations))
+        )
     if created_users:
         admin_session.execute(
             delete(AuthSession).where(AuthSession.user_id.in_(created_users))
         )
         admin_session.execute(delete(User).where(User.id.in_(created_users)))
     if created_organizations:
-        admin_session.execute(
-            delete(Lot).where(Lot.organization_id.in_(created_organizations))
-        )
-        admin_session.execute(
-            delete(Farm).where(Farm.organization_id.in_(created_organizations))
-        )
         admin_session.execute(
             delete(Organization).where(Organization.id.in_(created_organizations))
         )

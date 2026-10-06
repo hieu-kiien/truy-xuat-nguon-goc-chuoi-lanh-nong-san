@@ -170,6 +170,7 @@ def test_bootstrap_db_role_revokes_mutation_on_events_table():
     mock_cursor = MagicMock()
     mock_cursor.fetchall.side_effect = [
         [("events",), ("lots",), ("farms",)],
+        [("current_holder_organization_id",), ("status",)],  # lot columns
         [],  # routines
     ]
 
@@ -242,6 +243,14 @@ def test_canonical_json_preserves_vietnamese_characters():
     data = {"nong_san": "Cà chua VietGAP", "nhiet_do": 4.5}
     canonical = canonicalize_json(data)
     assert "Cà chua VietGAP" in canonical
+
+
+def test_canonical_json_uses_rfc8785_number_serialization():
+    data = {"numbers": [333333333.33333329, 1e30, 4.50, 2e-3, 1e-27]}
+
+    assert canonicalize_json(data) == (
+        '{"numbers":[333333333.3333333,1e+30,4.5,0.002,1e-27]}'
+    )
 
 
 def test_sha256_hex_length_and_avalanche_effect():

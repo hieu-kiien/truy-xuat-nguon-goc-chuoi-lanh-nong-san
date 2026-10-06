@@ -1,211 +1,125 @@
-interface IntegrityPanelProps {
-  tamperSimulated: boolean
-  onToggleTamper: () => void
-  compact?: boolean
+import { useEffect, useState } from 'react'
+import { getLots, verifyLotIntegrity } from '../services/api'
+import type { IntegrityReport, Lot } from '../types'
+
+const ISSUE_LABELS: Record<string, string> = {
+  missing_event: 'Thiếu sự kiện trong chuỗi',
+  content_hash_mismatch: 'Nội dung sự kiện không khớp mã băm',
+  previous_hash_mismatch: 'Liên kết đến sự kiện trước không khớp',
+  downstream_unverified: 'Không thể xác minh các sự kiện tiếp theo',
 }
 
-interface HashEventRecord {
-  seq: string
-  timestamp: string
-  stage: string
-  temp: string
-  humidity: string
-  prevHash: string
-  hash: string
-}
+export function IntegrityPanel() {
+  const [query, setQuery] = useState('')
+  const [lots, setLots] = useState<Lot[]>([])
+  const [lotId, setLotId] = useState('')
+  const [loadingLots, setLoadingLots] = useState(true)
+  const [checking, setChecking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [report, setReport] = useState<IntegrityReport | null>(null)
 
-const SAMPLE_HASH_EVENTS: HashEventRecord[] = [
-  {
-    seq: '#01',
-    timestamp: '2026-09-30T06:00:00Z',
-    stage: 'Thu hoạch tại vùng trồng',
-    temp: '14.2°C',
-    humidity: '78%',
-    prevHash: '00000000...00000000',
-    hash: '9f86d081...8b4c70a1',
-  },
-  {
-    seq: '#02',
-    timestamp: '2026-09-30T08:15:00Z',
-    stage: 'Sơ chế & Cấp đông nhanh',
-    temp: '3.8°C',
-    humidity: '85%',
-    prevHash: '9f86d081...8b4c70a1',
-    hash: '4b227777...d4735e3a',
-  },
-  {
-    seq: '#03',
-    timestamp: '2026-09-30T10:30:00Z',
-    stage: 'Vận chuyển xe lạnh chuyên dụng',
-    temp: '3.5°C',
-    humidity: '82%',
-    prevHash: '4b227777...d4735e3a',
-    hash: 'e3b0c442...98fc1c14',
-  },
-  {
-    seq: '#04',
-    timestamp: '2026-09-30T14:00:00Z',
-    stage: 'Nhập kho trung tâm phân phối',
-    temp: '4.0°C',
-    humidity: '80%',
-    prevHash: 'e3b0c442...98fc1c14',
-    hash: 'a1860004...b62aa867',
-  },
-]
+  useEffect(() => {
+    let active = true
+    const timer = window.setTimeout(() => {
+      setLoadingLots(true)
+      getLots({ q: query, page_size: 30 })
+        .then((page) => {
+          if (!active) return
+          setLots(page.items)
+          setLotId((current) =>
+            current && page.items.some((lot) => lot.id === current)
+              ? current
+              : page.items[0]?.id ?? '',
+          )
+        })
+        .catch((err: unknown) => {
+          if (active) setError(err instanceof Error ? err.message : 'Không thể tải lô hàng.')
+        })
+        .finally(() => { if (active) setLoadingLots(false) })
+    }, 250)
 
-export function IntegrityPanel({
-  tamperSimulated,
-  onToggleTamper,
-  compact = false,
-}: IntegrityPanelProps) {
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+  }, [query])
+
+  const checkIntegrity = async () => {
+    if (!lotId || checking) return
+    setChecking(true)
+    setError(null)
+    setReport(null)
+    try {
+      setReport(await verifyLotIntegrity(lotId))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể kiểm tra chuỗi sự kiện.')
+    } finally {
+      setChecking(false)
+    }
+  }
+
   return (
-    <div className={compact ? '' : 'info-stack'}>
-      <section className="data-table-wrapper panel-card">
-        <div className="data-table-header">
-          <div>
-            <h2 className="section-title">
-              Chuỗi Băm Sự kiện Chuỗi lạnh (SHA-256 + RFC 8785)
-            </h2>
-            <p className="panel-sub">
-              Liên kết mật mã chống sửa lén nhật ký nhiệt độ — hiệu năng xác minh:
-              147.856 sự kiện/giây
-            </p>
-          </div>
+    <section className="panel-card panel-box integrity-check-panel">
+      <header className="panel-head">
+        <div>
+          <h2>Kiểm tra tính toàn vẹn</h2>
+          <p className="panel-sub">Chọn một lô để đối chiếu chuỗi sự kiện đã ghi nhận.</p>
+        </div>
+      </header>
 
-          <button
-            type="button"
-            className={`ds-button ds-button-sm ${
-              tamperSimulated ? 'ds-button-brand' : 'ds-button-secondary'
-            }`}
-            onClick={onToggleTamper}
+      <div className="integrity-check-controls">
+        <div className="form-field">
+          <label htmlFor="integrity-lot-search">Tìm lô theo mã</label>
+          <input
+            id="integrity-lot-search"
+            type="search"
+            value={query}
+            onChange={(event) => { setQuery(event.target.value); setReport(null); setError(null) }}
+            placeholder="Nhập mã lô"
+          />
+        </div>
+        <div className="form-field">
+          <label htmlFor="integrity-lot">Lô hàng</label>
+          <select
+            id="integrity-lot"
+            value={lotId}
+            onChange={(event) => { setLotId(event.target.value); setReport(null) }}
+            disabled={loadingLots || lots.length === 0}
           >
-            {tamperSimulated
-              ? 'Khôi phục dữ liệu gốc'
-              : 'Mô phỏng sửa lén nhiệt độ (#03)'}
-          </button>
+            {lots.length === 0 && <option value="">{loadingLots ? 'Đang tải lô…' : 'Không có lô phù hợp'}</option>}
+            {lots.map((lot) => (
+              <option key={lot.id} value={lot.id}>
+                {lot.lot_code ?? lot.id.slice(0, 8)} · {lot.product?.name ?? lot.name}
+              </option>
+            ))}
+          </select>
         </div>
+        <button
+          type="button"
+          className="ds-button ds-button-brand"
+          onClick={() => void checkIntegrity()}
+          disabled={!lotId || checking || loadingLots}
+        >
+          {checking ? 'Đang kiểm tra…' : 'Kiểm tra'}
+        </button>
+      </div>
 
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>TT</th>
-                {!compact && <th>Thời gian (UTC)</th>}
-                <th>Công đoạn</th>
-                <th>Nhiệt độ / Ẩm</th>
-                <th>Prev Hash</th>
-                <th>SHA-256 Hash</th>
-                <th>Trạng thái</th>
-              </tr>
-            </thead>
-            <tbody>
-              {SAMPLE_HASH_EVENTS.map((ev, index) => {
-                const isTamperedRow = tamperSimulated && index === 2
-                const isBrokenDownstream = tamperSimulated && index > 2
-                return (
-                  <tr
-                    key={ev.seq}
-                    className={
-                      isTamperedRow || isBrokenDownstream ? 'row-danger' : undefined
-                    }
-                  >
-                    <td>
-                      <code>{ev.seq}</code>
-                    </td>
-                    {!compact && (
-                      <td>
-                        <code>{ev.timestamp}</code>
-                      </td>
-                    )}
-                    <th scope="row" className="cell-strong">
-                      {ev.stage}
-                    </th>
-                    <td>
-                      <code>
-                        {isTamperedRow
-                          ? `99.9°C / ${ev.humidity} (Sửa)`
-                          : `${ev.temp} / ${ev.humidity}`}
-                      </code>
-                    </td>
-                    <td>
-                      <code>{ev.prevHash}</code>
-                    </td>
-                    <td>
-                      <code>
-                        {isTamperedRow ? 'e9d41a02...7c3b81f9' : ev.hash}
-                      </code>
-                    </td>
-                    <td>
-                      {isTamperedRow ? (
-                        <span className="status-badge status-danger">
-                          Bị can thiệp
-                        </span>
-                      ) : isBrokenDownstream ? (
-                        <span className="status-badge status-danger">
-                          Đứt chuỗi
-                        </span>
-                      ) : (
-                        <span className="status-badge status-done">Toàn vẹn</span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {!compact && (
-        <div className="dashboard-split-equal">
-          <section className="panel-card panel-box">
-            <div className="panel-head">
-              <h2>Chuẩn hóa Canonical JSON (RFC 8785) — Sự kiện #03</h2>
-              <span
-                className={`status-badge ${
-                  tamperSimulated ? 'status-danger' : 'status-done'
-                }`}
-              >
-                {tamperSimulated ? 'Hash Mismatch' : 'Verified'}
-              </span>
-            </div>
-            <p className="panel-sub">
-              Các khóa JSON được sắp xếp theo thứ tự từ điển UTF-8 và loại bỏ
-              khoảng trắng trước khi băm SHA-256:
-            </p>
-            <pre className="code-block-compact">
-              {tamperSimulated
-                ? `{"event_seq":3,"humidity_pct":82,"lot_id":"lot-caudat-01","prev_hash":"4b227777...d4735e3a","stage":"transport","temp_c":99.9,"timestamp":"2026-09-30T10:30:00Z"}\n-> SHA-256 Tính lại : e9d41a026f904b12...7c3b81f9 (Khác với e3b0c442...98fc1c14 đã niêm phong!)`
-                : `{"event_seq":3,"humidity_pct":82,"lot_id":"lot-caudat-01","prev_hash":"4b227777...d4735e3a","stage":"transport","temp_c":3.5,"timestamp":"2026-09-30T10:30:00Z"}\n-> SHA-256 Tính lại : e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (Khớp 100%)`}
-            </pre>
-          </section>
-
-          <section className="panel-card panel-box">
-            <div className="panel-head">
-              <h2>Thông số Kiến trúc Toàn vẹn Dữ liệu (N3-4)</h2>
-              <span className="status-badge status-done">Chuẩn Công nghiệp</span>
-            </div>
-            <div className="info-grid-2">
-              <div className="info-item">
-                <span className="info-item-label">Thuật toán Băm</span>
-                <strong className="info-item-value">SHA-256 (FIPS 180-4)</strong>
-              </div>
-              <div className="info-item">
-                <span className="info-item-label">Chuẩn Tuần tự hóa</span>
-                <strong className="info-item-value">RFC 8785 (JCS)</strong>
-              </div>
-              <div className="info-item">
-                <span className="info-item-label">Thông lượng Kiểm chứng</span>
-                <strong className="info-item-value">147.856 sự kiện / giây</strong>
-              </div>
-              <div className="info-item">
-                <span className="info-item-label">Độ trễ Trung bình</span>
-                <strong className="info-item-value">0,0068 ms / bản ghi</strong>
-              </div>
-            </div>
-          </section>
+      {error && <div className="alert-box alert-error" role="alert">{error}</div>}
+      {report && (
+        <div className={`integrity-result ${report.valid ? 'integrity-result-valid' : 'integrity-result-invalid'}`} role="status">
+          <strong>{report.valid ? 'Chuỗi sự kiện hợp lệ' : `Phát hiện sai lệch tại sự kiện ${report.first_invalid_sequence ?? 'không xác định'}`}</strong>
+          <span>Đã kiểm tra {report.checked_events} sự kiện.</span>
+          {report.issues.length > 0 && (
+            <ul>
+              {report.issues.map((issue, index) => (
+                <li key={`${issue.sequence_number}-${issue.kind}-${index}`}>
+                  Sự kiện {issue.sequence_number}: {ISSUE_LABELS[issue.kind] ?? issue.kind}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
-    </div>
+    </section>
   )
 }

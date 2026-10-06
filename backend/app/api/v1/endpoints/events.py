@@ -9,10 +9,35 @@ from app.core.authorization import require_permission
 from app.core.database import get_db
 from app.core.tenancy import get_tenant_record
 from app.models.event import Event
-from app.schemas.event import EventCreate, EventRead
+from app.schemas.event import (
+    EventCreate,
+    EventHistoryRead,
+    EventRead,
+    IntegrityRead,
+)
 from app.services import event_service
 
 router = APIRouter()
+
+
+@router.get("/lots/{lot_id}/history", response_model=EventHistoryRead)
+@require_permission("events:read")
+def get_lot_history(
+    lot_id: UUID,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    return event_service.get_event_history(db, principal, lot_id)
+
+
+@router.get("/lots/{lot_id}/integrity", response_model=IntegrityRead)
+@require_permission("events:verify")
+def verify_lot_integrity(
+    lot_id: UUID,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    return event_service.verify_lot_integrity(db, principal, lot_id)
 
 
 @router.get("/", response_model=list[EventRead])

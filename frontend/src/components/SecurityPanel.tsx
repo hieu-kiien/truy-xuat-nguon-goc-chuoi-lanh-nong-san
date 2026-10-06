@@ -33,8 +33,7 @@ export function SecurityPanel({
     <div className="dashboard-split-equal">
       <section className="panel-card panel-box">
         <div className="panel-head">
-          <h2>Ngữ cảnh Phiên &amp; Cô lập Đa tổ chức (PostgreSQL RLS)</h2>
-          <span className="status-badge status-done">FORCE RLS: BẬT</span>
+          <h2>Bảo mật và quyền truy cập</h2>
         </div>
 
         <div className="info-grid-2">
@@ -45,7 +44,7 @@ export function SecurityPanel({
           </div>
 
           <div className="info-item">
-            <span className="info-item-label">Đơn vị chủ quản (Tenant)</span>
+            <span className="info-item-label">Đơn vị</span>
             <strong className="info-item-value">{user.organization_name}</strong>
             <div className="panel-sub">
               Loại hình: {ORG_TYPE_LABELS[user.organization_type]}
@@ -54,7 +53,7 @@ export function SecurityPanel({
 
           <div className="info-item">
             <span className="info-item-label">
-              Biến phiên DB (app.current_organization)
+              Mã đơn vị
             </span>
             <code>{user.organization_id}</code>
           </div>
@@ -71,20 +70,13 @@ export function SecurityPanel({
           </div>
         </div>
 
-        <pre className="code-block-compact">
-          {`-- Chính sách PostgreSQL RLS áp dụng tự động trên bảng farms:
-SET LOCAL app.current_organization = '${user.organization_id}';
-CREATE POLICY farms_tenant_isolation ON farms
-  USING (organization_id = current_setting('app.current_organization', true)::uuid);`}
-        </pre>
-
         <div className="action-row alert-spaced">
           <button
             type="button"
             className="ds-button ds-button-brand ds-button-sm"
             onClick={onRunProbe}
           >
-            Kiểm chứng thực tế: Gọi GET /api/v1/farms/
+            Kiểm tra quyền xem vùng trồng
           </button>
           <span className="panel-sub">
             Kiểm tra phản hồi 200 OK hoặc 403 Forbidden từ máy chủ
@@ -107,10 +99,10 @@ CREATE POLICY farms_tenant_isolation ON farms
         <div className="data-table-header">
           <div>
             <h2 className="section-title">
-              Ma trận Phân quyền RBAC Toàn hệ thống (N3-6)
+              Quyền theo vai trò
             </h2>
             <p className="panel-sub">
-              Đối chiếu 7 vai trò nghiệp vụ và các quyền hạn được cấp phát
+              Các quyền được cấu hình cho từng vai trò trong ứng dụng.
             </p>
           </div>
         </div>

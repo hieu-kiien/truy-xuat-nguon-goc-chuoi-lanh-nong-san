@@ -17,11 +17,12 @@ A story is done only when every Jira acceptance criterion has reproducible evide
 
 ## UI reference
 
-Use a small, consistent token set for color, spacing, type, borders, and focus states, following Material Design 3's role-based tokens and type hierarchy. Target WCAG 2.2 AA for text contrast, keyboard access, focus visibility, and form labels. For field use in bright light, interactive controls should be at least 44px high with clear text and generous spacing.
+Use a small, consistent token set for color, spacing, type, borders, and focus states, following [Material 3 color roles](https://m3.material.io/styles/color/the-color-system) and [typography](https://m3.material.io/styles/typography/applying-type). Target [WCAG 2.2 AA](https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/) for text contrast, keyboard access, focus visibility, and form labels. For field use in bright light, interactive controls should be at least 44px high with clear text and generous spacing. Hash serialization follows [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785.html).
 
 ## Evidence map
 
-- N3-20/21: canonical hash-chain tests, transaction rollback, database append-only permission tests, and README rule.
-- N3-22/23: valid/tampered/missing-event verification tests, batched organization-name query, real timeline and integrity warning.
+- N3-20/21: RFC 8785 canonical hash-chain tests, transaction rollback, database append-only permission tests, and README rule.
+- N3-22: valid, tampered, missing-event, and direct SQL edit/delete verification tests; 1,000-event verification under one second; batched organization-name query; real timeline and integrity warning.
+- N3-23: 200-event history request under two seconds with a bounded SQL SELECT count, including organization names.
 - N3-24/25: sender/recipient workflow, duplicate/self handover rejection, atomic accept/reject tests, and pending inbox UI.
-- N3-31/32/33/34: product permission/uniqueness tests, 10,000 generated-code test, field validation and duplicate-submit tests, and cursor/search/filter tests.
+- N3-31/32/33/34: product permission/uniqueness tests, 10,000-code collision test, field validation, disabled-while-saving forms, cursor/search/filter tests, and real lot/product screens.

@@ -9,7 +9,7 @@ from app.core.authorization import require_permission
 from app.core.database import get_db
 from app.core.tenancy import get_tenant_record
 from app.models.lot import Lot
-from app.schemas.lot import LotCreate, LotRead
+from app.schemas.lot import LotCreate, LotListRead, LotRead
 from app.services import lot_service
 
 router = APIRouter()
@@ -25,25 +25,23 @@ def create_lot(
     return lot_service.create_harvest_lot(db, principal, payload)
 
 
-@router.get("/", response_model=list[LotRead])
+@router.get("/", response_model=LotListRead)
 @require_permission("lots:read")
 def list_lots(
     principal: Annotated[Principal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
     q: Annotated[str | None, Query(max_length=100)] = None,
     product_id: UUID | None = None,
-    page: Annotated[int, Query(ge=1)] = 1,
+    cursor: Annotated[str | None, Query(max_length=256)] = None,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
-    offset: Annotated[int | None, Query(ge=0)] = None,
-) -> list[Lot]:
+) -> dict:
     return lot_service.list_lots(
         db,
         principal,
         query=q,
         product_id=product_id,
-        page=page,
+        cursor=cursor,
         page_size=page_size,
-        offset=offset,
     )
 
 

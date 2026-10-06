@@ -1,8 +1,6 @@
-import { ORG_TYPE_LABELS, type SessionUser } from '../types'
 import type { WorkspaceTab } from './FarmWorkspace'
 
 interface WorkspaceTopbarProps {
-  user: SessionUser
   activeTab: WorkspaceTab
   canReadFarms: boolean
   searchQuery: string
@@ -14,7 +12,6 @@ interface WorkspaceTopbarProps {
 }
 
 export function WorkspaceTopbar({
-  user,
   activeTab,
   canReadFarms,
   searchQuery,
@@ -37,19 +34,17 @@ export function WorkspaceTopbar({
         </button>
         <h1 className="topbar-title">
           {activeTab === 'lots'
-            ? 'Danh sách lô'
+            ? 'Lô hàng'
             : activeTab === 'products'
-              ? 'Danh mục sản phẩm dùng chung'
+              ? 'Sản phẩm'
               : activeTab === 'overview'
-              ? 'Bảng điều khiển Vùng trồng & Giám sát Chuỗi lạnh'
-              : activeTab === 'security'
-                ? 'Ma trận Phân quyền RBAC & Cô lập Đa tổ chức (RLS)'
-                : 'Kiểm chứng Toàn vẹn Chuỗi Sự kiện (SHA-256 + RFC 8785)'}
+                ? 'Vùng trồng'
+                : activeTab === 'security'
+                  ? 'Bảo mật'
+                  : activeTab === 'handovers'
+                    ? 'Bàn giao'
+                    : 'Kiểm tra toàn vẹn'}
         </h1>
-        <span className="topbar-divider">|</span>
-        <span className="status-badge status-done">
-          {ORG_TYPE_LABELS[user.organization_type]}
-        </span>
       </div>
 
       <div className="topbar-actions">

@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
@@ -7,7 +8,7 @@ from app.core.auth import Principal, get_current_principal
 from app.core.authorization import require_permission
 from app.core.database import get_db
 from app.models.product import Product
-from app.schemas.product import ProductCreate, ProductRead
+from app.schemas.product import ProductCreate, ProductRead, ProductUpdate
 from app.services import product_service
 
 router = APIRouter()
@@ -30,3 +31,14 @@ def create_product(
     db: Annotated[Session, Depends(get_db)],
 ) -> Product:
     return product_service.create_product(db, payload)
+
+
+@router.put("/{product_id}", response_model=ProductRead)
+@require_permission("products:update")
+def update_product(
+    product_id: UUID,
+    payload: ProductUpdate,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Product:
+    return product_service.update_product(db, product_id, payload)

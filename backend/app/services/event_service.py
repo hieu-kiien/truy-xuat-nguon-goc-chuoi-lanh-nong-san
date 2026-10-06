@@ -10,7 +10,7 @@ from app.core.crypto import GENESIS_PREV_HASH, compute_event_hash
 from app.core.tenancy import get_tenant_record, tenant_select
 from app.models.event import Event
 from app.models.lot import Lot
-from app.schemas.event import EventCreate
+from app.schemas.event import EventCreate, IntegrityIssue
 
 
 def record_event(
@@ -50,13 +50,12 @@ def append_event(
     payload: dict,
 ) -> Event:
     """Append an event without committing, for callers with a wider transaction."""
-    # Query the latest event for this lot
+    # Serialize appends per lot so concurrent writers cannot reuse a sequence.
+    db.scalar(select(Lot).where(Lot.id == lot_id).with_for_update(of=Lot))
+
     latest_event = db.scalar(
         select(Event)
-        .where(
-            Event.lot_id == lot_id,
-            Event.organization_id == principal.organization_id,
-        )
+        .where(Event.lot_id == lot_id)
         .order_by(Event.sequence_number.desc())
         .limit(1)
     )
@@ -103,7 +102,7 @@ def list_events_for_lot(
 
     return list(
         db.scalars(
-            tenant_select(Event, principal)
+            select(Event)
             .where(Event.lot_id == lot_id)
             .order_by(Event.sequence_number.asc())
         ).all()
@@ -121,6 +120,96 @@ def list_events(
 
     statement = tenant_select(Event, principal).order_by(Event.sequence_number.asc())
     return list(db.scalars(statement).all())
+
+
+def verify_event_chain(events: list[Event]) -> dict:
+    """Recompute a lot's complete chain in memory and identify the first break."""
+    expected_previous_hash = GENESIS_PREV_HASH
+    expected_sequence = 1
+    issues: list[IntegrityIssue] = []
+    invalid_sequence: int | None = None
+
+    for event in events:
+        if event.sequence_number != expected_sequence:
+            missing_at = min(event.sequence_number, expected_sequence)
+            issues.append(
+                IntegrityIssue(sequence_number=missing_at, kind="missing_event")
+            )
+            invalid_sequence = missing_at
+            break
+
+        if event.prev_hash != expected_previous_hash:
+            issues.append(
+                IntegrityIssue(
+                    sequence_number=event.sequence_number,
+                    kind="previous_hash_mismatch",
+                )
+            )
+            invalid_sequence = event.sequence_number
+            break
+
+        event_content = {
+            "event_type": event.event_type,
+            "lot_id": str(event.lot_id),
+            "organization_id": str(event.organization_id),
+            "payload": event.payload,
+            "sequence_number": event.sequence_number,
+        }
+        expected_hash = compute_event_hash(event.prev_hash, event_content)
+        if event.event_hash != expected_hash:
+            issues.append(
+                IntegrityIssue(
+                    sequence_number=event.sequence_number,
+                    kind="content_hash_mismatch",
+                )
+            )
+            invalid_sequence = event.sequence_number
+            break
+
+        expected_previous_hash = event.event_hash
+        expected_sequence += 1
+
+    if invalid_sequence is not None:
+        issues.extend(
+            IntegrityIssue(
+                sequence_number=event.sequence_number,
+                kind="downstream_unverified",
+            )
+            for event in events
+            if event.sequence_number > invalid_sequence
+        )
+
+    return {
+        "valid": not issues,
+        "checked_events": len(events),
+        "first_invalid_sequence": invalid_sequence,
+        "issues": issues,
+    }
+
+
+def get_event_history(db: Session, principal: Principal, lot_id: UUID) -> dict:
+    """Return a chronological timeline and its integrity result in one event query."""
+    get_tenant_record(db, Lot, lot_id, principal)
+    events = list(
+        db.scalars(
+            select(Event)
+            .where(Event.lot_id == lot_id)
+            .order_by(Event.sequence_number.asc())
+        ).all()
+    )
+    return {"events": events, "integrity": verify_event_chain(events)}
+
+
+def verify_lot_integrity(db: Session, principal: Principal, lot_id: UUID) -> dict:
+    get_tenant_record(db, Lot, lot_id, principal)
+    events = list(
+        db.scalars(
+            select(Event)
+            .where(Event.lot_id == lot_id)
+            .order_by(Event.sequence_number.asc())
+        ).all()
+    )
+    return verify_event_chain(events)
 
 
 def get_event_by_id(

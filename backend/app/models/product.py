@@ -1,10 +1,13 @@
 from uuid import UUID, uuid4
 
 from sqlalchemy import CheckConstraint, Index, String, func, text
+from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+
+PRODUCT_UNIT_TYPE = ENUM("kg", "tấn", "thùng", name="product_unit", create_type=False)
 
 
 class Product(Base):
@@ -22,4 +25,4 @@ class Product(Base):
         PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    unit: Mapped[str] = mapped_column(String(16), nullable=False)
+    unit: Mapped[str] = mapped_column(PRODUCT_UNIT_TYPE, nullable=False)

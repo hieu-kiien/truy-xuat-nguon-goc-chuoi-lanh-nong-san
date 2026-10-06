@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.product import ProductRead
 
@@ -20,19 +20,20 @@ class LotCreate(BaseModel):
             raise ValueError("Khối lượng phải lớn hơn 0.")
         try:
             quantity = Decimal(str(value))
-        except InvalidOperation as error:
+        except (InvalidOperation, TypeError, ValueError) as error:
             raise ValueError("Khối lượng phải là một số hợp lệ.") from error
         if not quantity.is_finite() or quantity <= 0:
             raise ValueError("Khối lượng phải lớn hơn 0.")
         return quantity
 
-    @model_validator(mode="after")
-    def validate_harvest_date(self) -> "LotCreate":
+    @field_validator("harvested_on")
+    @classmethod
+    def validate_harvest_date(cls, harvested_on: date) -> date:
         vietnam_time = timezone(timedelta(hours=7))
         local_today = datetime.now(vietnam_time).date()
-        if self.harvested_on > local_today:
+        if harvested_on > local_today:
             raise ValueError("Ngày thu hoạch không được ở tương lai.")
-        return self
+        return harvested_on
 
 
 class LotRead(BaseModel):
@@ -46,4 +47,12 @@ class LotRead(BaseModel):
     product_id: UUID | None = None
     harvested_on: date | None = None
     quantity: Decimal | None = None
+    remaining_quantity: Decimal
+    current_holder_organization_id: UUID
+    status: str
     product: ProductRead | None = None
+
+
+class LotListRead(BaseModel):
+    items: list[LotRead]
+    next_cursor: str | None

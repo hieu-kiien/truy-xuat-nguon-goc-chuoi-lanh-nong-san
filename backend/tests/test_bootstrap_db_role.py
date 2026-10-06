@@ -117,6 +117,13 @@ def test_grant_existing_table_permissions():
             ("sessions",),
             ("farms",),
             ("lots",),
+            ("products",),
+            ("events",),
+            ("handovers",),
+        ],
+        [
+            ("current_holder_organization_id",),
+            ("status",),
         ],
         [
             ("app_current_user_id",),
@@ -126,4 +133,4 @@ def test_grant_existing_table_permissions():
     ]
 
     _grant_existing_table_permissions(mock_cursor, "ttcs_app")
-    assert mock_cursor.execute.call_count >= 8
+    assert mock_cursor.execute.call_count >= 20

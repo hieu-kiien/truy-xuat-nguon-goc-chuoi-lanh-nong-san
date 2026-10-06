@@ -18,6 +18,10 @@ class ProductCreate(BaseModel):
         return value.strip()
 
 
+class ProductUpdate(ProductCreate):
+    pass
+
+
 class ProductRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

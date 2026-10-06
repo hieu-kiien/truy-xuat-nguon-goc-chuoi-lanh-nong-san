@@ -60,7 +60,15 @@ export interface Lot {
   product_id: string | null
   harvested_on: string | null
   quantity: string | null
+  remaining_quantity: string
+  current_holder_organization_id: string
+  status: 'active' | 'pending_handover' | 'closed'
   product: Product | null
+}
+
+export interface LotPage {
+  items: Lot[]
+  next_cursor: string | null
 }
 
 export type ProductUnit = 'kg' | 'tấn' | 'thùng'
@@ -76,6 +84,32 @@ export interface ProductPayload {
   unit: ProductUnit
 }
 
+export interface OrganizationOption {
+  id: string
+  name: string
+}
+
+export interface Handover {
+  id: string
+  lot_id: string
+  lot_code: string | null
+  lot_name: string
+  from_organization_id: string
+  from_organization_name: string
+  to_organization_id: string
+  to_organization_name: string
+  status: 'pending' | 'accepted' | 'rejected'
+  note: string | null
+  rejection_reason: string | null
+  created_at: string
+}
+
+export interface HandoverPayload {
+  lot_id: string
+  to_organization_id: string
+  note?: string
+}
+
 export interface LotPayload {
   farm_id: string
   product_id: string
@@ -86,9 +120,8 @@ export interface LotPayload {
 export interface LotListParams {
   q?: string
   product_id?: string
-  page?: number
+  cursor?: string
   page_size?: number
-  offset?: number
 }
 
 export interface LotEvent {
@@ -101,6 +134,24 @@ export interface LotEvent {
   payload: Record<string, unknown>
   prev_hash: string
   event_hash: string
+  organization_name: string
+}
+
+export interface IntegrityIssue {
+  sequence_number: number
+  kind: string
+}
+
+export interface IntegrityReport {
+  valid: boolean
+  checked_events: number
+  first_invalid_sequence: number | null
+  issues: IntegrityIssue[]
+}
+
+export interface EventHistory {
+  events: LotEvent[]
+  integrity: IntegrityReport
 }
 
 export interface CreateEventRequest {
@@ -138,6 +189,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'lots:create',
     'events:read',
     'events:create',
+    'handovers:create',
+    'handovers:resolve',
   ],
   cooperative: [
     'auth:session',
@@ -145,6 +198,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'lots:read',
     'events:read',
     'events:create',
+    'handovers:create',
+    'handovers:resolve',
   ],
   transporter: [
     'auth:session',
@@ -152,6 +207,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'lots:read',
     'events:read',
     'events:create',
+    'handovers:create',
+    'handovers:resolve',
   ],
   distributor: [
     'auth:session',
@@ -159,12 +216,15 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'lots:read',
     'events:read',
     'events:create',
+    'handovers:create',
+    'handovers:resolve',
   ],
   inspector: [
     'auth:session',
     'products:read',
     'lots:read_all',
     'events:read_all',
+    'events:verify',
   ],
   organization_admin: [
     'auth:session',
@@ -175,8 +235,18 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'lots:create',
     'events:read',
     'events:create',
+    'handovers:create',
+    'handovers:resolve',
   ],
-  system_admin: ['auth:session', 'products:read', 'products:create'],
+  system_admin: [
+    'auth:session',
+    'products:read',
+    'products:create',
+    'products:update',
+    'lots:read_all',
+    'events:read_all',
+    'events:verify',
+  ],
 }
 
 export function hasPermission(role: RoleCode, permission: string): boolean {

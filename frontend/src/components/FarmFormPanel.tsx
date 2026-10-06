@@ -1,44 +1,8 @@
 import type { FormEvent } from 'react'
 import type { Farm } from '../types'
 
-interface PresetLocation {
-  label: string
-  name: string
-  area_ha: string
-  latitude: string
-  longitude: string
-}
-
-const PRESET_LOCATIONS: PresetLocation[] = [
-  {
-    label: 'Mẫu Đà Lạt',
-    name: 'Phân khu Rau hữu cơ Trại Mát',
-    area_ha: '3.2500',
-    latitude: '11.924850',
-    longitude: '108.497210',
-  },
-  {
-    label: 'Mẫu Mộc Châu',
-    name: 'Đồi Dâu tây Bản Áng Khu B',
-    area_ha: '4.5000',
-    latitude: '20.828640',
-    longitude: '104.661520',
-  },
-  {
-    label: 'Mẫu Tiền Giang',
-    name: 'Vùng trồng Xoài Cát Hòa Lộc Cái Bè',
-    area_ha: '6.1000',
-    latitude: '10.334910',
-    longitude: '106.028450',
-  },
-]
-
 interface FarmFormPanelProps {
-  canReadFarms: boolean
   canWriteFarms: boolean
-  farms: Farm[]
-  totalAreaHa: number
-  maxAreaHa: number
   editingFarm: Farm | null
   name: string
   areaHa: string
@@ -50,18 +14,12 @@ interface FarmFormPanelProps {
   onAreaChange: (value: string) => void
   onLatChange: (value: string) => void
   onLngChange: (value: string) => void
-  onApplyPreset: (preset: PresetLocation) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onCancelEdit: () => void
-  onNotify: (message: string) => void
 }
 
 export function FarmFormPanel({
-  canReadFarms,
   canWriteFarms,
-  farms,
-  totalAreaHa,
-  maxAreaHa,
   editingFarm,
   name,
   areaHa,
@@ -73,20 +31,18 @@ export function FarmFormPanel({
   onAreaChange,
   onLatChange,
   onLngChange,
-  onApplyPreset,
   onSubmit,
   onCancelEdit,
-  onNotify,
 }: FarmFormPanelProps) {
+  if (!canWriteFarms) return null
+
   return (
-    <div className="info-stack">
-      {canWriteFarms && (
-        <section className="panel-box panel-card" aria-labelledby="form-title">
+    <section className="panel-box panel-card" aria-labelledby="form-title">
           <div className="panel-head">
             <h2 id="form-title">
               {editingFarm
                 ? 'Cập nhật Vùng trồng'
-                : 'Khai báo Vùng trồng mới (N3-7)'}
+                : 'Thêm vùng trồng'}
             </h2>
             {editingFarm && (
               <code title={editingFarm.id}>
@@ -94,22 +50,6 @@ export function FarmFormPanel({
               </code>
             )}
           </div>
-
-          {!editingFarm && (
-            <div className="preset-strip">
-              <span className="preset-label">Mẫu nhanh:</span>
-              {PRESET_LOCATIONS.map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  className="ds-button ds-button-secondary ds-button-xs"
-                  onClick={() => onApplyPreset(preset)}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          )}
 
           {formFeedback && (
             <div
@@ -219,47 +159,6 @@ export function FarmFormPanel({
               )}
             </div>
           </form>
-        </section>
-      )}
-
-      {canReadFarms && farms.length > 0 && (
-        <section className="panel-box panel-card" aria-labelledby="chart-title">
-          <div className="panel-head">
-            <h2 id="chart-title">Tương quan diện tích các lô (ha)</h2>
-            <span className="panel-sub">Tổng: {totalAreaHa.toFixed(2)} ha</span>
-          </div>
-
-          <div
-            className="chart-bars"
-            role="img"
-            aria-label="Biểu đồ diện tích các vùng trồng"
-          >
-            {farms.map((farm, idx) => {
-              const area = Number(farm.area_ha) || 0
-              const heightPct = Math.max(
-                18,
-                Math.min(100, (area / maxAreaHa) * 100)
-              )
-              return (
-                <div key={farm.id} className="chart-bar-col">
-                  <span className="chart-bar-value">{area.toFixed(1)}</span>
-                  <div
-                    className="chart-bar"
-                    style={{ height: `${heightPct}%` }}
-                    title={`${farm.name}: ${area.toFixed(2)} ha`}
-                    onClick={() =>
-                      onNotify(
-                        `${farm.name} — Diện tích: ${area.toFixed(2)} ha`
-                      )
-                    }
-                  />
-                  <span className="chart-bar-caption">Lô #{idx + 1}</span>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
-    </div>
+    </section>
   )
 }
