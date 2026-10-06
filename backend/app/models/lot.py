@@ -1,16 +1,31 @@
+from datetime import date
+from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, String
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Numeric,
+    String,
+)
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.product import Product
 
 
 class Lot(Base):
     __tablename__ = "lots"
     __table_args__ = (
         CheckConstraint("length(btrim(name)) > 0", name="ck_lots_name_nonblank"),
+        CheckConstraint(
+            "quantity IS NULL OR (quantity > 0 AND quantity < 'Infinity'::numeric)",
+            name="ck_lots_quantity_positive",
+        ),
         ForeignKeyConstraint(
             ["farm_id", "organization_id"],
             ["farms.id", "farms.organization_id"],
@@ -19,6 +34,15 @@ class Lot(Base):
         ),
         Index("ix_lots_organization_id", "organization_id"),
         Index("ix_lots_farm_id", "farm_id"),
+        Index("ix_lots_product_id", "product_id"),
+        Index(
+            "ix_lots_organization_harvested_on", "organization_id", "harvested_on"
+        ),
+        Index(
+            "uq_lots_lot_code",
+            "lot_code",
+            unique=True,
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -35,3 +59,11 @@ class Lot(Base):
     )
     farm_id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    lot_code: Mapped[str | None] = mapped_column(String(12))
+    product_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("products.id", name="fk_lots_product_id_products", ondelete="RESTRICT"),
+    )
+    harvested_on: Mapped[date | None] = mapped_column(Date)
+    quantity: Mapped[Decimal | None] = mapped_column(Numeric(14, 3))
+    product: Mapped[Product | None] = relationship(lazy="joined")

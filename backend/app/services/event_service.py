@@ -29,11 +29,32 @@ def record_event(
     # Verify lot exists and is visible to caller's organization
     lot = get_tenant_record(db, Lot, event_in.lot_id, principal)
 
+    event = append_event(
+        db,
+        principal,
+        lot.id,
+        event_type=event_in.event_type,
+        payload=event_in.payload,
+    )
+    db.commit()
+    db.refresh(event)
+    return event
+
+
+def append_event(
+    db: Session,
+    principal: Principal,
+    lot_id: UUID,
+    *,
+    event_type: str,
+    payload: dict,
+) -> Event:
+    """Append an event without committing, for callers with a wider transaction."""
     # Query the latest event for this lot
     latest_event = db.scalar(
         select(Event)
         .where(
-            Event.lot_id == lot.id,
+            Event.lot_id == lot_id,
             Event.organization_id == principal.organization_id,
         )
         .order_by(Event.sequence_number.desc())
@@ -49,26 +70,25 @@ def record_event(
 
     # Construct canonical content dictionary for hashing
     content_for_hash = {
-        "event_type": event_in.event_type,
-        "lot_id": str(lot.id),
+        "event_type": event_type,
+        "lot_id": str(lot_id),
         "organization_id": str(principal.organization_id),
-        "payload": event_in.payload,
+        "payload": payload,
         "sequence_number": sequence_number,
     }
     event_hash = compute_event_hash(prev_hash, content_for_hash)
 
     event = Event(
         organization_id=principal.organization_id,
-        lot_id=lot.id,
+        lot_id=lot_id,
         sequence_number=sequence_number,
-        event_type=event_in.event_type,
-        payload=event_in.payload,
+        event_type=event_type,
+        payload=payload,
         prev_hash=prev_hash,
         event_hash=event_hash,
     )
     db.add(event)
-    db.commit()
-    db.refresh(event)
+    db.flush()
     return event
 
 

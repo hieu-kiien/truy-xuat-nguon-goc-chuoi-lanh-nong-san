@@ -16,6 +16,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "farms:write",
             "products:read",
             "lots:read",
+            "lots:create",
             "events:read",
             "events:create",
         }
@@ -57,6 +58,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "farms:write",
             "products:read",
             "lots:read",
+            "lots:create",
             "events:read",
             "events:create",
         }

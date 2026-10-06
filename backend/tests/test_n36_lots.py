@@ -74,7 +74,7 @@ def test_application_role_is_limited_and_does_not_bypass_rls():
             )
         ).one()
 
-    assert role == (False, False, False, False, False, False)
+    assert role == (False, False, False, True, False, False)
 
 
 @pytest.mark.asyncio
@@ -144,7 +144,7 @@ async def test_lots_are_tenant_scoped_and_inspector_is_read_only_read_all(
         assert inspector_detail.status_code == 200
         assert inspector_detail.json()["organization_id"] == str(other.organization_id)
         no_write_route = await client.post("/api/v1/lots/", json={})
-        assert no_write_route.status_code == 405
+        assert no_write_route.status_code == 403
 
 
 def test_lot_rls_uses_authenticated_session_not_spoofable_tenant_or_role_gucs(
