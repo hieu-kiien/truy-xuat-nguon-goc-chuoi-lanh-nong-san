@@ -110,6 +110,19 @@ def list_events_for_lot(
     )
 
 
+def list_events(
+    db: Session,
+    principal: Principal,
+    lot_id: UUID | None = None,
+) -> list[Event]:
+    """List the caller's accessible events, optionally for one visible lot."""
+    if lot_id is not None:
+        return list_events_for_lot(db, principal, lot_id)
+
+    statement = tenant_select(Event, principal).order_by(Event.sequence_number.asc())
+    return list(db.scalars(statement).all())
+
+
 def get_event_by_id(
     db: Session,
     principal: Principal,

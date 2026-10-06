@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import Principal, get_current_principal
 from app.core.authorization import require_permission
 from app.core.database import get_db
-from app.core.tenancy import get_tenant_record, tenant_select
+from app.core.tenancy import get_tenant_record
 from app.models.event import Event
 from app.schemas.event import EventCreate, EventRead
 from app.services import event_service
@@ -23,10 +23,7 @@ def list_events(
     lot_id: UUID | None = None,
 ) -> list[Event]:
     """List all events accessible to the caller's organization."""
-    statement = tenant_select(Event, principal)
-    if lot_id is not None:
-        statement = statement.where(Event.lot_id == lot_id)
-    return list(db.scalars(statement.order_by(Event.sequence_number.asc())).all())
+    return event_service.list_events(db, principal, lot_id)
 
 
 @router.post("/", response_model=EventRead, status_code=status.HTTP_201_CREATED)
