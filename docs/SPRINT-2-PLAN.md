@@ -1,5 +1,5 @@
 # Nhóm 3 — Tình hình dự án và kế hoạch Sprint 2
-Cập nhật: 05/10/2026 (Asia/Saigon). Bản tổng hợp được tạo từ Jira trực tiếp, GitHub và mã nguồn; có thể tái tạo khi nguồn thay đổi. Đây là kế hoạch đề xuất, chưa thay đổi lịch, phân công hoặc trạng thái trên Jira.
+Cập nhật: 06/10/2026 (Asia/Saigon). Bản tổng hợp được tạo từ Jira trực tiếp, GitHub và mã nguồn; có thể tái tạo khi nguồn thay đổi. Đây là kế hoạch đề xuất, chưa thay đổi lịch, phân công hoặc trạng thái trên Jira.
 
 ## 1. Hiện trạng đã xác minh
 - Jira N3: 147 issue; 22 Hoàn tất, 2 Đang làm, 123 Cần làm. Con số gồm epic, story, subtask và hướng dẫn, không phải tỷ lệ hoàn thành sản phẩm.

@@ -1,6 +1,6 @@
 # Hệ thống Truy xuất Nguồn gốc và Giám sát Chuỗi lạnh Nông sản
 
-**Tình hình Sprint 2 (2026-10-05):** [docs/SPRINT-2-PLAN.md](docs/SPRINT-2-PLAN.md) — snapshot Jira, Git và các vướng mắc tích hợp; có thể tái tạo khi nguồn đổi.
+**Tình hình Sprint 2 (2026-10-06):** [docs/SPRINT-2-PLAN.md](docs/SPRINT-2-PLAN.md) — snapshot Jira, Git và các vướng mắc tích hợp; có thể tái tạo khi nguồn đổi.
 **Bàn giao máy local (2026-10-03):** [HANDOFF.md](HANDOFF.md) — trạng thái merge/kiểm thử, cách chạy local và vướng mắc triển khai domain.
 
 Ứng dụng quản lý quy trình canh tác, theo dõi lô hàng và giám sát điều kiện bảo quản nông sản theo thời gian thực.
