@@ -23,4 +23,4 @@ Snapshot kiểm tra ngày 06/10/2026 (Asia/Saigon), từ Jira, GitHub và mã ng
 2. Xác nhận phạm vi dữ liệu lô và luồng bàn giao trước khi mở rộng frontend.
 3. Chọn cách hợp nhất migration, sau đó kiểm tra CI và staging trên đúng commit mới.
 
-Chi tiết Jira, acceptance criteria và kế hoạch đề xuất: [SPRINT-2-PLAN.md](SPRINT-2-PLAN.md).
+Nguồn đối chiếu: Jira project N3, nhánh chính repo Nhóm 3 và nhánh chính fork cá nhân.
