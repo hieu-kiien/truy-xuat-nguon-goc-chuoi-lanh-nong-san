@@ -7,6 +7,7 @@ import type { SessionUser } from './types'
 const THEME_STORAGE_KEY = 'ttcs_theme'
 const WORKSPACE_PATHS = new Set([
   '/lots',
+  '/products',
   '/farms',
   '/security',
   '/integrity',
@@ -34,6 +35,7 @@ function safeWorkspacePath(candidate: string | null): string | null {
 
 function routeForTab(tab: WorkspaceTab): string {
   if (tab === 'overview') return '/farms'
+  if (tab === 'products') return '/products'
   if (tab === 'security') return '/security'
   if (tab === 'integrity') return '/integrity'
   return '/lots'
@@ -41,6 +43,7 @@ function routeForTab(tab: WorkspaceTab): string {
 
 function tabForPath(pathname: string): WorkspaceTab {
   if (pathname === '/farms') return 'overview'
+  if (pathname === '/products') return 'products'
   if (pathname === '/security') return 'security'
   if (pathname === '/integrity') return 'integrity'
   return 'lots'

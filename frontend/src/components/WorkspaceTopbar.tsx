@@ -38,7 +38,9 @@ export function WorkspaceTopbar({
         <h1 className="topbar-title">
           {activeTab === 'lots'
             ? 'Danh sách lô'
-            : activeTab === 'overview'
+            : activeTab === 'products'
+              ? 'Danh mục sản phẩm dùng chung'
+              : activeTab === 'overview'
               ? 'Bảng điều khiển Vùng trồng & Giám sát Chuỗi lạnh'
               : activeTab === 'security'
                 ? 'Ma trận Phân quyền RBAC & Cô lập Đa tổ chức (RLS)'

@@ -4,8 +4,12 @@ import type {
   FarmPayload,
   HealthResponse,
   LoginRequest,
+  LotListParams,
   Lot,
+  LotPayload,
   LotEvent,
+  Product,
+  ProductPayload,
   SessionUser,
 } from '../types'
 
@@ -79,6 +83,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     ) {
       const protectedPaths = new Set([
         '/lots',
+        '/products',
         '/farms',
         '/security',
         '/integrity',
@@ -118,7 +123,28 @@ export const logout = async (): Promise<void> => {
 
 export const getFarms = () => request<Farm[]>('/api/v1/farms/')
 
-export const getLots = () => request<Lot[]>('/api/v1/lots/')
+export const getLots = (params: LotListParams = {}) => {
+  const query = new URLSearchParams()
+  if (params.q?.trim()) query.set('q', params.q.trim())
+  if (params.product_id) query.set('product_id', params.product_id)
+  query.set('page', String(params.page ?? 1))
+  query.set('page_size', String(params.page_size ?? 20))
+  return request<Lot[]>(`/api/v1/lots/?${query.toString()}`)
+}
+
+export const getProducts = () => request<Product[]>('/api/v1/products/')
+
+export const createProduct = (payload: ProductPayload) =>
+  request<Product>('/api/v1/products/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const createLot = (payload: LotPayload) =>
+  request<Lot>('/api/v1/lots/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 
 export const getFarm = (farmId: string) =>
   request<Farm>(`/api/v1/farms/${farmId}`)
@@ -135,7 +161,10 @@ export const updateFarm = (farmId: string, payload: FarmPayload) =>
     body: JSON.stringify(payload),
   })
 
-export const getEvents = () => request<LotEvent[]>('/api/v1/events/')
+export const getEvents = (lotId?: string) => {
+  const query = lotId ? `?lot_id=${encodeURIComponent(lotId)}` : ''
+  return request<LotEvent[]>(`/api/v1/events/${query}`)
+}
 
 export const getEvent = (eventId: string) =>
   request<LotEvent>(`/api/v1/events/${eventId}`)

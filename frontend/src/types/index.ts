@@ -56,6 +56,38 @@ export interface Lot {
   organization_id: string
   farm_id: string
   name: string
+  lot_code: string | null
+  product_id: string | null
+  harvested_on: string | null
+  quantity: string | null
+  product: Product | null
+}
+
+export type ProductUnit = 'kg' | 'tấn' | 'thùng'
+
+export interface Product {
+  id: string
+  name: string
+  unit: ProductUnit
+}
+
+export interface ProductPayload {
+  name: string
+  unit: ProductUnit
+}
+
+export interface LotPayload {
+  farm_id: string
+  product_id: string
+  harvested_on: string
+  quantity: string
+}
+
+export interface LotListParams {
+  q?: string
+  product_id?: string
+  page?: number
+  page_size?: number
 }
 
 export interface LotEvent {
@@ -100,23 +132,50 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'auth:session',
     'farms:read',
     'farms:write',
+    'products:read',
+    'lots:read',
+    'lots:create',
+    'events:read',
+    'events:create',
+  ],
+  cooperative: [
+    'auth:session',
+    'products:read',
     'lots:read',
     'events:read',
     'events:create',
   ],
-  cooperative: ['auth:session', 'lots:read', 'events:read', 'events:create'],
-  transporter: ['auth:session', 'lots:read', 'events:read', 'events:create'],
-  distributor: ['auth:session', 'lots:read', 'events:read', 'events:create'],
-  inspector: ['auth:session', 'lots:read_all', 'events:read_all'],
+  transporter: [
+    'auth:session',
+    'products:read',
+    'lots:read',
+    'events:read',
+    'events:create',
+  ],
+  distributor: [
+    'auth:session',
+    'products:read',
+    'lots:read',
+    'events:read',
+    'events:create',
+  ],
+  inspector: [
+    'auth:session',
+    'products:read',
+    'lots:read_all',
+    'events:read_all',
+  ],
   organization_admin: [
     'auth:session',
     'farms:read',
     'farms:write',
+    'products:read',
     'lots:read',
+    'lots:create',
     'events:read',
     'events:create',
   ],
-  system_admin: ['auth:session'],
+  system_admin: ['auth:session', 'products:read', 'products:create'],
 }
 
 export function hasPermission(role: RoleCode, permission: string): boolean {

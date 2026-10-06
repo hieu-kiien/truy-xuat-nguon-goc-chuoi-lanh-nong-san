@@ -20,9 +20,13 @@ router = APIRouter()
 def list_events(
     principal: Annotated[Principal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
+    lot_id: UUID | None = None,
 ) -> list[Event]:
     """List all events accessible to the caller's organization."""
-    return list(db.scalars(tenant_select(Event, principal)).all())
+    statement = tenant_select(Event, principal)
+    if lot_id is not None:
+        statement = statement.where(Event.lot_id == lot_id)
+    return list(db.scalars(statement.order_by(Event.sequence_number.asc())).all())
 
 
 @router.post("/", response_model=EventRead, status_code=status.HTTP_201_CREATED)

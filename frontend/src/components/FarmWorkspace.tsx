@@ -10,11 +10,12 @@ import {
 import { FarmFormPanel } from './FarmFormPanel'
 import { IntegrityPanel } from './IntegrityPanel'
 import { LotsPanel } from './LotsPanel'
+import { ProductsPanel } from './ProductsPanel'
 import { SecurityPanel } from './SecurityPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
 
-export type WorkspaceTab = 'lots' | 'overview' | 'security' | 'integrity'
+export type WorkspaceTab = 'lots' | 'products' | 'overview' | 'security' | 'integrity'
 
 interface FarmWorkspaceProps {
   user: SessionUser
@@ -38,6 +39,8 @@ export function FarmWorkspace({
   const canReadFarms = hasPermission(user.role, 'farms:read')
   const canWriteFarms = hasPermission(user.role, 'farms:write')
   const canReadLots = hasPermission(user.role, 'lots:read')
+  const canCreateLots = hasPermission(user.role, 'lots:create')
+  const canCreateProducts = hasPermission(user.role, 'products:create')
   const grantedPermissions = ROLE_PERMISSIONS[user.role] ?? []
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -321,10 +324,14 @@ export function FarmWorkspace({
             {activeTab === 'lots' && (
               <LotsPanel
                 canReadLots={canReadLots}
+                canCreateLots={canCreateLots}
                 canReadEvents={hasPermission(user.role, 'events:read')}
               />
             )}
 
+            {activeTab === 'products' && (
+              <ProductsPanel canCreate={canCreateProducts} />
+            )}
 
             {activeTab === 'overview' && (
               <>
