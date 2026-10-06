@@ -1,13 +1,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal, get_current_principal
 from app.core.authorization import require_permission
 from app.core.database import get_db
-from app.core.tenancy import get_tenant_record, tenant_select
+from app.core.tenancy import get_tenant_record
 from app.models.lot import Lot
 from app.schemas.lot import LotCreate, LotRead
 from app.services import lot_service
@@ -30,8 +30,19 @@ def create_lot(
 def list_lots(
     principal: Annotated[Principal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
+    q: Annotated[str | None, Query(max_length=100)] = None,
+    product_id: UUID | None = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> list[Lot]:
-    return list(db.scalars(tenant_select(Lot, principal)).all())
+    return lot_service.list_lots(
+        db,
+        principal,
+        query=q,
+        product_id=product_id,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.get("/{lot_id}", response_model=LotRead)

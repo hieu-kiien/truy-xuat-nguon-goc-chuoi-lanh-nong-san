@@ -1,10 +1,12 @@
+from uuid import UUID
+
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal
 from app.core.lot_codes import generate_lot_code
-from app.core.tenancy import get_tenant_record
+from app.core.tenancy import get_tenant_record, tenant_select
 from app.models.farm import Farm
 from app.models.lot import Lot
 from app.models.product import Product
@@ -60,3 +62,34 @@ def create_harvest_lot(
 
     db.refresh(lot)
     return lot
+
+
+def list_lots(
+    db: Session,
+    principal: Principal,
+    *,
+    query: str | None,
+    product_id: UUID | None,
+    page: int,
+    page_size: int,
+) -> list[Lot]:
+    statement = tenant_select(Lot, principal)
+    if query:
+        escaped_query = (
+            query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        )
+        search = f"%{escaped_query}%"
+        statement = statement.where(
+            or_(
+                Lot.lot_code.ilike(search, escape="\\"),
+                Lot.name.ilike(search, escape="\\"),
+            )
+        )
+    if product_id:
+        statement = statement.where(Lot.product_id == product_id)
+    statement = (
+        statement.order_by(Lot.harvested_on.desc().nulls_last(), Lot.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    return list(db.scalars(statement).all())
