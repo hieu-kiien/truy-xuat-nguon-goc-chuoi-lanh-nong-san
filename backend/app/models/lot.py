@@ -35,9 +35,7 @@ class Lot(Base):
         Index("ix_lots_organization_id", "organization_id"),
         Index("ix_lots_farm_id", "farm_id"),
         Index("ix_lots_product_id", "product_id"),
-        Index(
-            "ix_lots_organization_harvested_on", "organization_id", "harvested_on"
-        ),
+        Index("ix_lots_organization_harvested_on", "organization_id", "harvested_on"),
         Index(
             "uq_lots_lot_code",
             "lot_code",
@@ -62,7 +60,9 @@ class Lot(Base):
     lot_code: Mapped[str | None] = mapped_column(String(12))
     product_id: Mapped[UUID | None] = mapped_column(
         PostgreSQLUUID(as_uuid=True),
-        ForeignKey("products.id", name="fk_lots_product_id_products", ondelete="RESTRICT"),
+        ForeignKey(
+            "products.id", name="fk_lots_product_id_products", ondelete="RESTRICT"
+        ),
     )
     harvested_on: Mapped[date | None] = mapped_column(Date)
     quantity: Mapped[Decimal | None] = mapped_column(Numeric(14, 3))

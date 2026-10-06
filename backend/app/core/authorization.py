@@ -63,9 +63,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "events:create",
         }
     ),
-    "system_admin": frozenset(
-        {"auth:session", "products:read", "products:create"}
-    ),
+    "system_admin": frozenset({"auth:session", "products:read", "products:create"}),
 }
 
 

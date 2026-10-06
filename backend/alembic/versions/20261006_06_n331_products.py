@@ -38,9 +38,7 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("name", sa.String(length=200), nullable=False),
         sa.Column("unit", sa.String(length=16), nullable=False),
-        sa.CheckConstraint(
-            "length(btrim(name)) > 0", name="ck_products_name_nonblank"
-        ),
+        sa.CheckConstraint("length(btrim(name)) > 0", name="ck_products_name_nonblank"),
         sa.CheckConstraint(
             "unit IN ('kg', 'tấn', 'thùng')", name="ck_products_unit_supported"
         ),

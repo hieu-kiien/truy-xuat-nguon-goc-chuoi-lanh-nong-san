@@ -42,9 +42,7 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
             sql.SQL("GRANT SELECT, INSERT, UPDATE ON farms TO {}").format(role_ident)
         )
     if "lots" in tables:
-        cursor.execute(
-            sql.SQL("GRANT SELECT, INSERT ON lots TO {}").format(role_ident)
-        )
+        cursor.execute(sql.SQL("GRANT SELECT, INSERT ON lots TO {}").format(role_ident))
         cursor.execute(
             sql.SQL("REVOKE UPDATE, DELETE ON lots FROM {}").format(role_ident)
         )

@@ -166,12 +166,8 @@ async def test_lot_offset_keeps_lookahead_row_on_the_next_page(
 
     async with _client() as client:
         await _login(client, owner)
-        first_page = await client.get(
-            "/api/v1/lots/?offset=0&page_size=21"
-        )
-        second_page = await client.get(
-            "/api/v1/lots/?offset=20&page_size=21"
-        )
+        first_page = await client.get("/api/v1/lots/?offset=0&page_size=21")
+        second_page = await client.get("/api/v1/lots/?offset=20&page_size=21")
 
     assert first_page.status_code == 200, first_page.text
     assert second_page.status_code == 200, second_page.text
