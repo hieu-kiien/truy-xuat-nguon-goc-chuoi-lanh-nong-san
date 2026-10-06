@@ -41,9 +41,7 @@ def create_product(db: Session, product_in: ProductCreate) -> Product:
     return product
 
 
-def update_product(
-    db: Session, product_id: UUID, product_in: ProductUpdate
-) -> Product:
+def update_product(db: Session, product_id: UUID, product_in: ProductUpdate) -> Product:
     product = db.scalar(
         select(Product).where(Product.id == product_id).with_for_update()
     )

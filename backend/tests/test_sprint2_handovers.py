@@ -88,7 +88,11 @@ async def test_handover_accept_reject_and_custody_are_atomic(
         uuid4().hex[:8].upper(),
     )
 
-    async with _client() as sender_client, _client() as receiver_client, _client() as outsider_client:
+    async with (
+        _client() as sender_client,
+        _client() as receiver_client,
+        _client() as outsider_client,
+    ):
         await _login(sender_client, sender)
         await _login(receiver_client, receiver)
         await _login(outsider_client, outsider)
@@ -171,18 +175,17 @@ async def test_handover_accept_reject_and_custody_are_atomic(
 
         incoming = await receiver_client.get("/api/v1/handovers/incoming")
         assert incoming.status_code == 200
-        assert incoming.json()[0]["from_organization_name"] == created.json()[
-            "from_organization_name"
-        ]
+        assert (
+            incoming.json()[0]["from_organization_name"]
+            == created.json()["from_organization_name"]
+        )
 
         forbidden = await outsider_client.post(
             f"/api/v1/handovers/{handover_id}/accept"
         )
         assert forbidden.status_code == 403
 
-        accepted = await receiver_client.post(
-            f"/api/v1/handovers/{handover_id}/accept"
-        )
+        accepted = await receiver_client.post(f"/api/v1/handovers/{handover_id}/accept")
         assert accepted.status_code == 200, accepted.text
         assert accepted.json()["status"] == "accepted"
         repeated_accept = await receiver_client.post(
@@ -192,9 +195,8 @@ async def test_handover_accept_reject_and_custody_are_atomic(
 
         receiver_lot = await receiver_client.get(f"/api/v1/lots/{first_lot.id}")
         assert receiver_lot.status_code == 200
-        assert (
-            receiver_lot.json()["current_holder_organization_id"]
-            == str(receiver.organization_id)
+        assert receiver_lot.json()["current_holder_organization_id"] == str(
+            receiver.organization_id
         )
         sender_lot_after_accept = await sender_client.get(
             f"/api/v1/lots/{first_lot.id}"
@@ -225,9 +227,8 @@ async def test_handover_accept_reject_and_custody_are_atomic(
             f"/api/v1/lots/{rejected_lot.id}"
         )
         assert sender_lot_after_reject.status_code == 200
-        assert (
-            sender_lot_after_reject.json()["current_holder_organization_id"]
-            == str(sender.organization_id)
+        assert sender_lot_after_reject.json()["current_holder_organization_id"] == str(
+            sender.organization_id
         )
         assert sender_lot_after_reject.json()["status"] == "active"
 
@@ -251,7 +252,9 @@ async def test_handover_accept_reject_and_custody_are_atomic(
             delete(Event).where(Event.lot_id.in_([first_lot.id, rejected_lot.id]))
         )
         admin_session.execute(text("ALTER TABLE events ENABLE TRIGGER USER"))
-    admin_session.execute(delete(Lot).where(Lot.id.in_([first_lot.id, rejected_lot.id])))
+    admin_session.execute(
+        delete(Lot).where(Lot.id.in_([first_lot.id, rejected_lot.id]))
+    )
     admin_session.execute(delete(Farm).where(Farm.id == farm.id))
     admin_session.execute(delete(Product).where(Product.id == product.id))
     admin_session.commit()

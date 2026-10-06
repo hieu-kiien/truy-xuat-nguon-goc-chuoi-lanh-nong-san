@@ -223,9 +223,7 @@ def test_sql_tamper_delete_and_intact_cases_are_detected(
         admin_session.commit()
         admin_session.expire_all()
         tampered_result = verify_event_chain(
-            event_service.list_events_for_lot(
-                admin_session, principal, tampered_lot.id
-            )
+            event_service.list_events_for_lot(admin_session, principal, tampered_lot.id)
         )
         assert tampered_result["valid"] is False
         assert tampered_result["first_invalid_sequence"] == 2
@@ -242,9 +240,7 @@ def test_sql_tamper_delete_and_intact_cases_are_detected(
         admin_session.commit()
         admin_session.expire_all()
         deleted_result = verify_event_chain(
-            event_service.list_events_for_lot(
-                admin_session, principal, deleted_lot.id
-            )
+            event_service.list_events_for_lot(admin_session, principal, deleted_lot.id)
         )
         assert deleted_result["valid"] is False
         assert deleted_result["first_invalid_sequence"] == 2
@@ -286,9 +282,7 @@ async def test_two_hundred_event_history_is_fast_and_does_not_query_per_event(
             )
             listener_registered = True
             started = perf_counter()
-            response = await client.get(
-                f"/api/v1/events/lots/{lot.id}/history"
-            )
+            response = await client.get(f"/api/v1/events/lots/{lot.id}/history")
             elapsed = perf_counter() - started
 
         assert response.status_code == 200, response.text

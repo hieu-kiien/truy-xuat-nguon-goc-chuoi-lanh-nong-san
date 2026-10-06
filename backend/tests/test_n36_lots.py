@@ -178,9 +178,7 @@ async def test_lot_cursor_pages_do_not_repeat_or_skip_rows(
         await _login(client, owner)
         first_page = await client.get("/api/v1/lots/?page_size=20")
         cursor = first_page.json()["next_cursor"]
-        second_page = await client.get(
-            f"/api/v1/lots/?page_size=20&cursor={cursor}"
-        )
+        second_page = await client.get(f"/api/v1/lots/?page_size=20&cursor={cursor}")
 
     assert first_page.status_code == 200, first_page.text
     assert second_page.status_code == 200, second_page.text

@@ -100,9 +100,7 @@ def _decode_cursor(cursor: str) -> tuple[date | None, UUID]:
         padded = cursor + "=" * (-len(cursor) % 4)
         value = json.loads(base64.urlsafe_b64decode(padded).decode("utf-8"))
         harvested_on = (
-            date.fromisoformat(value["harvested_on"])
-            if value["harvested_on"]
-            else None
+            date.fromisoformat(value["harvested_on"]) if value["harvested_on"] else None
         )
         return harvested_on, UUID(value["id"])
     except (ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
@@ -135,9 +133,7 @@ def list_lots(
     if cursor:
         cursor_date, cursor_id = _decode_cursor(cursor)
         if cursor_date is None:
-            statement = statement.where(
-                Lot.harvested_on.is_(None), Lot.id < cursor_id
-            )
+            statement = statement.where(Lot.harvested_on.is_(None), Lot.id < cursor_id)
         else:
             statement = statement.where(
                 or_(

@@ -112,7 +112,9 @@ async def test_lot_create_validates_fields_and_retries_a_code_collision(
             json={**request_base, "harvested_on": (date(2999, 1, 1)).isoformat()},
         )
         assert future_date.status_code == 422
-        assert any(error["loc"][-1] == "harvested_on" for error in future_date.json()["detail"])
+        assert any(
+            error["loc"][-1] == "harvested_on" for error in future_date.json()["detail"]
+        )
 
         generated_codes = iter([collision_code, retry_code])
         monkeypatch.setattr(
@@ -167,14 +169,18 @@ def test_harvest_lot_and_event_roll_back_if_event_append_fails(
     )
 
     with pytest.raises(RuntimeError, match="simulated event append failure"):
-        lot_service.create_harvest_lot(
-            admin_session, _make_principal(owner), payload
-        )
+        lot_service.create_harvest_lot(admin_session, _make_principal(owner), payload)
 
     admin_session.expire_all()
-    assert admin_session.scalar(select(Lot.id).where(Lot.lot_code == generated_code)) is None
-    assert admin_session.scalar(
-        select(Event.id).where(Event.lot_id.in_(attempted_lot_ids))
-    ) is None
+    assert (
+        admin_session.scalar(select(Lot.id).where(Lot.lot_code == generated_code))
+        is None
+    )
+    assert (
+        admin_session.scalar(
+            select(Event.id).where(Event.lot_id.in_(attempted_lot_ids))
+        )
+        is None
+    )
     admin_session.execute(delete(Product).where(Product.id == product.id))
     admin_session.commit()

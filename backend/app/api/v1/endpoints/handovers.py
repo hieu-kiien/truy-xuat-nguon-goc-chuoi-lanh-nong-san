@@ -76,6 +76,4 @@ def reject_handover(
     principal: Annotated[Principal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Handover:
-    return handover_service.reject_handover(
-        db, principal, handover_id, payload.reason
-    )
+    return handover_service.reject_handover(db, principal, handover_id, payload.reason)

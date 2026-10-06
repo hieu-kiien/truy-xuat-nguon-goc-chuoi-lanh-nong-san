@@ -27,9 +27,7 @@ class EventRead(BaseModel):
     payload: dict[str, Any]
     prev_hash: str
     event_hash: str
-    organization_name: str = Field(
-        validation_alias=AliasPath("organization", "name")
-    )
+    organization_name: str = Field(validation_alias=AliasPath("organization", "name"))
 
 
 class IntegrityIssue(BaseModel):

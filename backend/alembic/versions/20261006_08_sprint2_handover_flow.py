@@ -87,7 +87,9 @@ def upgrade() -> None:
         "handovers",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("lot_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("from_organization_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column(
+            "from_organization_id", postgresql.UUID(as_uuid=True), nullable=False
+        ),
         sa.Column("to_organization_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("created_by_user_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("resolved_by_user_id", postgresql.UUID(as_uuid=True), nullable=True),
@@ -323,7 +325,9 @@ def downgrade() -> None:
         )
         op.execute(f"REVOKE SELECT, INSERT ON handovers FROM {role}")
 
-    op.execute("DROP POLICY IF EXISTS organizations_active_for_handover ON organizations")
+    op.execute(
+        "DROP POLICY IF EXISTS organizations_active_for_handover ON organizations"
+    )
     op.execute("DROP POLICY IF EXISTS handovers_update_recipient ON handovers")
     op.execute("DROP POLICY IF EXISTS handovers_insert_sender ON handovers")
     op.execute("DROP POLICY IF EXISTS handovers_select_parties ON handovers")
@@ -376,9 +380,7 @@ def downgrade() -> None:
     op.drop_table("handovers")
     op.drop_index("ix_lots_holder_harvested_on", table_name="lots")
     op.drop_constraint("ck_lots_status_supported", "lots", type_="check")
-    op.drop_constraint(
-        "ck_lots_remaining_quantity_range", "lots", type_="check"
-    )
+    op.drop_constraint("ck_lots_remaining_quantity_range", "lots", type_="check")
     op.drop_constraint(
         "fk_lots_current_holder_organization_id_organizations",
         "lots",

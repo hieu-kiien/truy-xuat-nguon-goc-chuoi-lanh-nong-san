@@ -32,9 +32,7 @@ def list_transfer_organizations(
     )
 
 
-def list_handovers(
-    db: Session, principal: Principal, *, incoming: bool
-) -> list[dict]:
+def list_handovers(db: Session, principal: Principal, *, incoming: bool) -> list[dict]:
     sender = aliased(Organization)
     recipient = aliased(Organization)
     party_column = (
@@ -67,9 +65,7 @@ def list_handovers(
     ]
 
 
-def create_handover(
-    db: Session, principal: Principal, payload: HandoverCreate
-) -> dict:
+def create_handover(db: Session, principal: Principal, payload: HandoverCreate) -> dict:
     if payload.to_organization_id == principal.organization_id:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -137,7 +133,10 @@ def create_handover(
     except IntegrityError as error:
         db.rollback()
         diagnostic = getattr(error.orig, "diag", None)
-        if getattr(diagnostic, "constraint_name", None) == "uq_handovers_one_pending_per_lot":
+        if (
+            getattr(diagnostic, "constraint_name", None)
+            == "uq_handovers_one_pending_per_lot"
+        ):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Lô đang có một bàn giao chờ xác nhận.",
@@ -149,9 +148,7 @@ def create_handover(
 
     db.refresh(handover)
     sender_name = db.scalar(
-        select(Organization.name).where(
-            Organization.id == principal.organization_id
-        )
+        select(Organization.name).where(Organization.id == principal.organization_id)
     )
     return {
         "id": handover.id,
@@ -185,9 +182,7 @@ def _get_incoming_pending(
         )
 
     lot = db.scalar(
-        select(Lot)
-        .where(Lot.id == handover.lot_id)
-        .with_for_update(of=Lot)
+        select(Lot).where(Lot.id == handover.lot_id).with_for_update(of=Lot)
     )
     if lot is None:
         raise HTTPException(
@@ -197,9 +192,7 @@ def _get_incoming_pending(
     return handover, lot
 
 
-def accept_handover(
-    db: Session, principal: Principal, handover_id: UUID
-) -> Handover:
+def accept_handover(db: Session, principal: Principal, handover_id: UUID) -> Handover:
     handover, lot = _get_incoming_pending(db, principal, handover_id)
     if lot.current_holder_organization_id != handover.from_organization_id:
         raise HTTPException(
