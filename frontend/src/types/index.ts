@@ -88,6 +88,7 @@ export interface LotListParams {
   product_id?: string
   page?: number
   page_size?: number
+  offset?: number
 }
 
 export interface LotEvent {

@@ -72,6 +72,7 @@ def list_lots(
     product_id: UUID | None,
     page: int,
     page_size: int,
+    offset: int | None = None,
 ) -> list[Lot]:
     statement = tenant_select(Lot, principal)
     if query:
@@ -89,7 +90,7 @@ def list_lots(
         statement = statement.where(Lot.product_id == product_id)
     statement = (
         statement.order_by(Lot.harvested_on.desc().nulls_last(), Lot.id.desc())
-        .offset((page - 1) * page_size)
+        .offset(offset if offset is not None else (page - 1) * page_size)
         .limit(page_size)
     )
     return list(db.scalars(statement).all())

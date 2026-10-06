@@ -53,7 +53,12 @@ export function LotsPanel({
   useEffect(() => {
     if (!canReadLots) return
     let active = true
-    getLots({ q: query, product_id: productId || undefined, page, page_size: PAGE_SIZE + 1 })
+    getLots({
+      q: query,
+      product_id: productId || undefined,
+      offset: (page - 1) * PAGE_SIZE,
+      page_size: PAGE_SIZE + 1,
+    })
       .then((data) => {
         if (!active) return
         setHasNextPage(data.length > PAGE_SIZE)

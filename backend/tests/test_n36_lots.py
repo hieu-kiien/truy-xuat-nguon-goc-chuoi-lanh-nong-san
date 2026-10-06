@@ -147,6 +147,41 @@ async def test_lots_are_tenant_scoped_and_inspector_is_read_only_read_all(
         assert no_write_route.status_code == 403
 
 
+@pytest.mark.asyncio
+async def test_lot_offset_keeps_lookahead_row_on_the_next_page(
+    admin_session, identity_factory
+):
+    owner = identity_factory()
+    farm = _add_farm(admin_session, owner.organization_id, "Pagination farm")
+    lots = [
+        Lot(
+            organization_id=owner.organization_id,
+            farm_id=farm.id,
+            name=f"Pagination lot {index}",
+        )
+        for index in range(21)
+    ]
+    admin_session.add_all(lots)
+    admin_session.commit()
+
+    async with _client() as client:
+        await _login(client, owner)
+        first_page = await client.get(
+            "/api/v1/lots/?offset=0&page_size=21"
+        )
+        second_page = await client.get(
+            "/api/v1/lots/?offset=20&page_size=21"
+        )
+
+    assert first_page.status_code == 200, first_page.text
+    assert second_page.status_code == 200, second_page.text
+    first_page_ids = [lot["id"] for lot in first_page.json()]
+    second_page_ids = [lot["id"] for lot in second_page.json()]
+    assert len(first_page_ids) == 21
+    assert len(second_page_ids) == 1
+    assert first_page_ids[20] == second_page_ids[0]
+
+
 def test_lot_rls_uses_authenticated_session_not_spoofable_tenant_or_role_gucs(
     identity_factory, admin_session
 ):

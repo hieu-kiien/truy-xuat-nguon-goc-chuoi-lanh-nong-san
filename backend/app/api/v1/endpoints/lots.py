@@ -34,6 +34,7 @@ def list_lots(
     product_id: UUID | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int | None, Query(ge=0)] = None,
 ) -> list[Lot]:
     return lot_service.list_lots(
         db,
@@ -42,6 +43,7 @@ def list_lots(
         product_id=product_id,
         page=page,
         page_size=page_size,
+        offset=offset,
     )
 
 

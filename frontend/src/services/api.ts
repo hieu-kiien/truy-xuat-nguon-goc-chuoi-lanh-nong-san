@@ -127,7 +127,11 @@ export const getLots = (params: LotListParams = {}) => {
   const query = new URLSearchParams()
   if (params.q?.trim()) query.set('q', params.q.trim())
   if (params.product_id) query.set('product_id', params.product_id)
-  query.set('page', String(params.page ?? 1))
+  if (params.offset !== undefined) {
+    query.set('offset', String(params.offset))
+  } else {
+    query.set('page', String(params.page ?? 1))
+  }
   query.set('page_size', String(params.page_size ?? 20))
   return request<Lot[]>(`/api/v1/lots/?${query.toString()}`)
 }
