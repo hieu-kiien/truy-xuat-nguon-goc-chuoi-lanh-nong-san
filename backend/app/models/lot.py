@@ -48,6 +48,13 @@ class Lot(Base):
             "harvested_on",
             "id",
         ),
+        Index(
+            "ix_lots_holder_product_harvested",
+            "current_holder_organization_id",
+            "product_id",
+            "harvested_on",
+            "id",
+        ),
         Index("ix_lots_farm_id", "farm_id"),
         Index("ix_lots_product_id", "product_id"),
         Index("ix_lots_organization_harvested_on", "organization_id", "harvested_on"),
