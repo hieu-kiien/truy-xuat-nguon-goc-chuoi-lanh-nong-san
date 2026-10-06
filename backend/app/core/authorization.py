@@ -14,32 +14,56 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "auth:session",
             "farms:read",
             "farms:write",
+            "products:read",
             "lots:read",
             "events:read",
             "events:create",
         }
     ),
     "cooperative": frozenset(
-        {"auth:session", "lots:read", "events:read", "events:create"}
-    ),
-    "transporter": frozenset(
-        {"auth:session", "lots:read", "events:read", "events:create"}
-    ),
-    "distributor": frozenset(
-        {"auth:session", "lots:read", "events:read", "events:create"}
-    ),
-    "inspector": frozenset({"auth:session", "lots:read_all", "events:read_all"}),
-    "organization_admin": frozenset(
         {
             "auth:session",
-            "farms:read",
-            "farms:write",
+            "products:read",
             "lots:read",
             "events:read",
             "events:create",
         }
     ),
-    "system_admin": frozenset({"auth:session"}),
+    "transporter": frozenset(
+        {
+            "auth:session",
+            "products:read",
+            "lots:read",
+            "events:read",
+            "events:create",
+        }
+    ),
+    "distributor": frozenset(
+        {
+            "auth:session",
+            "products:read",
+            "lots:read",
+            "events:read",
+            "events:create",
+        }
+    ),
+    "inspector": frozenset(
+        {"auth:session", "products:read", "lots:read_all", "events:read_all"}
+    ),
+    "organization_admin": frozenset(
+        {
+            "auth:session",
+            "farms:read",
+            "farms:write",
+            "products:read",
+            "lots:read",
+            "events:read",
+            "events:create",
+        }
+    ),
+    "system_admin": frozenset(
+        {"auth:session", "products:read", "products:create"}
+    ),
 }
 
 

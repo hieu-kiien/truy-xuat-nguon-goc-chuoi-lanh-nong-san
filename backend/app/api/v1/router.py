@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.api.v1.endpoints import events, farms, lots
+from app.api.v1.endpoints import events, farms, lots, products
 from app.core.authorization import enforce_route_permission
 
 api_router = APIRouter(dependencies=[Depends(enforce_route_permission)])
@@ -9,3 +9,4 @@ api_router = APIRouter(dependencies=[Depends(enforce_route_permission)])
 api_router.include_router(farms.router, prefix="/farms", tags=["farms"])
 api_router.include_router(lots.router, prefix="/lots", tags=["lots"])
 api_router.include_router(events.router, prefix="/events", tags=["events"])
+api_router.include_router(products.router, prefix="/products", tags=["products"])
