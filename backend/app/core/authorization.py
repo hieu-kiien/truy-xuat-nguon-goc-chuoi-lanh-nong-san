@@ -38,18 +38,40 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "farms:read",
             "farms:write",
             "lots:read",
+            "lots:write",
             "events:read",
             "events:create",
             "products:read",
+            "products:write",
         }
     ),
-    "system_admin": frozenset({"auth:session", "products:read", "products:write"}),
+    "system_admin": frozenset(
+        {
+            "auth:session",
+            "farms:read",
+            "farms:write",
+            "farms:read_all",
+            "lots:read",
+            "lots:read_all",
+            "lots:write",
+            "events:read",
+            "events:read_all",
+            "events:create",
+            "products:read",
+            "products:write",
+            "products:read_all",
+        }
+    ),
 }
 
 
 def has_permission(role: str, permission: str) -> bool:
+    if role == "system_admin":
+        return True
     permissions = ROLE_PERMISSIONS.get(role, frozenset())
     if permission in permissions:
+        return True
+    if permission == "farms:read" and "farms:read_all" in permissions:
         return True
     if permission == "lots:read" and "lots:read_all" in permissions:
         return True

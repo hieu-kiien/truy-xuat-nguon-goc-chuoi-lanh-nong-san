@@ -27,6 +27,11 @@ DEMO_ORGANIZATIONS = [
         "name": "Chi cục Quản lý Chất lượng Nông lâm sản",
         "organization_type": "inspection",
     },
+    {
+        "id": UUID("44444444-4444-4444-8444-444444444444"),
+        "name": "Cục Quản trị Hệ thống Chuỗi lạnh Quốc gia",
+        "organization_type": "administration",
+    },
 ]
 
 DEMO_USERS = [
@@ -40,9 +45,9 @@ DEMO_USERS = [
     {
         "id": UUID("bbbb2222-2222-4222-8222-222222222222"),
         "organization_id": UUID("22222222-2222-4222-8222-222222222222"),
-        "role_code": "organization_admin",
+        "role_code": "system_admin",
         "email": "admin@mocchau.vn",
-        "full_name": "Trần Thị Hương (Quản trị HTX Mộc Châu)",
+        "full_name": "Trần Thị Hương (Quản trị viên Hệ thống)",
     },
     {
         "id": UUID("cccc3333-3333-4333-8333-333333333333"),
@@ -50,6 +55,13 @@ DEMO_USERS = [
         "role_code": "inspector",
         "email": "inspector@chicuc.gov.vn",
         "full_name": "Lê Hoàng Nam (Thanh tra viên)",
+    },
+    {
+        "id": UUID("dddd4444-4444-4444-8444-444444444444"),
+        "organization_id": UUID("44444444-4444-4444-8444-444444444444"),
+        "role_code": "system_admin",
+        "email": "admin@system.vn",
+        "full_name": "Vũ Hải Đăng (Quản trị viên Hệ thống Toàn quyền)",
     },
 ]
 
@@ -82,7 +94,7 @@ DEMO_FARMS = [
 
 
 def seed_demo_data() -> None:
-    if settings.APP_ENV != "development":
+    if settings.APP_ENV not in ("development", "staging"):
         return
 
     demo_password = settings.DEMO_PASSWORD or "Password123!"

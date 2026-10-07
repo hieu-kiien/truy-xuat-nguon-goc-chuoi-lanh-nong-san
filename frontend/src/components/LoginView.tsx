@@ -12,20 +12,20 @@ interface LoginViewProps {
 
 const DEMO_PRESETS = [
   {
+    roleName: 'Quản trị hệ thống (Toàn quyền)',
+    badge: 'system_admin',
+    email: 'admin@mocchau.vn',
+    password: 'Password123!',
+    icon: '🛡️',
+    desc: 'Quản trị tối cao toàn hệ thống, toàn quyền quản trị đa tổ chức & chuỗi lạnh',
+  },
+  {
     roleName: 'Nông hộ Cầu Đất',
     badge: 'grower',
     email: 'grower@caudat.vn',
     password: 'Password123!',
     icon: '🌱',
     desc: 'Quản trị thửa đất, lô thu hoạch & ghi nhật ký chuỗi lạnh',
-  },
-  {
-    roleName: 'HTX Mộc Châu',
-    badge: 'admin',
-    email: 'admin@mocchau.vn',
-    password: 'Password123!',
-    icon: '🏢',
-    desc: 'Quản trị hợp tác xã, phân quyền thành viên & vùng trồng',
   },
   {
     roleName: 'Chi cục Quản lý',

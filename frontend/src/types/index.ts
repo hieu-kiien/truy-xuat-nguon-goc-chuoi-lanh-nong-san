@@ -137,16 +137,38 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'farms:read',
     'farms:write',
     'lots:read',
+    'lots:write',
     'events:read',
     'events:create',
     'products:read',
+    'products:write',
   ],
-  system_admin: ['auth:session', 'products:read', 'products:write'],
+  system_admin: [
+    'auth:session',
+    'farms:read',
+    'farms:write',
+    'farms:read_all',
+    'lots:read',
+    'lots:read_all',
+    'lots:write',
+    'events:read',
+    'events:read_all',
+    'events:create',
+    'products:read',
+    'products:write',
+    'products:read_all',
+  ],
 }
 
 export function hasPermission(role: RoleCode, permission: string): boolean {
+  if (role === 'system_admin') {
+    return true
+  }
   const perms = ROLE_PERMISSIONS[role] ?? []
   if (perms.includes(permission)) {
+    return true
+  }
+  if (permission === 'farms:read' && perms.includes('farms:read_all')) {
     return true
   }
   if (permission === 'lots:read' && perms.includes('lots:read_all')) {

@@ -13,13 +13,13 @@ interface SecurityPanelProps {
 }
 
 const ALL_ROLES: RoleCode[] = [
-  'grower',
+  'system_admin',
   'organization_admin',
+  'grower',
   'inspector',
   'cooperative',
   'transporter',
   'distributor',
-  'system_admin',
 ]
 
 export function SecurityPanel({
@@ -124,6 +124,7 @@ CREATE POLICY farms_tenant_isolation ON farms
                 <th>farms:read</th>
                 <th>farms:write</th>
                 <th>lots:read_all</th>
+                <th>products:write</th>
                 <th>Phiên hiện tại</th>
               </tr>
             </thead>
@@ -144,7 +145,9 @@ CREATE POLICY farms_tenant_isolation ON farms
                     </th>
                     <td>
                       {perms.includes('farms:read') ? (
-                        <span className="status-badge status-done">Cho phép</span>
+                        <span className="status-badge status-done">
+                          {roleCode === 'system_admin' ? 'Toàn cục' : 'Cho phép'}
+                        </span>
                       ) : (
                         <span className="status-badge status-neutral">Chặn</span>
                       )}
@@ -161,6 +164,13 @@ CREATE POLICY farms_tenant_isolation ON farms
                         <span className="status-badge status-done">Toàn cục</span>
                       ) : (
                         <span className="status-badge status-neutral">—</span>
+                      )}
+                    </td>
+                    <td>
+                      {perms.includes('products:write') ? (
+                        <span className="status-badge status-done">Cho phép</span>
+                      ) : (
+                        <span className="status-badge status-neutral">Chặn</span>
                       )}
                     </td>
                     <td>
