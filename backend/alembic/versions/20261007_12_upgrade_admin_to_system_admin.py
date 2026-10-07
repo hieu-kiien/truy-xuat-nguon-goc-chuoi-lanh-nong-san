@@ -24,30 +24,6 @@ def upgrade() -> None:
         """
     )
 
-    op.execute("DROP POLICY IF EXISTS lots_read_tenant_or_inspector ON lots")
-    op.execute(
-        """
-        CREATE POLICY lots_read_tenant_or_inspector ON lots
-        FOR SELECT
-        USING (
-            organization_id = public.app_current_organization_id()
-            OR public.app_current_role() IN ('inspector', 'system_admin')
-        );
-        """
-    )
-
-    op.execute("DROP POLICY IF EXISTS events_read_tenant_or_inspector ON events")
-    op.execute(
-        """
-        CREATE POLICY events_read_tenant_or_inspector ON events
-        FOR SELECT
-        USING (
-            organization_id = public.app_current_organization_id()
-            OR public.app_current_role() IN ('inspector', 'system_admin')
-        );
-        """
-    )
-
     op.execute("DROP POLICY IF EXISTS farms_organization_isolation ON farms")
     op.execute(
         """
@@ -132,30 +108,6 @@ def downgrade() -> None:
         SET role_code = 'organization_admin',
             full_name = 'Trần Thị Hương (Quản trị HTX Mộc Châu)'
         WHERE email = 'admin@mocchau.vn';
-        """
-    )
-
-    op.execute("DROP POLICY IF EXISTS lots_read_tenant_or_inspector ON lots")
-    op.execute(
-        """
-        CREATE POLICY lots_read_tenant_or_inspector ON lots
-        FOR SELECT
-        USING (
-            organization_id = public.app_current_organization_id()
-            OR public.app_current_role() = 'inspector'
-        );
-        """
-    )
-
-    op.execute("DROP POLICY IF EXISTS events_read_tenant_or_inspector ON events")
-    op.execute(
-        """
-        CREATE POLICY events_read_tenant_or_inspector ON events
-        FOR SELECT
-        USING (
-            organization_id = public.app_current_organization_id()
-            OR public.app_current_role() = 'inspector'
-        );
         """
     )
 
