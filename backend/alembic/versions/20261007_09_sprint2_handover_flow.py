@@ -1,7 +1,7 @@
 """Add current lot custody and append-only organization handovers.
 
-Revision ID: 20261006_08
-Revises: 20261006_07
+Revision ID: 20261007_09
+Revises: 20261007_08
 """
 
 from collections.abc import Sequence
@@ -12,8 +12,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 from app.core.config import settings
 
-revision: str = "20261006_08"
-down_revision: str | None = "20261006_07"
+revision: str = "20261007_09"
+down_revision: str | None = "20261007_08"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | None = None
 

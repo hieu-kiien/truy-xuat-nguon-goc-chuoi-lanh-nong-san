@@ -48,4 +48,3 @@ async def test_custom_404_html_and_json():
         )
         assert res_json.status_code == 404
         assert res_json.json()["detail"] == "Not Found"
-

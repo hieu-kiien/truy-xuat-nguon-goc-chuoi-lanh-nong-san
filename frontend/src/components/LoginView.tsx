@@ -445,7 +445,7 @@ export function LoginView({
             </button>
 
             <span className="copyright-tag">
-              © 2026 AgroChain • Bản quyền thuộc Nhóm 3 CNTT
+              © 2026 AgroChain • TTCS_T926_K18C4_N3
             </span>
           </div>
         </section>

@@ -1,7 +1,7 @@
 """Persist append-only event-chain verification results.
 
-Revision ID: 20261007_10
-Revises: 20261006_09
+Revision ID: 20261007_11
+Revises: 20261007_10
 """
 
 from collections.abc import Sequence
@@ -12,8 +12,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 from app.core.config import settings
 
-revision: str = "20261007_10"
-down_revision: str | None = "20261006_09"
+revision: str = "20261007_11"
+down_revision: str | None = "20261007_10"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

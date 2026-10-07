@@ -108,7 +108,10 @@ async function parseApiError(response: Response): Promise<ApiError> {
   )
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function request<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
   const headers = new Headers(options.headers)
   if (!headers.has('Content-Type') && options.body) {
     headers.set('Content-Type', 'application/json')
@@ -146,6 +149,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
         '/handovers',
         '/products',
         '/farms',
+        '/products',
         '/security',
         '/integrity',
       ])

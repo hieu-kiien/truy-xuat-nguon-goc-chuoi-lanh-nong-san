@@ -83,8 +83,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         {
             "auth:session",
             "products:read",
-            "products:create",
-            "products:update",
+            "products:write",
             "lots:read_all",
             "events:read_all",
             "events:verify",

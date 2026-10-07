@@ -3,28 +3,40 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-ProductUnit = Literal["kg", "tấn", "thùng"]
+ProductUnitValue = Literal["kg", "tấn", "thùng"]
 
 
-class ProductCreate(BaseModel):
+class ProductBase(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    unit: ProductUnit
+    unit: ProductUnitValue
+    description: str | None = None
+    price: float = Field(default=0, ge=0)
+    quantity: int | None = Field(default=0, ge=0)
 
     @field_validator("name", mode="before")
     @classmethod
-    def trim_name(cls, value: object) -> str:
-        if not isinstance(value, str) or not value.strip():
-            raise ValueError("Tên sản phẩm không được để trống.")
-        return value.strip()
+    def normalize_name(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
 
 
-class ProductUpdate(ProductCreate):
+class ProductCreate(ProductBase):
     pass
 
 
-class ProductRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class ProductUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    unit: ProductUnitValue | None = None
+    description: str | None = None
+    price: float | None = Field(default=None, ge=0)
+    quantity: int | None = Field(default=None, ge=0)
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def normalize_name(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+
+class ProductRead(ProductBase):
     id: UUID
-    name: str
-    unit: ProductUnit
+
+    model_config = ConfigDict(from_attributes=True)

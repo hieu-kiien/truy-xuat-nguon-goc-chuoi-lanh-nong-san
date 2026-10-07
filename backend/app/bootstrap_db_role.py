@@ -65,13 +65,9 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
             )
     if "products" in tables:
         cursor.execute(
-            sql.SQL("GRANT SELECT, INSERT ON products TO {}").format(role_ident)
-        )
-        cursor.execute(
-            sql.SQL("REVOKE UPDATE, DELETE ON products FROM {}").format(role_ident)
-        )
-        cursor.execute(
-            sql.SQL("GRANT UPDATE (name, unit) ON products TO {}").format(role_ident)
+            sql.SQL(
+                "GRANT SELECT, INSERT, UPDATE, DELETE ON products TO {}"
+            ).format(role_ident)
         )
     if "events" in tables:
         cursor.execute(

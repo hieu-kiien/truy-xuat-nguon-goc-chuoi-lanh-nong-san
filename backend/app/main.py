@@ -54,7 +54,7 @@ HTML_LANDING = """<!DOCTYPE html>
   <div class="card">
     <div class="status-badge"><span class="status-dot"></span> Máy chủ Backend đang Hoạt động (Online)</div>
     <h1>AgroChain Backend API</h1>
-    <p class="desc">Bạn đang truy cập vào cổng dịch vụ API của hệ thống Giám sát Chuỗi lạnh &amp; Truy xuất Nguồn gốc Nông sản (Nhóm 3 — TTCS).</p>
+    <p class="desc">Bạn đang truy cập vào cổng dịch vụ API của hệ thống Giám sát Chuỗi lạnh &amp; Truy xuất Nguồn gốc Nông sản (Nhóm TTCS_T926_K18C4_N3 — TTCS).</p>
     <div class="btn-group">
       <a href="https://ttcs-frontend-staging.onrender.com" class="btn btn-primary">
         🚀 Mở Giao diện Web Người dùng (Frontend)
@@ -128,4 +128,3 @@ async def custom_404_handler(request: Request, exc: Exception):
             "docs_url": "/docs",
         },
     )
-

@@ -247,8 +247,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   system_admin: [
     'auth:session',
     'products:read',
-    'products:create',
-    'products:update',
+    'products:write',
     'lots:read_all',
     'events:read_all',
     'events:verify',

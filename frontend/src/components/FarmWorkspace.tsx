@@ -18,7 +18,7 @@ import { IntegrityPanel } from './IntegrityPanel'
 import { HandoversPanel } from './HandoversPanel'
 import { LotsPanel } from './LotsPanel'
 import { LotDetailPanel } from './LotDetailPanel'
-import { ProductsPanel } from './ProductsPanel'
+import { ProductManager } from './ProductManager'
 import { SecurityPanel } from './SecurityPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
@@ -61,9 +61,6 @@ export function FarmWorkspace({
   const canReadLots = hasPermission(user.role, 'lots:read')
   const canCreateLots = hasPermission(user.role, 'lots:create')
   const canReadEvents = hasPermission(user.role, 'events:read')
-  const canManageProducts =
-    hasPermission(user.role, 'products:create') ||
-    hasPermission(user.role, 'products:update')
   const canUseHandovers =
     hasPermission(user.role, 'handovers:create') ||
     hasPermission(user.role, 'handovers:resolve')
@@ -362,7 +359,13 @@ export function FarmWorkspace({
             )}
 
             {activeTab === 'products' && (
-              <ProductsPanel canManage={canManageProducts} />
+              hasPermission(user.role, 'products:read') ? (
+                <ProductManager user={user} />
+              ) : (
+                <section className="panel-card panel-box" role="status">
+                  Bạn không có quyền xem danh mục sản phẩm.
+                </section>
+              )
             )}
 
             {activeTab === 'handovers' && (
