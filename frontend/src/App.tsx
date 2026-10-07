@@ -10,6 +10,7 @@ const WORKSPACE_PATHS = new Set([
   '/farms',
   '/security',
   '/integrity',
+  '/products',
 ])
 
 function readLocation() {
@@ -36,6 +37,7 @@ function routeForTab(tab: WorkspaceTab): string {
   if (tab === 'overview') return '/farms'
   if (tab === 'security') return '/security'
   if (tab === 'integrity') return '/integrity'
+  if (tab === 'products') return '/products'
   return '/lots'
 }
 
@@ -43,6 +45,7 @@ function tabForPath(pathname: string): WorkspaceTab {
   if (pathname === '/farms') return 'overview'
   if (pathname === '/security') return 'security'
   if (pathname === '/integrity') return 'integrity'
+  if (pathname === '/products') return 'products'
   return 'lots'
 }
 

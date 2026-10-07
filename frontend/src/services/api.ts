@@ -81,7 +81,10 @@ async function parseErrorMessage(response: Response): Promise<string> {
   return `Lỗi HTTP ${response.status}: ${response.statusText || 'Yêu cầu thất bại'}`
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function request<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
   const headers = new Headers(options.headers)
   if (!headers.has('Content-Type') && options.body) {
     headers.set('Content-Type', 'application/json')
@@ -117,6 +120,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       const protectedPaths = new Set([
         '/lots',
         '/farms',
+        '/products',
         '/security',
         '/integrity',
       ])

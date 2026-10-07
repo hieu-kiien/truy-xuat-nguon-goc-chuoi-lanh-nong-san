@@ -844,6 +844,14 @@ code {
   --label-6: 'Thao tác';
 }
 
+.product-table {
+  --label-2: 'Đơn vị';
+  --label-3: 'Mô tả';
+  --label-4: 'Giá';
+  --label-5: 'Số lượng';
+  --label-6: 'Thao tác';
+}
+
 .data-table thead {
   position: sticky;
   inset-block-start: 0;
@@ -2068,7 +2076,8 @@ code {
   color: var(--fg-danger);
 }
 
-.form-field input {
+.form-field input,
+.form-field select {
   padding: 6px 9px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
@@ -2079,7 +2088,8 @@ code {
   transition: box-shadow 0.12s ease, border-color 0.12s ease;
 }
 
-.form-field input:focus {
+.form-field input:focus,
+.form-field select:focus {
   outline: none;
   border-color: var(--brand);
   box-shadow: 0 0 0 2px var(--brand-soft);
@@ -2093,7 +2103,8 @@ code {
   margin-top: 1px;
 }
 
-.form-field input:user-invalid {
+.form-field input:user-invalid,
+.form-field select:user-invalid {
   border-color: var(--fg-danger);
   background-color: var(--danger-soft);
 }

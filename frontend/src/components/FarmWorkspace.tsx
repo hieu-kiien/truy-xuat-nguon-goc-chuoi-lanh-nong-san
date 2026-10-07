@@ -10,11 +10,12 @@ import {
 import { FarmFormPanel } from './FarmFormPanel'
 import { IntegrityPanel } from './IntegrityPanel'
 import { LotsPanel } from './LotsPanel'
+import { ProductManager } from './ProductManager'
 import { SecurityPanel } from './SecurityPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
 
-export type WorkspaceTab = 'lots' | 'overview' | 'security' | 'integrity'
+export type WorkspaceTab = 'lots' | 'overview' | 'security' | 'integrity' | 'products'
 
 interface FarmWorkspaceProps {
   user: SessionUser
@@ -325,6 +326,7 @@ export function FarmWorkspace({
               />
             )}
 
+            {activeTab === 'products' && <ProductManager user={user} />}
 
             {activeTab === 'overview' && (
               <>

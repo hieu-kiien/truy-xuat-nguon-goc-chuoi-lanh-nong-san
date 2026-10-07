@@ -53,6 +53,12 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
         cursor.execute(
             sql.SQL("REVOKE UPDATE, DELETE ON events FROM {}").format(role_ident)
         )
+    if "products" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT, UPDATE, DELETE ON products TO {}").format(
+                role_ident
+            )
+        )
 
     cursor.execute(
         "SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public'"

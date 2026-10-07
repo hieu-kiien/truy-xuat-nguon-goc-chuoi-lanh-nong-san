@@ -103,11 +103,35 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'lots:read',
     'events:read',
     'events:create',
+    'products:read',
   ],
-  cooperative: ['auth:session', 'lots:read', 'events:read', 'events:create'],
-  transporter: ['auth:session', 'lots:read', 'events:read', 'events:create'],
-  distributor: ['auth:session', 'lots:read', 'events:read', 'events:create'],
-  inspector: ['auth:session', 'lots:read_all', 'events:read_all'],
+  cooperative: [
+    'auth:session',
+    'lots:read',
+    'events:read',
+    'events:create',
+    'products:read',
+  ],
+  transporter: [
+    'auth:session',
+    'lots:read',
+    'events:read',
+    'events:create',
+    'products:read',
+  ],
+  distributor: [
+    'auth:session',
+    'lots:read',
+    'events:read',
+    'events:create',
+    'products:read',
+  ],
+  inspector: [
+    'auth:session',
+    'lots:read_all',
+    'events:read_all',
+    'products:read_all',
+  ],
   organization_admin: [
     'auth:session',
     'farms:read',
@@ -115,8 +139,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'lots:read',
     'events:read',
     'events:create',
+    'products:read',
   ],
-  system_admin: ['auth:session'],
+  system_admin: ['auth:session', 'products:read', 'products:write'],
 }
 
 export function hasPermission(role: RoleCode, permission: string): boolean {
@@ -128,6 +153,9 @@ export function hasPermission(role: RoleCode, permission: string): boolean {
     return true
   }
   if (permission === 'events:read' && perms.includes('events:read_all')) {
+    return true
+  }
+  if (permission === 'products:read' && perms.includes('products:read_all')) {
     return true
   }
   return false
