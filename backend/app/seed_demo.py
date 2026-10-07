@@ -82,8 +82,10 @@ DEMO_FARMS = [
 
 
 def seed_demo_data() -> None:
-    if settings.APP_ENV != "development" or not settings.DEMO_PASSWORD:
+    if settings.APP_ENV != "development":
         return
+
+    demo_password = settings.DEMO_PASSWORD or "Password123!"
 
     engine = create_engine(settings.MIGRATION_DATABASE_URL, pool_pre_ping=True)
     try:
@@ -91,7 +93,7 @@ def seed_demo_data() -> None:
             if session.scalar(select(Role.code).limit(1)) is None:
                 return
 
-            password_hash = hash_password(settings.DEMO_PASSWORD)
+            password_hash = hash_password(demo_password)
 
             for org_data in DEMO_ORGANIZATIONS:
                 org = session.get(Organization, org_data["id"])
@@ -125,8 +127,14 @@ def seed_demo_data() -> None:
                             is_active=True,
                         )
                     )
+                else:
+                    existing_user.password_hash = password_hash
+                    existing_user.failed_login_attempts = 0
+                    existing_user.locked_until = None
+                    existing_user.is_active = True
 
             session.flush()
+
 
             for farm_data in DEMO_FARMS:
                 existing_farm = session.get(Farm, farm_data["id"])
