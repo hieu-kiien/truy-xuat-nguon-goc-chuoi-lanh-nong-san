@@ -149,7 +149,7 @@ export function LoginView({
                 }`}
               />
               <span className="status-label">
-                {backendOnline === true ? 'Hệ thống Sẵn sàng' : backendOnline === false ? 'Mất kết nối' : 'Đang kết nối'}
+                {backendOnline === true ? 'Hệ thống Sẵn sàng' : backendOnline === false ? 'Đang kết nối lại...' : 'Đang kết nối'}
               </span>
             </div>
           </div>
@@ -233,6 +233,20 @@ export function LoginView({
             <h2 className="form-title">Đăng nhập Hệ thống</h2>
             <p className="form-subtitle">Nhập thông tin tài khoản được cấp phát để truy cập không gian điều hành</p>
           </div>
+
+          {backendOnline === false && (
+            <div className="auth-alert-box" role="status" style={{ borderColor: 'rgba(234, 179, 8, 0.4)', background: 'rgba(234, 179, 8, 0.1)', color: 'var(--text-primary)' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                Máy chủ đám mây đang thức dậy sau thời gian chờ (Cold Start ~30s). Hệ thống đang tự động kết nối lại, bạn có thể thử đăng nhập sau giây lát...
+              </span>
+            </div>
+          )}
+
 
           {errorMessage && (
             <div className="auth-alert-box" role="alert">

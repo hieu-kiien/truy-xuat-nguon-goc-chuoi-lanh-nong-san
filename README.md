@@ -3,10 +3,13 @@
 > Đồ án môn học: Thực tập cơ sở (TTCS) — Nhóm 3 CNTT K23C  
 > 
 > **Môi trường Trực tuyến (Staging - Render):**
-> - **Frontend Web:** [https://ttcs-frontend-staging.onrender.com](https://ttcs-frontend-staging.onrender.com)
-> - **Backend API:** [https://ttcs-backend-staging.onrender.com](https://ttcs-backend-staging.onrender.com)
-> - **Tài liệu API (Swagger UI):** [https://ttcs-backend-staging.onrender.com/docs](https://ttcs-backend-staging.onrender.com/docs)
+> - **Giao diện Người dùng (Frontend Web):** [https://ttcs-frontend-staging.onrender.com](https://ttcs-frontend-staging.onrender.com) *(Khuyên dùng: Chỉ cần mở link này để sử dụng)*
+> - **Cổng Dịch vụ API (Backend Service):** [https://ttcs-backend-staging.onrender.com](https://ttcs-backend-staging.onrender.com)
+> - **Tài liệu API tương tác (Swagger UI):** [https://ttcs-backend-staging.onrender.com/docs](https://ttcs-backend-staging.onrender.com/docs)
 > - **Tài liệu API (Redoc):** [https://ttcs-backend-staging.onrender.com/redoc](https://ttcs-backend-staging.onrender.com/redoc)
+> 
+> *💡 Ghi chú cho thành viên nhóm & chấm bài:* Chỉ cần mở link **Frontend Web** trên trình duyệt để trải nghiệm toàn bộ hệ thống mà không cần cài đặt bất kỳ công cụ nào vào máy tính cá nhân.
+
 
 Hệ thống quản lý quy trình chuỗi lạnh nông sản từ vùng trồng đến phân phối: theo dõi lô hàng, ghi nhật ký telemetry (nhiệt độ, độ ẩm, GPS) theo cơ chế bất biến và phân quyền đa tổ chức.
 
