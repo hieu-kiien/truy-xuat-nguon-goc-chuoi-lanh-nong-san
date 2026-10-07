@@ -96,7 +96,7 @@ export function WorkspaceSidebar({
                   <span>Vùng trồng</span>
                 </button>
               </li>}
-              <li>
+              {hasPermission(user.role, 'security:read') && <li>
                 <button
                   type="button"
                   onClick={() => selectTab('security')}
@@ -106,7 +106,7 @@ export function WorkspaceSidebar({
                 >
                   <span>Phân quyền</span>
                 </button>
-              </li>
+              </li>}
               {hasPermission(user.role, 'events:verify') && <li>
                 <button
                   type="button"

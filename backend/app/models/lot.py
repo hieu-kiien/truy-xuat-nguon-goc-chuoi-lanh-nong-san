@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.identity import Organization
 from app.models.product import Product
 
 
@@ -104,3 +105,10 @@ class Lot(Base):
         String(24), nullable=False, default="active", server_default=text("'active'")
     )
     product: Mapped[Product | None] = relationship(lazy="joined")
+    current_holder_organization: Mapped[Organization] = relationship(
+        foreign_keys=[current_holder_organization_id], lazy="joined"
+    )
+
+    @property
+    def current_holder_organization_name(self) -> str:
+        return self.current_holder_organization.name

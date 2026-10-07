@@ -45,9 +45,9 @@ DEMO_USERS = [
     {
         "id": UUID("bbbb2222-2222-4222-8222-222222222222"),
         "organization_id": UUID("22222222-2222-4222-8222-222222222222"),
-        "role_code": "system_admin",
+        "role_code": "organization_admin",
         "email": "admin@mocchau.vn",
-        "full_name": "Trần Thị Hương (Quản trị viên Hệ thống)",
+        "full_name": "Trần Thị Hương (Quản trị HTX Mộc Châu)",
     },
     {
         "id": UUID("cccc3333-3333-4333-8333-333333333333"),
@@ -61,7 +61,7 @@ DEMO_USERS = [
         "organization_id": UUID("44444444-4444-4444-8444-444444444444"),
         "role_code": "system_admin",
         "email": "admin@system.vn",
-        "full_name": "Vũ Hải Đăng (Quản trị viên Hệ thống Toàn quyền)",
+        "full_name": "Vũ Hải Đăng (Quản trị hệ thống)",
     },
 ]
 
@@ -140,6 +140,8 @@ def seed_demo_data() -> None:
                         )
                     )
                 else:
+                    existing_user.role_code = user_data["role_code"]
+                    existing_user.full_name = user_data["full_name"]
                     existing_user.password_hash = password_hash
                     existing_user.failed_login_attempts = 0
                     existing_user.locked_until = None

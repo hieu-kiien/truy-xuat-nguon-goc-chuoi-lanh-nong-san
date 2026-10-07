@@ -136,6 +136,7 @@ export function LotDetailPanel({
                 <p className="panel-sub">Chi tiết lô hàng</p>
                 <h2 id="lot-detail-title"><code>{displayLotCode(lot)}</code></h2>
                 <p className="panel-sub">{lot.product?.name ?? lot.name}</p>
+                <p className="panel-sub">Đơn vị đang giữ: <strong>{lot.current_holder_organization_name}</strong></p>
               </div>
               <span className={`status-badge ${lot.status === 'active' ? 'status-done' : 'status-neutral'}`}>
                 {statusLabel(lot.status)}

@@ -62,6 +62,7 @@ export interface Lot {
   quantity: string | null
   remaining_quantity: string
   current_holder_organization_id: string
+  current_holder_organization_name: string
   status: 'active' | 'pending_handover' | 'closed'
   product: Product | null
 }
@@ -237,9 +238,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'farms:read',
     'farms:write',
     'products:read',
-    'products:write',
     'lots:read',
-    'lots:write',
     'lots:create',
     'events:read',
     'events:create',
@@ -253,17 +252,13 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'farms:read_all',
     'lots:read',
     'lots:read_all',
-    'lots:write',
-    'lots:create',
     'events:read',
     'events:read_all',
-    'events:create',
     'events:verify',
     'products:read',
     'products:write',
     'products:read_all',
-    'handovers:create',
-    'handovers:resolve',
+    'security:read',
   ],
 }
 

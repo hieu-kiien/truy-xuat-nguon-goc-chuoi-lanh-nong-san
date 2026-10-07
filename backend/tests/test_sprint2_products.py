@@ -68,3 +68,19 @@ async def test_system_admin_can_edit_shared_products_and_grower_cannot(
 
     admin_session.execute(delete(Product).where(Product.id.in_(created_ids)))
     admin_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_organization_admin_cannot_write_shared_products(identity_factory):
+    organization_admin = identity_factory(
+        role="organization_admin", organization_type="cooperative"
+    )
+
+    async with _client() as client:
+        await _login(client, organization_admin)
+        response = await client.post(
+            "/api/v1/products/",
+            json={"name": f"Forbidden {uuid4().hex[:8]}", "unit": "kg"},
+        )
+
+    assert response.status_code == 403, response.text

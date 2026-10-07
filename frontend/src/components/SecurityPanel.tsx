@@ -22,6 +22,22 @@ const ALL_ROLES: RoleCode[] = [
   'distributor',
 ]
 
+function PermissionBadge({
+  allowed,
+  granted,
+  denied = '—',
+}: {
+  allowed: boolean
+  granted: string
+  denied?: string
+}) {
+  return (
+    <span className={`status-badge ${allowed ? 'status-done' : 'status-neutral'}`}>
+      {allowed ? granted : denied}
+    </span>
+  )
+}
+
 export function SecurityPanel({
   user,
   rbacProbeResult,
@@ -30,7 +46,7 @@ export function SecurityPanel({
   const grantedPermissions = ROLE_PERMISSIONS[user.role] ?? []
 
   return (
-    <div className="dashboard-split-equal">
+    <div className="dashboard-split-equal security-panel-layout">
       <section className="panel-card panel-box">
         <div className="panel-head">
           <h2>Ngữ cảnh Phiên &amp; Cô lập Đa tổ chức (PostgreSQL RLS)</h2>
@@ -71,12 +87,9 @@ export function SecurityPanel({
           </div>
         </div>
 
-        <pre className="code-block-compact">
-          {`-- Chính sách PostgreSQL RLS áp dụng tự động trên bảng farms:
-SET LOCAL app.current_organization = '${user.organization_id}';
-CREATE POLICY farms_tenant_isolation ON farms
-  USING (organization_id = current_setting('app.current_organization', true)::uuid);`}
-        </pre>
+        <p className="panel-sub security-context-note">
+          {`Phiên hiện tại được gắn với đơn vị ${user.organization_name}. Backend kiểm tra quyền theo vai trò; PostgreSQL RLS tiếp tục giới hạn bản ghi theo đơn vị hoặc đơn vị đang giữ lô. Chỉ quản trị hệ thống và thanh tra được đọc dữ liệu toàn cục theo phạm vi được cấp.`}
+        </p>
 
         <div className="action-row alert-spaced">
           <button
@@ -110,7 +123,7 @@ CREATE POLICY farms_tenant_isolation ON farms
               Ma trận phân quyền
             </h2>
             <p className="panel-sub">
-              Đối chiếu 7 vai trò nghiệp vụ và các quyền hạn được cấp phát
+              So sánh quyền Sprint 2. Dữ liệu lô được giới hạn theo đơn vị đang giữ; danh mục sản phẩm dùng chung chỉ quản trị hệ thống được sửa.
             </p>
           </div>
         </div>
@@ -121,10 +134,12 @@ CREATE POLICY farms_tenant_isolation ON farms
               <tr>
                 <th>Mã Vai trò</th>
                 <th>Tên Nghiệp vụ</th>
-                <th>farms:read</th>
-                <th>farms:write</th>
-                <th>lots:read_all</th>
-                <th>products:write</th>
+                <th>Vùng trồng</th>
+                <th>Lô hàng</th>
+                <th>Danh mục SP</th>
+                <th>Sự kiện</th>
+                <th>Bàn giao</th>
+                <th>Bảo mật</th>
                 <th>Phiên hiện tại</th>
               </tr>
             </thead>
@@ -132,6 +147,8 @@ CREATE POLICY farms_tenant_isolation ON farms
               {ALL_ROLES.map((roleCode) => {
                 const perms = ROLE_PERMISSIONS[roleCode] ?? []
                 const isCurrent = user.role === roleCode
+                const canReadFarms =
+                  perms.includes('farms:read') || perms.includes('farms:read_all')
                 return (
                   <tr
                     key={roleCode}
@@ -144,34 +161,66 @@ CREATE POLICY farms_tenant_isolation ON farms
                       {ROLE_LABELS[roleCode]}
                     </th>
                     <td>
-                      {perms.includes('farms:read') ? (
-                        <span className="status-badge status-done">
-                          {roleCode === 'system_admin' ? 'Toàn cục' : 'Cho phép'}
-                        </span>
-                      ) : (
-                        <span className="status-badge status-neutral">Chặn</span>
-                      )}
+                      <PermissionBadge
+                        allowed={canReadFarms}
+                        granted={perms.includes('farms:read_all') ? 'Xem toàn cục' : 'Xem đơn vị'}
+                        denied="Không truy cập"
+                      />
+                      <PermissionBadge
+                        allowed={perms.includes('farms:write')}
+                        granted="Sửa"
+                        denied={canReadFarms ? 'Chỉ xem' : '—'}
+                      />
                     </td>
                     <td>
-                      {perms.includes('farms:write') ? (
-                        <span className="status-badge status-done">Cho phép</span>
-                      ) : (
-                        <span className="status-badge status-neutral">Chặn</span>
-                      )}
+                      <PermissionBadge
+                        allowed={perms.includes('lots:read') || perms.includes('lots:read_all')}
+                        granted={perms.includes('lots:read_all') ? 'Xem toàn cục' : 'Lô đang giữ'}
+                        denied="Không xem"
+                      />
+                      <PermissionBadge
+                        allowed={perms.includes('lots:create')}
+                        granted="Tạo lô"
+                        denied="Không tạo"
+                      />
                     </td>
                     <td>
-                      {perms.includes('lots:read_all') ? (
-                        <span className="status-badge status-done">Toàn cục</span>
-                      ) : (
-                        <span className="status-badge status-neutral">—</span>
-                      )}
+                      <PermissionBadge
+                        allowed={perms.includes('products:write')}
+                        granted="Sửa danh mục"
+                        denied={perms.includes('products:read') ? 'Chỉ xem' : 'Không truy cập'}
+                      />
                     </td>
                     <td>
-                      {perms.includes('products:write') ? (
-                        <span className="status-badge status-done">Cho phép</span>
-                      ) : (
-                        <span className="status-badge status-neutral">Chặn</span>
-                      )}
+                      <PermissionBadge
+                        allowed={perms.includes('events:create')}
+                        granted="Ghi sự kiện"
+                        denied={perms.includes('events:read') || perms.includes('events:read_all') ? 'Chỉ xem' : 'Không truy cập'}
+                      />
+                      <PermissionBadge
+                        allowed={perms.includes('events:verify')}
+                        granted="Kiểm tra"
+                        denied="Không kiểm tra"
+                      />
+                    </td>
+                    <td>
+                      <PermissionBadge
+                        allowed={perms.includes('handovers:create')}
+                        granted="Gửi yêu cầu"
+                        denied="Không gửi"
+                      />
+                      <PermissionBadge
+                        allowed={perms.includes('handovers:resolve')}
+                        granted="Xác nhận / từ chối"
+                        denied="Không xử lý"
+                      />
+                    </td>
+                    <td>
+                      <PermissionBadge
+                        allowed={perms.includes('security:read')}
+                        granted="Xem ma trận"
+                        denied="Không xem"
+                      />
                     </td>
                     <td>
                       {isCurrent ? (
