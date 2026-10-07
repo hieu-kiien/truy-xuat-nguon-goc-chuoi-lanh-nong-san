@@ -29,7 +29,8 @@ Keep the existing `main` interface as the visual reference: retain its green pal
 
 ## Current status
 
-- Main sync commit: `e412f82` includes upstream `main` at `a02d6e0`; PR [#9](https://github.com/nhom-3-cnttk23c/truy-xuat-nguon-goc-chuoi-lanh-nong-san/pull/9) is open.
-- Jira: 2 of 33 Sprint 2 items are Done; the remaining 31 are In Progress while the PR awaits review.
-- Local verification: 64 backend tests, Ruff, compileall, frontend lint/build, and migration upgrade/downgrade/re-upgrade passed. Browser flow checks ran at 1280×720. GitHub has not returned workflow/status checks for `e412f82` yet.
-- Mobile checks were not run, per the desktop-only request.
+- Jira scope: all 33 items are Done — 10 stories and 23 Sprint 2 subtasks. The Sprint 2 board reports 10/10 stories complete; the sprint itself is still marked active.
+- Branch feature/sprint2-data-flow is pushed to the Nhóm 3 repository and personal fork. PR [#9](https://github.com/nhom-3-cnttk23c/truy-xuat-nguon-goc-chuoi-lanh-nong-san/pull/9) remains open.
+- GitHub Actions run [37581882877](https://github.com/nhom-3-cnttk23c/truy-xuat-nguon-goc-chuoi-lanh-nong-san/actions/runs/37581882877) passed all three jobs: backend lint/format, Alembic upgrade-downgrade-reupgrade/schema checks, 64 integration tests, frontend lint/build, and backend/frontend Docker builds.
+- Local checks passed: frontend lint/build; backend Ruff check/format, compileall, and collection of all 64 tests. The local Docker daemon/PostgreSQL service was unavailable, so database-backed tests and migration execution ran in GitHub CI.
+- Desktop browser review at 16:9 was not repeated on this final commit: the requested local port 5200 had no listening server, and the browser automation surface denied access to loopback. Mobile checks remain outside the desktop-only review.
