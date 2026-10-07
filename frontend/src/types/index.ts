@@ -161,9 +161,6 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
 }
 
 export function hasPermission(role: RoleCode, permission: string): boolean {
-  if (role === 'system_admin') {
-    return true
-  }
   const perms = ROLE_PERMISSIONS[role] ?? []
   if (perms.includes(permission)) {
     return true

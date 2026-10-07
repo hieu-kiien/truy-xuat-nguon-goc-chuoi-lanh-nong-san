@@ -66,8 +66,6 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
 
 
 def has_permission(role: str, permission: str) -> bool:
-    if role == "system_admin":
-        return True
     permissions = ROLE_PERMISSIONS.get(role, frozenset())
     if permission in permissions:
         return True
