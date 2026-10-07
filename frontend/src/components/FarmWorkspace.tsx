@@ -600,7 +600,7 @@ export function FarmWorkspace({
               </>
             )}
 
-            {activeTab === 'security' && (
+            {activeTab === 'security' && hasPermission(user.role, 'security:read') && (
               <ErrorBoundary fallbackTitle="Không thể tải phân hệ Phân quyền & Bảo mật">
                 <SecurityPanel
                   user={user}
@@ -608,6 +608,12 @@ export function FarmWorkspace({
                   onRunProbe={() => void runForbiddenProbe()}
                 />
               </ErrorBoundary>
+            )}
+
+            {activeTab === 'security' && !hasPermission(user.role, 'security:read') && (
+              <section className="panel-card panel-box" role="status">
+                Tài khoản này không có quyền xem thông tin bảo mật hệ thống.
+              </section>
             )}
 
             {activeTab === 'integrity' && (

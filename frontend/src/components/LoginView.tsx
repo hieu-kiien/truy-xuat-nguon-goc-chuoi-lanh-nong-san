@@ -12,12 +12,20 @@ interface LoginViewProps {
 
 const DEMO_PRESETS = [
   {
-    roleName: 'Quản trị hệ thống (Toàn quyền)',
+    roleName: 'Quản trị hệ thống',
     badge: 'system_admin',
-    email: 'admin@mocchau.vn',
+    email: 'admin@system.vn',
     password: 'Password123!',
     icon: '🛡️',
-    desc: 'Quản trị tối cao toàn hệ thống, toàn quyền quản trị đa tổ chức & chuỗi lạnh',
+    desc: 'Quản lý cấu hình và danh mục dùng chung toàn hệ thống',
+  },
+  {
+    roleName: 'Quản trị HTX Mộc Châu',
+    badge: 'organization_admin',
+    email: 'admin@mocchau.vn',
+    password: 'Password123!',
+    icon: '🏢',
+    desc: 'Quản lý dữ liệu và hoạt động trong phạm vi hợp tác xã',
   },
   {
     roleName: 'Nông hộ Cầu Đất',

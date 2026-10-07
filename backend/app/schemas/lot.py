@@ -49,6 +49,7 @@ class LotRead(BaseModel):
     quantity: Decimal | None = None
     remaining_quantity: Decimal
     current_holder_organization_id: UUID
+    current_holder_organization_name: str
     status: str
     product: ProductRead | None = None
 

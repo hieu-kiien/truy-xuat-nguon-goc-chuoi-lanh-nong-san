@@ -11,6 +11,7 @@ from app.core.authorization import has_permission
 from app.core.database import SessionLocal, set_db_context
 from app.main import app
 from app.models.farm import Farm
+from app.models.identity import Organization
 from app.models.lot import Lot
 from tests.conftest import IdentityFixture
 
@@ -91,6 +92,12 @@ async def test_lots_are_tenant_scoped_and_inspector_is_read_only_read_all(
     owner = identity_factory()
     other = identity_factory()
     inspector = identity_factory(role="inspector", organization_type="inspection")
+    owner_organization_name = admin_session.scalar(
+        select(Organization.name).where(Organization.id == owner.organization_id)
+    )
+    other_organization_name = admin_session.scalar(
+        select(Organization.name).where(Organization.id == other.organization_id)
+    )
     owner_farm = _add_farm(admin_session, owner.organization_id, "Owner farm")
     other_farm = _add_farm(admin_session, other.organization_id, "Other farm")
     owner_lot = _add_lot(
@@ -108,6 +115,10 @@ async def test_lots_are_tenant_scoped_and_inspector_is_read_only_read_all(
         own_detail = await client.get(f"/api/v1/lots/{owner_lot.id}")
         assert own_detail.status_code == 200
         assert own_detail.json()["farm_id"] == str(owner_farm.id)
+        assert (
+            own_detail.json()["current_holder_organization_name"]
+            == owner_organization_name
+        )
 
         caplog.clear()
         denied = await client.get(f"/api/v1/lots/{other_lot.id}")
@@ -150,6 +161,10 @@ async def test_lots_are_tenant_scoped_and_inspector_is_read_only_read_all(
         inspector_detail = await client.get(f"/api/v1/lots/{other_lot.id}")
         assert inspector_detail.status_code == 200
         assert inspector_detail.json()["organization_id"] == str(other.organization_id)
+        assert (
+            inspector_detail.json()["current_holder_organization_name"]
+            == other_organization_name
+        )
         no_write_route = await client.post("/api/v1/lots/", json={})
         assert no_write_route.status_code == 403
 
