@@ -55,9 +55,7 @@ def record_lot_integrity_check(
     return event_service.record_integrity_check(db, principal, lot_id)
 
 
-@router.get(
-    "/lots/{lot_id}/integrity-checks", response_model=list[IntegrityCheckRead]
-)
+@router.get("/lots/{lot_id}/integrity-checks", response_model=list[IntegrityCheckRead])
 @require_permission("events:verify")
 def get_lot_integrity_check_history(
     lot_id: UUID,

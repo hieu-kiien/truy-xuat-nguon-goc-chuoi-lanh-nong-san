@@ -255,7 +255,9 @@ def get_integrity_check_history(
             IntegrityCheck.organization_id == principal.organization_id
         )
     return list(
-        db.scalars(statement.order_by(IntegrityCheck.checked_at.desc()).limit(limit)).all()
+        db.scalars(
+            statement.order_by(IntegrityCheck.checked_at.desc()).limit(limit)
+        ).all()
     )
 
 

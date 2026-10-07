@@ -17,7 +17,9 @@ class IntegrityCheck(Base):
     __table_args__ = (
         CheckConstraint("checked_events >= 0", name="ck_integrity_checks_event_count"),
         Index("ix_integrity_checks_lot_checked", "lot_id", "checked_at"),
-        Index("ix_integrity_checks_organization_checked", "organization_id", "checked_at"),
+        Index(
+            "ix_integrity_checks_organization_checked", "organization_id", "checked_at"
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(

@@ -101,6 +101,7 @@ export function FarmFormPanel({
                   key={preset.label}
                   type="button"
                   className="ds-button ds-button-secondary ds-button-xs"
+                  disabled={saving}
                   onClick={() => onApplyPreset(preset)}
                 >
                   {preset.label}
@@ -134,6 +135,7 @@ export function FarmFormPanel({
                   type="text"
                   required
                   maxLength={200}
+                  disabled={saving}
                   value={name}
                   onChange={(e) => onNameChange(e.target.value)}
                   placeholder="VD: Khu nhà kính Dâu tây A1"
@@ -150,7 +152,9 @@ export function FarmFormPanel({
                   type="number"
                   step="0.0001"
                   min="0.0001"
+                  max="100000"
                   required
+                  disabled={saving}
                   value={areaHa}
                   onChange={(e) => onAreaChange(e.target.value)}
                   placeholder="VD: 2.4500"
@@ -170,6 +174,7 @@ export function FarmFormPanel({
                   min="-90"
                   max="90"
                   required
+                  disabled={saving}
                   value={latitude}
                   onChange={(e) => onLatChange(e.target.value)}
                   placeholder="11.862450"
@@ -187,6 +192,7 @@ export function FarmFormPanel({
                   min="-180"
                   max="180"
                   required
+                  disabled={saving}
                   value={longitude}
                   onChange={(e) => onLngChange(e.target.value)}
                   placeholder="108.538120"
@@ -210,6 +216,7 @@ export function FarmFormPanel({
                 <button
                   type="button"
                   className="ds-button ds-button-secondary ds-button-sm"
+                  disabled={saving}
                   onClick={onCancelEdit}
                 >
                   Hủy
@@ -245,6 +252,8 @@ export function FarmFormPanel({
                     className="chart-bar"
                     style={{ height: `${heightPct}%` }}
                     title={`${farm.name}: ${area.toFixed(2)} ha`}
+
+
                   />
                   <span className="chart-bar-caption" title={farm.name}>
                     {farm.name}

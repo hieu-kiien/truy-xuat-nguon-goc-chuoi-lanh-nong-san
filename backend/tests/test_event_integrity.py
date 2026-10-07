@@ -201,9 +201,7 @@ async def test_integrity_check_endpoint_returns_saved_audit_history(
             response = await client.post(
                 f"/api/v1/events/lots/{lot.id}/integrity-checks"
             )
-            history = await client.get(
-                f"/api/v1/events/lots/{lot.id}/integrity-checks"
-            )
+            history = await client.get(f"/api/v1/events/lots/{lot.id}/integrity-checks")
 
         assert response.status_code == 201, response.text
         assert response.json()["valid"] is True

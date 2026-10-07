@@ -275,6 +275,7 @@ export function LoginView({
                   type="email"
                   required
                   autoComplete="email"
+                  disabled={submitting}
                   value={email}
                   onBlur={handleBlur}
                   onChange={(e) => {
@@ -301,6 +302,7 @@ export function LoginView({
                 <button
                   type="button"
                   className="field-helper-link"
+                  disabled={submitting}
                   onClick={handleForgotPassword}
                 >
                   Quên mật khẩu?
@@ -317,6 +319,7 @@ export function LoginView({
                   type={showPassword ? 'text' : 'password'}
                   required
                   autoComplete="current-password"
+                  disabled={submitting}
                   value={password}
                   onBlur={handleBlur}
                   onChange={(e) => {
@@ -332,6 +335,7 @@ export function LoginView({
                 <button
                   type="button"
                   className="password-toggle-btn"
+                  disabled={submitting}
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                   tabIndex={-1}
@@ -358,6 +362,7 @@ export function LoginView({
               <label className="checkbox-label">
                 <input
                   type="checkbox"
+                  disabled={submitting}
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="modern-checkbox"
@@ -402,6 +407,7 @@ export function LoginView({
                 <button
                   key={preset.email}
                   type="button"
+                  disabled={submitting}
                   className={`demo-preset-btn ${email === preset.email ? 'active' : ''}`}
                   onClick={() => {
                     setEmail(preset.email)

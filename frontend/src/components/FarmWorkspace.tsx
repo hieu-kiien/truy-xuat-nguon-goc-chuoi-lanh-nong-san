@@ -21,6 +21,7 @@ import { ProductManager } from './ProductManager'
 import { SecurityPanel } from './SecurityPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
+import { ErrorBoundary } from './ErrorBoundary'
 
 export type WorkspaceTab =
   | 'lots'
@@ -344,6 +345,7 @@ export function FarmWorkspace({
                   </p>
                 </article>
               </div>
+
               </section>
             )}
 
@@ -388,6 +390,7 @@ export function FarmWorkspace({
                   Tài khoản này không có quyền xử lý bàn giao.
                 </section>
               )
+
             )}
 
 
@@ -598,15 +601,19 @@ export function FarmWorkspace({
             )}
 
             {activeTab === 'security' && (
-              <SecurityPanel
-                user={user}
-                rbacProbeResult={rbacProbeResult}
-                onRunProbe={() => void runForbiddenProbe()}
-              />
+              <ErrorBoundary fallbackTitle="Không thể tải phân hệ Phân quyền & Bảo mật">
+                <SecurityPanel
+                  user={user}
+                  rbacProbeResult={rbacProbeResult}
+                  onRunProbe={() => void runForbiddenProbe()}
+                />
+              </ErrorBoundary>
             )}
 
             {activeTab === 'integrity' && (
+
               <IntegrityPanel canReadLots={canReadLots} canVerify={canVerifyEvents} />
+
             )}
           </main>
         </div>

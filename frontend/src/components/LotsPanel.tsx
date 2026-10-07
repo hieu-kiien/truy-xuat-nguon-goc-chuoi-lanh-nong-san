@@ -218,6 +218,7 @@ export function LotsPanel({
                       : 'Chưa có lô hàng. Ghi nhận lô thu hoạch đầu tiên để bắt đầu truy xuất.'}
                   </td>
                 </tr>
+
               ) : lots.map((lot) => (
                 <tr key={lot.id} className={selectedLot?.id === lot.id ? 'lot-row-selected' : undefined}>
                   <th scope="row" className="cell-strong">
@@ -227,6 +228,7 @@ export function LotsPanel({
                       onClick={(event) => {
                         event.preventDefault()
                         onOpenLot(lot.id)
+
                       }}
                     >
                       <code>{displayLotCode(lot)}</code>
