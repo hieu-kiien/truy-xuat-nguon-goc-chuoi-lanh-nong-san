@@ -704,242 +704,11 @@ code {
   }
 }
 
-/* Sprint 2: one calm, readable workspace across list, detail, and forms. */
-:root,
-html.light {
-  --brand: #2f6f45;
-  --brand-medium: #3d8054;
-  --brand-strong: #245a37;
-  --brand-soft: #e2eee4;
-  --brand-softer: #f0f6f0;
-  --neutral-primary-soft: #f6f7f5;
-  --neutral-primary: #ffffff;
-  --neutral-primary-medium: #edf2ed;
-  --neutral-secondary-soft: #f2f4f1;
-  --neutral-secondary: #e8ede8;
-  --neutral-secondary-medium: #dce7dc;
-  --heading: #1b1f1c;
-  --body: #292e2a;
-  --body-subtle: #59635c;
-  --border-default: #c9d1ca;
-  --border-brand: #73977d;
-  --border-light: #e2e7e2;
-  --border-subtle: #e3e7e3;
-  --bg-panel: #ffffff;
-  --menu-bar: #ffffff;
-  --panel-shadow: 0 1px 3px rgba(25, 38, 28, 0.06);
-  --radius-panel: 12px;
-  --radius-sm: 8px;
-}
-
-body {
-  font-size: 14px;
-  line-height: 1.5;
-  background: var(--neutral-primary-soft);
-}
-
-.application-shell,
-.dashboard-layout {
-  background: var(--neutral-primary-soft);
-}
-
-.dashboard-sidebar {
-  width: 236px;
-  border-right-color: var(--border-subtle);
-}
-
-.sidebar-brand {
-  padding: 22px 18px 18px;
-}
-
-.sidebar-brand-title {
-  font-size: 18px;
-}
-
-.sidebar-brand-sub,
-.sidebar-user-meta {
-  font-size: 12px;
-}
-
-.sidebar-nav {
-  padding: 18px 12px;
-  gap: 20px;
-}
-
-.sidebar-section-label {
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  margin: 0 8px 8px;
-}
-
-.sidebar-nav-list {
-  gap: 4px;
-}
-
-.dashboard-nav-item {
-  min-height: 44px;
-  padding: 10px 12px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.dashboard-nav-item-active {
-  border-left: 0;
-  padding-left: 12px;
-  background: var(--brand-soft);
-  color: var(--brand-strong);
-  font-weight: 650;
-}
-
-.sidebar-footer {
-  padding: 14px 12px;
-  gap: 10px;
-}
-
-.sidebar-user-card {
-  padding: 10px;
-  border: 0;
-  background: var(--neutral-secondary-soft);
-}
-
-.sidebar-user-name {
-  font-size: 13px;
-}
-
-.dashboard-topbar {
-  min-height: 64px;
-  padding: 10px 28px;
-  border-bottom-color: var(--border-subtle);
-}
-
-.topbar-title {
-  font-size: 20px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-}
-
-.dashboard-content {
-  gap: 18px;
-  padding: 24px 28px 36px;
-  max-width: 1440px;
-}
-
-.panel-card {
-  border-color: var(--border-subtle);
-  border-radius: 12px;
-  box-shadow: var(--panel-shadow);
-}
-
-.panel-box {
-  padding: 20px;
-}
-
-.panel-head {
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-}
-
-.panel-head h2,
-.section-title {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-}
-
-.panel-sub {
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.ds-button {
-  min-height: 44px;
-  padding: 9px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-}
-
-.ds-button-sm {
-  min-height: 44px;
-  padding: 7px 12px;
-  font-size: 13px;
-}
-
-.ds-button-xs {
-  min-height: 44px;
-  padding: 6px 10px;
-  font-size: 13px;
-}
-
-.data-table-wrapper {
-  border-color: var(--border-subtle);
-}
-
-.data-table-header {
-  padding: 18px 20px;
-  gap: 12px;
-}
-
-.table-scroll {
-  max-height: none;
-  container-type: normal;
-}
-
-.data-table {
-  font-size: 14px;
-}
-
-.data-table th,
-.data-table td {
-  padding: 12px 16px;
-}
-
-.data-table thead {
-  background: var(--neutral-secondary-soft);
-}
-
-.data-table thead th {
-  padding-top: 11px;
-  padding-bottom: 11px;
-  color: var(--body-subtle);
-  font-size: 12px;
-  letter-spacing: 0.025em;
-}
-
-.data-table tbody tr:hover td,
-.data-table tbody tr:hover th {
-  background: var(--neutral-secondary-soft);
-}
-
-.form-field label,
-.field-label {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.form-field input,
-.form-field select,
-.modern-input,
-.dashboard-search {
-  min-height: 44px;
-  padding: 9px 12px;
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  background: var(--bg-panel);
-  color: var(--body);
-  font: inherit;
-  font-size: 14px;
-}
-
-.modern-input {
-  padding-left: 12px;
-}
+/* Sprint 2 view-specific layout rules; shared shell styling stays aligned with main. */
 
 .lots-page {
   display: grid;
-  gap: 16px;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -952,7 +721,7 @@ body {
 }
 
 .lot-filter-row {
-  padding: 16px 20px;
+  padding: 10px 12px;
   gap: 12px;
   align-items: end;
 }
@@ -993,7 +762,7 @@ body {
   margin-top: 16px;
   padding: 14px 16px;
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   background: var(--neutral-secondary-soft);
 }
 
@@ -1024,7 +793,7 @@ body {
   max-width: 960px;
   min-height: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
+  border-radius: var(--radius-panel);
   box-shadow: 0 12px 36px rgba(25, 38, 28, 0.08);
 }
 
@@ -1049,7 +818,7 @@ body {
   width: 40px;
   height: 40px;
   place-items: center;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--brand-strong);
   color: #fff;
   font-size: 20px;
@@ -1479,7 +1248,7 @@ body {
   gap: 10px;
   padding: 16px;
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   background: var(--bg-panel);
 }
 
