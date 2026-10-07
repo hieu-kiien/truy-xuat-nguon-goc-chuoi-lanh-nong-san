@@ -4,10 +4,12 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import (
     CheckConstraint,
+    Index,
     Numeric,
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
@@ -27,6 +29,7 @@ class Product(Base):
     __table_args__ = (
         CheckConstraint("length(btrim(name)) > 0", name="ck_products_name_nonblank"),
         CheckConstraint("price >= 0", name="ck_products_price_positive"),
+        Index("uq_products_name_ci", text("lower(name)"), unique=True),
         UniqueConstraint("name", name="uq_product_name"),
     )
 
