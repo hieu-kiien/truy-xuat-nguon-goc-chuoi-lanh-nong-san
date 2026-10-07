@@ -10,6 +10,33 @@ interface LoginViewProps {
   onNotify: (message: string) => void
 }
 
+const DEMO_PRESETS = [
+  {
+    roleName: 'Nông hộ Cầu Đất',
+    badge: 'grower',
+    email: 'grower@caudat.vn',
+    password: 'Password123!',
+    icon: '🌱',
+    desc: 'Quản trị thửa đất, lô thu hoạch & ghi nhật ký chuỗi lạnh',
+  },
+  {
+    roleName: 'HTX Mộc Châu',
+    badge: 'admin',
+    email: 'admin@mocchau.vn',
+    password: 'Password123!',
+    icon: '🏢',
+    desc: 'Quản trị hợp tác xã, phân quyền thành viên & vùng trồng',
+  },
+  {
+    roleName: 'Chi cục Quản lý',
+    badge: 'inspector',
+    email: 'inspector@chicuc.gov.vn',
+    password: 'Password123!',
+    icon: '🔍',
+    desc: 'Thanh tra độc lập, giám sát chuỗi lạnh & sự kiện bất biến',
+  },
+]
+
 export function LoginView({
   backendOnline,
   isDark,
@@ -48,8 +75,11 @@ export function LoginView({
       onNotify(`Chào mừng trở lại, ${user.full_name}`)
       onLoginSuccess(user)
     } catch (err) {
+      const rawMsg = err instanceof Error ? err.message : 'Không thể đăng nhập vào hệ thống.'
       setErrorMessage(
-        err instanceof Error ? err.message : 'Không thể đăng nhập vào hệ thống. Vui lòng kiểm tra lại.'
+        rawMsg.includes('không đúng')
+          ? `${rawMsg} (Gợi ý: Dùng tài khoản mẫu bên dưới, mật khẩu: Password123!)`
+          : rawMsg
       )
     } finally {
       setSubmitting(false)
@@ -343,6 +373,42 @@ export function LoginView({
               )}
             </button>
           </form>
+
+          {/* Quick Demo Accounts Presets for Evaluators & Users */}
+          <div className="demo-accounts-card">
+            <div className="demo-accounts-header">
+              <div className="demo-accounts-title-wrap">
+                <span className="demo-badge-icon">🎯</span>
+                <span className="demo-accounts-title">Tài khoản Mẫu Thử nghiệm (Demo)</span>
+              </div>
+              <span className="demo-accounts-hint">Mật khẩu: <code>Password123!</code></span>
+            </div>
+            <div className="demo-presets-grid">
+              {DEMO_PRESETS.map((preset) => (
+                <button
+                  key={preset.email}
+                  type="button"
+                  className={`demo-preset-btn ${email === preset.email ? 'active' : ''}`}
+                  onClick={() => {
+                    setEmail(preset.email)
+                    setPassword(preset.password)
+                    setErrorMessage(null)
+                    onNotify(`Đã điền tài khoản: ${preset.roleName}`)
+                  }}
+                  title={`Chọn tài khoản ${preset.roleName}`}
+                >
+                  <span className="preset-icon">{preset.icon}</span>
+                  <div className="preset-info">
+                    <div className="preset-name-row">
+                      <span className="preset-name">{preset.roleName}</span>
+                      <span className={`preset-badge badge-${preset.badge}`}>{preset.badge}</span>
+                    </div>
+                    <span className="preset-email">{preset.email}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Security Assurance Notice */}
           <div className="security-guarantee-box">

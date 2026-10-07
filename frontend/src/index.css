@@ -1612,6 +1612,146 @@ code {
   }
 }
 
+/* Quick Demo Accounts Selection */
+.demo-accounts-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--neutral-primary-soft);
+  border: 1px dashed var(--brand);
+  border-radius: 10px;
+}
+
+.demo-accounts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.demo-accounts-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.demo-badge-icon {
+  font-size: 14px;
+}
+
+.demo-accounts-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--heading);
+}
+
+.demo-accounts-hint {
+  font-size: 11px;
+  color: var(--body-subtle);
+}
+
+.demo-accounts-hint code {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--brand);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.demo-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.demo-preset-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--body);
+}
+
+.demo-preset-btn:hover {
+  border-color: var(--brand);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.demo-preset-btn.active {
+  border-color: var(--brand);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.preset-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.preset-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.preset-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.preset-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.badge-grower {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.badge-admin {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.badge-inspector {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.preset-email {
+  font-size: 10.5px;
+  color: var(--body-subtle);
+  font-family: monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Security Guarantee Box */
 .security-guarantee-box {
   display: flex;
