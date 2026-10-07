@@ -166,7 +166,7 @@ export function LotsPanel({ canReadLots, canReadEvents = true }: LotsPanelProps)
                       style={{
                         cursor: 'pointer',
                         backgroundColor: isSelected
-                          ? 'rgba(37, 99, 235, 0.05)'
+                          ? 'var(--brand-softer)'
                           : undefined,
                       }}
                       onClick={() => setSelectedLot(lot)}

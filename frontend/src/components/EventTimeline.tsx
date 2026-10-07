@@ -82,7 +82,7 @@ export function EventTimeline({
             style={{
               fontSize: '1.25rem',
               fontWeight: 600,
-              color: 'var(--text-primary, #111827)',
+              color: 'var(--text-primary)',
               margin: 0,
             }}
           >
@@ -91,7 +91,7 @@ export function EventTimeline({
           <p
             style={{
               fontSize: '0.875rem',
-              color: 'var(--text-secondary, #6b7280)',
+              color: 'var(--text-secondary)',
               margin: '0.25rem 0 0 0',
             }}
           >
@@ -106,12 +106,12 @@ export function EventTimeline({
             alignItems: 'center',
             gap: '0.5rem',
             padding: '0.375rem 0.75rem',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
+            backgroundColor: 'var(--brand-softer)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: '9999px',
             fontSize: '0.75rem',
             fontWeight: 600,
-            color: '#065f46',
+            color: 'var(--brand)',
           }}
           title="Bảo vệ toàn vẹn: Không đường nào trong ứng dụng sửa hoặc xoá được sự kiện đã ghi"
         >
@@ -125,7 +125,7 @@ export function EventTimeline({
           style={{
             textAlign: 'center',
             padding: '2rem',
-            color: 'var(--text-secondary, #6b7280)',
+            color: 'var(--text-secondary)',
           }}
         >
           Đang tải dữ liệu chuỗi sự kiện...
@@ -137,10 +137,10 @@ export function EventTimeline({
           style={{
             padding: '2rem',
             textAlign: 'center',
-            backgroundColor: 'var(--bg-secondary, #f9fafb)',
+            backgroundColor: 'var(--bg-secondary)',
             borderRadius: '0.5rem',
-            border: '1px dashed #d1d5db',
-            color: 'var(--text-secondary, #6b7280)',
+            border: '1px dashed var(--border-card)',
+            color: 'var(--text-secondary)',
           }}
         >
           Chưa có sự kiện nào được ghi nhận cho lô hàng này.
@@ -152,7 +152,7 @@ export function EventTimeline({
           style={{
             position: 'relative',
             paddingLeft: '2rem',
-            borderLeft: '2px solid #e5e7eb',
+            borderLeft: '2px solid var(--border-card)',
             marginLeft: '0.75rem',
             display: 'flex',
             flexDirection: 'column',
@@ -170,11 +170,11 @@ export function EventTimeline({
                 key={evt.id}
                 style={{
                   position: 'relative',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #e5e7eb',
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-card)',
                   borderRadius: '0.5rem',
                   padding: '1rem',
-                  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                  boxShadow: 'var(--panel-shadow)',
                 }}
               >
                 {/* Timeline node marker */}
@@ -187,8 +187,8 @@ export function EventTimeline({
                     height: '1.25rem',
                     borderRadius: '50%',
                     backgroundColor: badge.color,
-                    border: '3px solid #ffffff',
-                    boxShadow: '0 0 0 2px #e5e7eb',
+                    border: '3px solid var(--bg-card)',
+                    boxShadow: '0 0 0 2px var(--border-card)',
                   }}
                 />
 
@@ -213,11 +213,12 @@ export function EventTimeline({
                     <span
                       style={{
                         padding: '0.2rem 0.5rem',
-                        backgroundColor: '#f3f4f6',
+                        backgroundColor: 'var(--bg-secondary)',
                         borderRadius: '0.25rem',
                         fontSize: '0.75rem',
                         fontWeight: 700,
-                        color: '#374151',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-card)',
                       }}
                     >
                       #{evt.sequence_number}
@@ -239,7 +240,7 @@ export function EventTimeline({
                   <span
                     style={{
                       fontSize: '0.8125rem',
-                      color: '#6b7280',
+                      color: 'var(--text-secondary)',
                     }}
                   >
                     {formatTimestamp(evt.recorded_at)}
@@ -250,12 +251,12 @@ export function EventTimeline({
                 {evt.payload && Object.keys(evt.payload).length > 0 && (
                   <div
                     style={{
-                      backgroundColor: '#f9fafb',
+                      backgroundColor: 'var(--bg-secondary)',
                       borderRadius: '0.375rem',
                       padding: '0.625rem 0.875rem',
                       fontSize: '0.8125rem',
                       marginBottom: '0.75rem',
-                      border: '1px solid #f3f4f6',
+                      border: '1px solid var(--border-card)',
                     }}
                   >
                     <div
@@ -268,10 +269,10 @@ export function EventTimeline({
                     >
                       {Object.entries(evt.payload).map(([k, v]) => (
                         <div key={k}>
-                          <span style={{ color: '#6b7280', fontWeight: 500 }}>
+                          <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
                             {k}:{' '}
                           </span>
-                          <span style={{ color: '#111827', fontWeight: 600 }}>
+                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
                             {typeof v === 'object'
                               ? JSON.stringify(v)
                               : String(v)}
@@ -289,13 +290,12 @@ export function EventTimeline({
                     flexDirection: 'column',
                     gap: '0.25rem',
                     fontSize: '0.75rem',
-                    fontFamily:
-                      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                    color: '#6b7280',
-                    backgroundColor: '#fafafa',
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--text-secondary)',
+                    backgroundColor: 'var(--bg-secondary)',
                     padding: '0.5rem 0.75rem',
                     borderRadius: '0.25rem',
-                    border: '1px solid #f0f0f0',
+                    border: '1px solid var(--border-card)',
                   }}
                 >
                   <div
@@ -308,9 +308,9 @@ export function EventTimeline({
                     }}
                   >
                     <span>
-                      <strong style={{ color: '#4b5563' }}>Prev: </strong>
+                      <strong style={{ color: 'var(--text-secondary)' }}>Prev: </strong>
                       {isGenesis ? (
-                        <span style={{ color: '#059669', fontWeight: 600 }}>
+                        <span style={{ color: 'var(--brand)', fontWeight: 600 }}>
                           [Genesis Block - 0x00...00]
                         </span>
                       ) : (
@@ -332,8 +332,8 @@ export function EventTimeline({
                     }}
                   >
                     <span>
-                      <strong style={{ color: '#4b5563' }}>Hash: </strong>
-                      <span style={{ color: '#1f2937' }}>
+                      <strong style={{ color: 'var(--text-secondary)' }}>Hash: </strong>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
                         {evt.event_hash.slice(0, 16)}...
                         {evt.event_hash.slice(-8)}
                       </span>
@@ -345,11 +345,17 @@ export function EventTimeline({
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: copiedHash === evt.event_hash ? '#16a34a' : '#2563eb',
+                        color: copiedHash === evt.event_hash ? 'var(--brand)' : 'var(--brand-medium)',
                         cursor: 'pointer',
-                        fontSize: '0.6875rem',
+                        fontSize: '0.75rem',
                         fontWeight: 600,
-                        padding: '0.1rem 0.3rem',
+                        minHeight: '44px',
+                        minWidth: '44px',
+                        padding: '0.375rem 0.625rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '4px',
                       }}
                       title="Sao chép toàn bộ mã hash SHA-256"
                     >

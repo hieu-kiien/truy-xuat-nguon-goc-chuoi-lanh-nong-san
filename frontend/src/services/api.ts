@@ -97,11 +97,23 @@ export async function request<T>(
     headers.set('Authorization', `Bearer ${storedToken}`)
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-    credentials: 'include',
-  })
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+      credentials: 'include',
+    })
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw err
+    }
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine
+    const msg = isOffline
+      ? 'Mất kết nối Internet. Vui lòng kiểm tra lại kết nối mạng của bạn.'
+      : 'Không thể kết nối đến máy chủ API. Vui lòng thử lại sau vài giây (máy chủ có thể đang khởi động).'
+    throw new ApiError(0, msg)
+  }
 
   const authHeader = response.headers.get('Authorization')
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -140,7 +152,14 @@ export async function request<T>(
     return undefined as T
   }
 
-  return response.json() as Promise<T>
+  try {
+    return (await response.json()) as T
+  } catch {
+    throw new ApiError(
+      response.status,
+      'Dữ liệu phản hồi từ máy chủ không hợp lệ.'
+    )
+  }
 }
 
 export const checkHealth = () => request<HealthResponse>('/')

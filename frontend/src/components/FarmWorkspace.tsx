@@ -14,6 +14,7 @@ import { ProductManager } from './ProductManager'
 import { SecurityPanel } from './SecurityPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
+import { ErrorBoundary } from './ErrorBoundary'
 
 export type WorkspaceTab = 'lots' | 'overview' | 'security' | 'integrity' | 'products'
 
@@ -320,10 +321,12 @@ export function FarmWorkspace({
             </section>
 
             {activeTab === 'lots' && (
-              <LotsPanel
-                canReadLots={canReadLots}
-                canReadEvents={hasPermission(user.role, 'events:read')}
-              />
+              <ErrorBoundary fallbackTitle="Không thể tải phân hệ Quản lý Lô hàng">
+                <LotsPanel
+                  canReadLots={canReadLots}
+                  canReadEvents={hasPermission(user.role, 'events:read')}
+                />
+              </ErrorBoundary>
             )}
 
             {activeTab === 'products' && <ProductManager user={user} />}
@@ -624,25 +627,29 @@ export function FarmWorkspace({
             )}
 
             {activeTab === 'security' && (
-              <SecurityPanel
-                user={user}
-                rbacProbeResult={rbacProbeResult}
-                onRunProbe={() => void runForbiddenProbe()}
-              />
+              <ErrorBoundary fallbackTitle="Không thể tải phân hệ Phân quyền & Bảo mật">
+                <SecurityPanel
+                  user={user}
+                  rbacProbeResult={rbacProbeResult}
+                  onRunProbe={() => void runForbiddenProbe()}
+                />
+              </ErrorBoundary>
             )}
 
             {activeTab === 'integrity' && (
-              <IntegrityPanel
-                tamperSimulated={tamperSimulated}
-                onToggleTamper={() => {
-                  setTamperSimulated((prev) => !prev)
-                  onNotify(
-                    !tamperSimulated
-                      ? 'Đã mô phỏng sửa lén nhiệt độ tại sự kiện #03!'
-                      : 'Đã khôi phục dữ liệu gốc hợp lệ.'
-                  )
-                }}
-              />
+              <ErrorBoundary fallbackTitle="Không thể tải phân hệ Chuỗi Hash Sự kiện">
+                <IntegrityPanel
+                  tamperSimulated={tamperSimulated}
+                  onToggleTamper={() => {
+                    setTamperSimulated((prev) => !prev)
+                    onNotify(
+                      !tamperSimulated
+                        ? 'Đã mô phỏng sửa lén nhiệt độ tại sự kiện #03!'
+                        : 'Đã khôi phục dữ liệu gốc hợp lệ.'
+                    )
+                  }}
+                />
+              </ErrorBoundary>
             )}
           </main>
         </div>
