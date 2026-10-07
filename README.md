@@ -1,9 +1,23 @@
 # AgroChain — Hệ thống Truy xuất Nguồn gốc & Giám sát Chuỗi lạnh Nông sản
 
 > Đồ án môn học: Thực tập cơ sở (TTCS) — Nhóm 3 CNTT K23C  
-> Môi trường Staging: [Frontend](https://ttcs-frontend-staging.onrender.com) | [API Docs (Swagger)](https://ttcs-backend-staging.onrender.com/docs)
+> 
+> **Môi trường Trực tuyến (Staging - Render):**
+> - **Frontend Web:** [https://ttcs-frontend-staging.onrender.com](https://ttcs-frontend-staging.onrender.com)
+> - **Backend API:** [https://ttcs-backend-staging.onrender.com](https://ttcs-backend-staging.onrender.com)
+> - **Tài liệu API (Swagger UI):** [https://ttcs-backend-staging.onrender.com/docs](https://ttcs-backend-staging.onrender.com/docs)
+> - **Tài liệu API (Redoc):** [https://ttcs-backend-staging.onrender.com/redoc](https://ttcs-backend-staging.onrender.com/redoc)
 
 Hệ thống quản lý quy trình chuỗi lạnh nông sản từ vùng trồng đến phân phối: theo dõi lô hàng, ghi nhật ký telemetry (nhiệt độ, độ ẩm, GPS) theo cơ chế bất biến và phân quyền đa tổ chức.
+
+---
+
+### Bảng Địa chỉ Môi trường (Environments)
+
+| Môi trường | Frontend Web | Backend API Service | Tài liệu API (Swagger / Redoc) |
+|---|---|---|---|
+| **Staging (Cloud Render)** | [ttcs-frontend-staging.onrender.com](https://ttcs-frontend-staging.onrender.com) | [ttcs-backend-staging.onrender.com](https://ttcs-backend-staging.onrender.com) | [/docs](https://ttcs-backend-staging.onrender.com/docs) \| [/redoc](https://ttcs-backend-staging.onrender.com/redoc) |
+| **Local (Docker / Dev)** | [http://localhost:5173](http://localhost:5173) | [http://localhost:8000](http://localhost:8000) | [http://localhost:8000/docs](http://localhost:8000/docs) |
 
 ---
 
@@ -88,7 +102,9 @@ docker compose up --build -d
 
 Sau khi khởi động hoàn tất:
 - **Giao diện Web:** [http://localhost:5173](http://localhost:5173)
+- **Backend API Service:** [http://localhost:8000](http://localhost:8000)
 - **Tài liệu API (Swagger UI):** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Tài liệu API (Redoc):** [http://localhost:8000/redoc](http://localhost:8000/redoc)
 - **Dừng dịch vụ:** `docker compose down`
 
 ---
