@@ -9,7 +9,6 @@ import {
 import {
   hasPermission,
   ROLE_LABELS,
-  ROLE_PERMISSIONS,
   type Farm,
   type SessionUser,
 } from '../types'
@@ -66,8 +65,6 @@ export function FarmWorkspace({
     hasPermission(user.role, 'handovers:resolve')
   const canResolveHandovers = hasPermission(user.role, 'handovers:resolve')
   const canVerifyEvents = hasPermission(user.role, 'events:verify')
-  const grantedPermissions = ROLE_PERMISSIONS[user.role] ?? []
-
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -91,6 +88,11 @@ export function FarmWorkspace({
   const [pendingHandoverCount, setPendingHandoverCount] = useState<number | null>(
     canResolveHandovers ? null : 0,
   )
+  const contentRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    contentRef.current?.scrollTo(0, 0)
+  }, [activeTab, selectedLotId])
 
   const updatePendingHandoverCount = useCallback((count: number) => {
     setPendingHandoverCount(count)
@@ -179,13 +181,19 @@ export function FarmWorkspace({
     event.preventDefault()
     if (savingRef.current) return
 
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      setFormFeedback({ type: 'error', message: 'Tên vùng trồng không được để trống.' })
+      return
+    }
+
     savingRef.current = true
     setSaving(true)
     setFormFeedback(null)
 
     try {
       const payload = {
-        name: name.trim(),
+        name: trimmedName,
         area_ha: areaHa.trim(),
         latitude: latitude.trim(),
         longitude: longitude.trim(),
@@ -223,13 +231,13 @@ export function FarmWorkspace({
   }
 
   const runForbiddenProbe = async () => {
-    setRbacProbeResult('Đang gửi GET /api/v1/farms/ tới Backend...')
+    setRbacProbeResult('Đang kiểm tra quyền truy cập vùng trồng...')
     try {
       await getFarms()
       setRbacProbeResult(
         '200 OK — Tài khoản hiện tại đọc được danh sách vùng trồng.'
       )
-      onNotify('Kiểm tra API thành công (200 OK)')
+      onNotify('Kiểm tra quyền truy cập thành công (200 OK)')
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
         setRbacProbeResult(
@@ -299,7 +307,7 @@ export function FarmWorkspace({
             onToggleTheme={onToggleTheme}
           />
 
-          <main className="dashboard-content">
+          <main ref={contentRef} className="dashboard-content">
             {(activeTab === 'overview' || (activeTab === 'lots' && !selectedLotId)) && canReadFarms && (
               <section aria-label="Tóm tắt vùng trồng">
               <div className="stats-grid">
@@ -389,21 +397,16 @@ export function FarmWorkspace({
                   {!canReadFarms ? (
                     <section className="panel-card panel-box">
                       <div className="panel-head">
-                        <h2>
-                          Chặn Truy cập Danh mục Vùng trồng theo RBAC (N3-6)
-                        </h2>
+                        <h2>Quyền truy cập vùng trồng</h2>
                         <span className="status-badge status-danger">
                           HTTP 403 Forbidden
                         </span>
                       </div>
                       <p className="panel-sub">
                         Tài khoản <strong>{user.email}</strong> đang mang vai trò{' '}
-                        <code>{user.role}</code> (quyền được cấp:{' '}
-                        <code>{grantedPermissions.join(', ')}</code>). Theo thiết
-                        kế bảo mật N3-6, vai trò Thanh tra viên chỉ đọc lô hàng (
-                        <code>lots:read_all</code>) và bị chặn truy cập trực tiếp
-                        vào API quản lý vùng trồng (<code>farms:read</code>,{' '}
-                        <code>farms:write</code>).
+                        <code>{user.role}</code> chưa được cấp quyền xem hoặc
+                        chỉnh sửa vùng trồng. Tài khoản chỉ có thể truy cập các
+                        chức năng đã được phân quyền.
                       </p>
 
                       <div className="action-row alert-spaced">
@@ -412,7 +415,7 @@ export function FarmWorkspace({
                           className="ds-button ds-button-brand ds-button-sm"
                           onClick={() => void runForbiddenProbe()}
                         >
-                          Gửi thử GET /api/v1/farms/ (Kiểm chứng chặn 403)
+                          Kiểm tra quyền truy cập
                         </button>
                         <button
                           type="button"
@@ -584,8 +587,10 @@ export function FarmWorkspace({
                       onNotify(`Đã điền mẫu: ${preset.name}`)
                     }}
                     onSubmit={handleSubmit}
-                    onCancelEdit={resetForm}
-                    onNotify={onNotify}
+                    onCancelEdit={() => {
+                      resetForm()
+                      setFormFeedback(null)
+                    }}
                   />
                 </div>
 

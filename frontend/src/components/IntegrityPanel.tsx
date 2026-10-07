@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getIntegrityCheckHistory, getLots, verifyLotIntegrity } from '../services/api'
 import type { IntegrityCheckRecord, Lot } from '../types'
 
@@ -23,15 +23,16 @@ export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) 
   const [error, setError] = useState<string | null>(null)
   const [report, setReport] = useState<IntegrityCheckRecord | null>(null)
   const [checkHistory, setCheckHistory] = useState<IntegrityCheckRecord[]>([])
+  const checkRequestRef = useRef(0)
 
   useEffect(() => {
     if (!canReadLots || !canVerify) return
     let active = true
     const timer = window.setTimeout(() => {
-      setLoadingLots(true)
       getLots({ q: query, page_size: 30 })
         .then((page) => {
           if (!active) return
+          setError(null)
           setLots(page.items)
           setLotId((current) =>
             current && page.items.some((lot) => lot.id === current)
@@ -40,7 +41,10 @@ export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) 
           )
         })
         .catch((err: unknown) => {
-          if (active) setError(err instanceof Error ? err.message : 'Không thể tải lô hàng.')
+          if (!active) return
+          setLots([])
+          setLotId('')
+          setError(err instanceof Error ? err.message : 'Không thể tải lô hàng.')
         })
         .finally(() => { if (active) setLoadingLots(false) })
     }, 250)
@@ -64,17 +68,22 @@ export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) 
 
   const checkIntegrity = async () => {
     if (!lotId || checking) return
+    const requestId = ++checkRequestRef.current
+    const requestedLotId = lotId
     setChecking(true)
     setError(null)
     setReport(null)
     try {
-      const check = await verifyLotIntegrity(lotId)
+      const check = await verifyLotIntegrity(requestedLotId)
+      if (requestId !== checkRequestRef.current) return
       setReport(check)
       setCheckHistory((previous) => [check, ...previous.filter((item) => item.id !== check.id)].slice(0, 10))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể kiểm tra chuỗi sự kiện.')
+      if (requestId === checkRequestRef.current) {
+        setError(err instanceof Error ? err.message : 'Không thể kiểm tra chuỗi sự kiện.')
+      }
     } finally {
-      setChecking(false)
+      if (requestId === checkRequestRef.current) setChecking(false)
     }
   }
 
@@ -102,7 +111,16 @@ export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) 
             id="integrity-lot-search"
             type="search"
             value={query}
-            onChange={(event) => { setQuery(event.target.value); setReport(null); setCheckHistory([]); setError(null) }}
+            onChange={(event) => {
+              checkRequestRef.current += 1
+              setQuery(event.target.value)
+              setLoadingLots(true)
+              setLotId('')
+              setReport(null)
+              setCheckHistory([])
+              setChecking(false)
+              setError(null)
+            }}
             placeholder="Nhập mã lô"
           />
         </div>
@@ -111,7 +129,14 @@ export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) 
           <select
             id="integrity-lot"
             value={lotId}
-            onChange={(event) => { setLotId(event.target.value); setReport(null); setCheckHistory([]) }}
+            onChange={(event) => {
+              checkRequestRef.current += 1
+              setLotId(event.target.value)
+              setReport(null)
+              setCheckHistory([])
+              setChecking(false)
+              setError(null)
+            }}
             disabled={loadingLots || lots.length === 0}
           >
             {lots.length === 0 && <option value="">{loadingLots ? 'Đang tải lô…' : 'Không có lô phù hợp'}</option>}

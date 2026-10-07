@@ -104,7 +104,6 @@ export function EventTimeline({
         </div>
 
         <div className="timeline-badges">
-        {/* N3-21 Immutability Badge */}
         <span
           className="status-badge status-neutral"
           style={{
@@ -112,7 +111,7 @@ export function EventTimeline({
             alignItems: 'center',
             gap: '0.35rem',
           }}
-          title="API không cung cấp thao tác sửa hoặc xoá sự kiện đã ghi"
+          title="Sự kiện đã ghi không thể chỉnh sửa hoặc xoá"
         >
           <span aria-hidden="true">🔒</span>
           <span>Không sửa/xoá sự kiện</span>

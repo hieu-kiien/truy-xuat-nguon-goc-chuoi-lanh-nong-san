@@ -125,16 +125,8 @@ export function LotsPanel({
   }
 
   const handleCreated = (lot: Lot) => {
-    setQueryInput('')
-    setError(null)
-    setQuery('')
-    setProductId(lot.product_id ?? '')
-    setCursor(undefined)
-    setCursorHistory([])
-    setSelectedLot(lot)
-    setHistoryLoading(canReadEvents)
     setShowCreate(false)
-    setRefreshToken((token) => token + 1)
+    onOpenLot(lot.id)
   }
 
   if (!canReadLots) {

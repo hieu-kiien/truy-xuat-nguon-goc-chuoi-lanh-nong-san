@@ -24,7 +24,6 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
   const [productId, setProductId] = useState('')
   const [harvestedOn, setHarvestedOn] = useState(localToday)
   const [quantity, setQuantity] = useState('')
-  const [createdLot, setCreatedLot] = useState<Lot | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
@@ -52,7 +51,6 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
     setSaving(true)
     setError(null)
     setFieldErrors({})
-    setCreatedLot(null)
     const payload: LotPayload = {
       farm_id: farmId,
       product_id: productId,
@@ -61,7 +59,6 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
     }
     try {
       const lot = await createLot(payload)
-      setCreatedLot(lot)
       setQuantity('')
       onCreated(lot)
     } catch (err) {
@@ -122,13 +119,6 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
         </form>
       )}
       {error && <p className="alert-box alert-error alert-spaced" role="alert">{error}</p>}
-      {createdLot && (
-        <div className="lot-code-result" role="status" aria-live="polite">
-          <span>Lô thu hoạch đã được ghi nhận</span>
-          <strong>{createdLot.lot_code ?? createdLot.id}</strong>
-          <small>Lưu lại mã này để tra cứu lô.</small>
-        </div>
-      )}
     </section>
   )
 }

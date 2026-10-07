@@ -84,7 +84,7 @@ CREATE POLICY farms_tenant_isolation ON farms
             className="ds-button ds-button-brand ds-button-sm"
             onClick={onRunProbe}
           >
-            Kiểm chứng thực tế: Gọi GET /api/v1/farms/
+            Kiểm tra quyền đọc vùng trồng
           </button>
           <span className="panel-sub">
             Kiểm tra phản hồi 200 OK hoặc 403 Forbidden từ máy chủ
@@ -107,7 +107,7 @@ CREATE POLICY farms_tenant_isolation ON farms
         <div className="data-table-header">
           <div>
             <h2 className="section-title">
-              Ma trận Phân quyền RBAC Toàn hệ thống (N3-6)
+              Ma trận phân quyền
             </h2>
             <p className="panel-sub">
               Đối chiếu 7 vai trò nghiệp vụ và các quyền hạn được cấp phát

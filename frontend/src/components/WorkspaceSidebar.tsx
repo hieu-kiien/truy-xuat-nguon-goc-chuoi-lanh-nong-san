@@ -1,4 +1,3 @@
-import { API_BASE_URL } from '../services/api'
 import { hasPermission, ROLE_LABELS, type SessionUser } from '../types'
 import type { WorkspaceTab } from './FarmWorkspace'
 
@@ -37,7 +36,6 @@ export function WorkspaceSidebar({
         <div className="sidebar-brand">
           <div className="sidebar-brand-row">
             <div className="sidebar-brand-title">AgroChain</div>
-            <span className="sidebar-brand-badge">N3-4..7</span>
           </div>
           <p className="sidebar-brand-sub" title={user.organization_name}>
             {user.organization_name}
@@ -57,7 +55,6 @@ export function WorkspaceSidebar({
                   }`}
                 >
                   <span>Danh sách lô</span>
-                  <span className="nav-tag">N3-6</span>
                 </button>
               </li>}
               {hasPermission(user.role, 'products:read') && <li>
@@ -97,7 +94,6 @@ export function WorkspaceSidebar({
                   }`}
                 >
                   <span>Vùng trồng</span>
-                  <span className="nav-tag">N3-7</span>
                 </button>
               </li>}
               <li>
@@ -108,8 +104,7 @@ export function WorkspaceSidebar({
                     activeTab === 'security' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
-                  <span>Phân quyền &amp; RLS</span>
-                  <span className="nav-tag">N3-6</span>
+                  <span>Phân quyền</span>
                 </button>
               </li>
               {hasPermission(user.role, 'events:verify') && <li>
@@ -120,47 +115,12 @@ export function WorkspaceSidebar({
                     activeTab === 'integrity' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
-                  <span>Chuỗi Hash Sự kiện</span>
-                  <span className="nav-tag">N3-4</span>
+                  <span>Tính toàn vẹn</span>
                 </button>
               </li>}
-              <li>
-                <a
-                  href={`${API_BASE_URL}/docs`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="dashboard-nav-item"
-                >
-                  <span>OpenAPI Swagger</span>
-                  <span className="nav-tag">API</span>
-                </a>
-              </li>
             </ul>
           </div>
 
-          <div>
-            <div className="sidebar-section-label">Trạng thái Hạ tầng</div>
-            <div className="sidebar-specs-box">
-              <div className="sidebar-spec-row">
-                <span className="sidebar-spec-key">PostgreSQL RLS</span>
-                <span className="sidebar-spec-val">FORCE ON</span>
-              </div>
-              <div className="sidebar-spec-row">
-                <span className="sidebar-spec-key">Tenant ID</span>
-                <span className="sidebar-spec-val">
-                  {user.organization_id.slice(0, 8)}...
-                </span>
-              </div>
-              <div className="sidebar-spec-row">
-                <span className="sidebar-spec-key">Session Auth</span>
-                <span className="sidebar-spec-val">SHA-256</span>
-              </div>
-              <div className="sidebar-spec-row">
-                <span className="sidebar-spec-key">Hash Chain</span>
-                <span className="sidebar-spec-val">RFC 8785</span>
-              </div>
-            </div>
-          </div>
         </nav>
       </div>
 
