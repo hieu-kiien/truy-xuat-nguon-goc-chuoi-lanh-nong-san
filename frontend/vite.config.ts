@@ -6,6 +6,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      '/health': {
+        target: process.env.VITE_BACKEND_TARGET || 'https://ttcs-backend-staging.onrender.com',
+        changeOrigin: true,
+        secure: false,
+        rewrite: () => '/',
+      },
       '/api': {
         target: process.env.VITE_BACKEND_TARGET || 'https://ttcs-backend-staging.onrender.com',
         changeOrigin: true,

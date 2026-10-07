@@ -33,6 +33,11 @@ def tenant_select(model: Any, principal: Principal | None = None):
     ):
         return select(model)
 
+    if model.__tablename__ == "lots":
+        return select(model).where(
+            model.current_holder_organization_id == principal.organization_id
+        )
+
     return select(model).where(model.organization_id == principal.organization_id)
 
 

@@ -23,7 +23,7 @@ def _commit_product(db: Session) -> None:
         constraint_name = getattr(
             getattr(exc.orig, "diag", None), "constraint_name", None
         )
-        if constraint_name == "uq_product_name":
+        if constraint_name in {"uq_product_name", "uq_products_name_ci"}:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=PRODUCT_NAME_CONFLICT,

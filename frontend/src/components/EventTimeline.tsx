@@ -1,16 +1,18 @@
 import { useState } from 'react'
-import type { LotEvent } from '../types'
+import type { IntegrityReport, LotEvent } from '../types'
 
 interface EventTimelineProps {
   events: LotEvent[]
   lotName?: string
   loading?: boolean
+  integrity?: IntegrityReport
 }
 
 export function EventTimeline({
   events,
   lotName,
   loading = false,
+  integrity,
 }: EventTimelineProps) {
   const [copiedHash, setCopiedHash] = useState<string | null>(null)
 
@@ -95,28 +97,32 @@ export function EventTimeline({
               margin: '0.25rem 0 0 0',
             }}
           >
-            Tổng cộng: {events.length} sự kiện đã xác thực chuỗi hash
+            {integrity
+              ? `Đã kiểm tra ${integrity.checked_events} sự kiện trong chuỗi hash.`
+              : `${events.length} sự kiện đã được ghi nhận.`}
           </p>
         </div>
 
-        {/* N3-21 Immutability Badge */}
-        <div
+        <div className="timeline-badges">
+        <span
+          className="status-badge status-neutral"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.375rem 0.75rem',
-            backgroundColor: 'var(--brand-softer)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '9999px',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            color: 'var(--brand)',
+            gap: '0.35rem',
           }}
-          title="Bảo vệ toàn vẹn: Không đường nào trong ứng dụng sửa hoặc xoá được sự kiện đã ghi"
+          title="Sự kiện đã ghi không thể chỉnh sửa hoặc xoá"
         >
-          <span style={{ fontSize: '0.875rem' }}>🔒</span>
-          <span>SỔ CÁI BẤT BIẾN (APPEND-ONLY)</span>
+          <span aria-hidden="true">🔒</span>
+          <span>Không sửa/xoá sự kiện</span>
+        </span>
+        {integrity && (
+          <span className={`status-badge ${integrity.valid ? 'status-done' : 'status-danger'}`}>
+            {integrity.valid
+              ? 'Chuỗi hash hợp lệ'
+              : `Sai lệch từ sự kiện ${integrity.first_invalid_sequence ?? 'không xác định'}`}
+          </span>
+        )}
         </div>
       </div>
 

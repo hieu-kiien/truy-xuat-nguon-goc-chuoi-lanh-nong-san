@@ -1,15 +1,15 @@
 """Upgrade admin@mocchau.vn to system_admin role and update RLS policies.
 
-Revision ID: 20261007_08
-Revises: 20261007_07
+Revision ID: 20261007_12
+Revises: 20261007_11
 """
 
 from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "20261007_08"
-down_revision: str | None = "20261007_07"
+revision: str = "20261007_12"
+down_revision: str | None = "20261007_11"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

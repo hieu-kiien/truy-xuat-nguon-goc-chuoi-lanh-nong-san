@@ -37,12 +37,16 @@ export function WorkspaceTopbar({
         </button>
         <h1 className="topbar-title">
           {activeTab === 'lots'
-            ? 'Danh sách lô'
-            : activeTab === 'overview'
-              ? 'Bảng điều khiển Vùng trồng & Giám sát Chuỗi lạnh'
-              : activeTab === 'security'
-                ? 'Ma trận Phân quyền RBAC & Cô lập Đa tổ chức (RLS)'
-                : 'Kiểm chứng Toàn vẹn Chuỗi Sự kiện (SHA-256 + RFC 8785)'}
+            ? 'Lô hàng'
+            : activeTab === 'products'
+              ? 'Sản phẩm'
+              : activeTab === 'handovers'
+                ? 'Bàn giao'
+                : activeTab === 'overview'
+                  ? 'Vùng trồng'
+                  : activeTab === 'security'
+                    ? 'Phân quyền & bảo mật'
+                    : 'Kiểm tra tính toàn vẹn'}
         </h1>
         <span className="topbar-divider">|</span>
         <span className="status-badge status-done">

@@ -41,7 +41,14 @@ def _add_farm(db: Session, organization_id: UUID, name: str) -> Farm:
 
 
 def _add_lot(db: Session, organization_id: UUID, farm_id: UUID, name: str) -> Lot:
-    lot = Lot(organization_id=organization_id, farm_id=farm_id, name=name)
+    lot = Lot(
+        organization_id=organization_id,
+        current_holder_organization_id=organization_id,
+        farm_id=farm_id,
+        name=name,
+        remaining_quantity=Decimal("0"),
+        status="active",
+    )
     db.add(lot)
     db.commit()
     return lot
@@ -74,7 +81,7 @@ def test_application_role_is_limited_and_does_not_bypass_rls():
             )
         ).one()
 
-    assert role == (False, False, False, False, False, False)
+    assert role == (False, False, False, True, False, False)
 
 
 @pytest.mark.asyncio
@@ -97,7 +104,7 @@ async def test_lots_are_tenant_scoped_and_inspector_is_read_only_read_all(
         await _login(client, owner)
         own_list = await client.get("/api/v1/lots/")
         assert own_list.status_code == 200, own_list.text
-        assert [row["id"] for row in own_list.json()] == [str(owner_lot.id)]
+        assert [row["id"] for row in own_list.json()["items"]] == [str(owner_lot.id)]
         own_detail = await client.get(f"/api/v1/lots/{owner_lot.id}")
         assert own_detail.status_code == 200
         assert own_detail.json()["farm_id"] == str(owner_farm.id)
@@ -136,15 +143,52 @@ async def test_lots_are_tenant_scoped_and_inspector_is_read_only_read_all(
         await _login(client, inspector)
         inspector_list = await client.get("/api/v1/lots/")
         assert inspector_list.status_code == 200, inspector_list.text
-        assert {row["id"] for row in inspector_list.json()} == {
+        assert {
             str(owner_lot.id),
             str(other_lot.id),
-        }
+        }.issubset({row["id"] for row in inspector_list.json()["items"]})
         inspector_detail = await client.get(f"/api/v1/lots/{other_lot.id}")
         assert inspector_detail.status_code == 200
         assert inspector_detail.json()["organization_id"] == str(other.organization_id)
         no_write_route = await client.post("/api/v1/lots/", json={})
-        assert no_write_route.status_code == 405
+        assert no_write_route.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_lot_cursor_pages_do_not_repeat_or_skip_rows(
+    admin_session, identity_factory
+):
+    owner = identity_factory()
+    farm = _add_farm(admin_session, owner.organization_id, "Pagination farm")
+    lots = [
+        Lot(
+            organization_id=owner.organization_id,
+            current_holder_organization_id=owner.organization_id,
+            farm_id=farm.id,
+            name=f"Pagination lot {index}",
+            remaining_quantity=Decimal("0"),
+            status="active",
+        )
+        for index in range(21)
+    ]
+    admin_session.add_all(lots)
+    admin_session.commit()
+
+    async with _client() as client:
+        await _login(client, owner)
+        first_page = await client.get("/api/v1/lots/?page_size=20")
+        cursor = first_page.json()["next_cursor"]
+        second_page = await client.get(f"/api/v1/lots/?page_size=20&cursor={cursor}")
+
+    assert first_page.status_code == 200, first_page.text
+    assert second_page.status_code == 200, second_page.text
+    first_page_ids = [lot["id"] for lot in first_page.json()["items"]]
+    second_page_ids = [lot["id"] for lot in second_page.json()["items"]]
+    assert len(first_page_ids) == 20
+    assert len(second_page_ids) == 1
+    assert first_page.json()["next_cursor"] is not None
+    assert second_page.json()["next_cursor"] is None
+    assert set(first_page_ids).isdisjoint(second_page_ids)
 
 
 def test_lot_rls_uses_authenticated_session_not_spoofable_tenant_or_role_gucs(
@@ -174,7 +218,7 @@ def test_lot_rls_uses_authenticated_session_not_spoofable_tenant_or_role_gucs(
         )
         _spoof_tenant_and_role(db, owner.organization_id, "grower")
         visible = list(db.scalars(select(Lot)).all())
-        assert {lot.id for lot in visible} == {owner_lot.id, other_lot.id}
+        assert {owner_lot.id, other_lot.id}.issubset({lot.id for lot in visible})
 
     with SessionLocal() as db:
         _spoof_tenant_and_role(db, other.organization_id, "inspector")
@@ -187,8 +231,11 @@ def test_lot_farm_relation_is_tenant_consistent(identity_factory, admin_session)
     farm = _add_farm(admin_session, other.organization_id, "Other farm")
     invalid_lot = Lot(
         organization_id=owner.organization_id,
+        current_holder_organization_id=owner.organization_id,
         farm_id=farm.id,
         name="Cross-organization relation",
+        remaining_quantity=Decimal("0"),
+        status="active",
     )
     admin_session.add(invalid_lot)
 

@@ -1,5 +1,4 @@
-import { API_BASE_URL } from '../services/api'
-import { ROLE_LABELS, type SessionUser } from '../types'
+import { hasPermission, ROLE_LABELS, type SessionUser } from '../types'
 import type { WorkspaceTab } from './FarmWorkspace'
 
 interface WorkspaceSidebarProps {
@@ -9,6 +8,7 @@ interface WorkspaceSidebarProps {
   onCloseSidebar: () => void
   onTabChange: (tab: WorkspaceTab) => void
   onLogout: () => void
+  pendingHandoverCount?: number | null
 }
 
 export function WorkspaceSidebar({
@@ -18,6 +18,7 @@ export function WorkspaceSidebar({
   onCloseSidebar,
   onTabChange,
   onLogout,
+  pendingHandoverCount,
 }: WorkspaceSidebarProps) {
   const selectTab = (tab: WorkspaceTab) => {
     onTabChange(tab)
@@ -35,7 +36,6 @@ export function WorkspaceSidebar({
         <div className="sidebar-brand">
           <div className="sidebar-brand-row">
             <div className="sidebar-brand-title">AgroChain</div>
-            <span className="sidebar-brand-badge">N3-4..7</span>
           </div>
           <p className="sidebar-brand-sub" title={user.organization_name}>
             {user.organization_name}
@@ -46,7 +46,7 @@ export function WorkspaceSidebar({
           <div>
             <div className="sidebar-section-label">Phân hệ Nghiệp vụ</div>
             <ul className="sidebar-nav-list">
-              <li>
+              {hasPermission(user.role, 'lots:read') && <li>
                 <button
                   type="button"
                   onClick={() => selectTab('lots')}
@@ -55,22 +55,9 @@ export function WorkspaceSidebar({
                   }`}
                 >
                   <span>Danh sách lô</span>
-                  <span className="nav-tag">N3-6</span>
                 </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => selectTab('overview')}
-                  className={`dashboard-nav-item ${
-                    activeTab === 'overview' ? 'dashboard-nav-item-active' : ''
-                  }`}
-                >
-                  <span>Tổng quan &amp; Vùng trồng</span>
-                  <span className="nav-tag">N3-7</span>
-                </button>
-              </li>
-              <li>
+              </li>}
+              {hasPermission(user.role, 'products:read') && <li>
                 <button
                   type="button"
                   onClick={() => selectTab('products')}
@@ -78,10 +65,37 @@ export function WorkspaceSidebar({
                     activeTab === 'products' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
-                  <span>Quản lý Sản phẩm</span>
-                  <span className="nav-tag">API</span>
+                  <span>Sản phẩm</span>
                 </button>
-              </li>
+              </li>}
+              {(hasPermission(user.role, 'handovers:create') ||
+                hasPermission(user.role, 'handovers:resolve')) && <li>
+                <button
+                  type="button"
+                  onClick={() => selectTab('handovers')}
+                  className={`dashboard-nav-item ${
+                    activeTab === 'handovers' ? 'dashboard-nav-item-active' : ''
+                  }`}
+                >
+                  <span>Bàn giao</span>
+                  {pendingHandoverCount != null && pendingHandoverCount > 0 && (
+                    <span className="handover-pending-count" aria-label={`${pendingHandoverCount} yêu cầu cần xác nhận`}>
+                      {pendingHandoverCount}
+                    </span>
+                  )}
+                </button>
+              </li>}
+              {hasPermission(user.role, 'farms:read') && <li>
+                <button
+                  type="button"
+                  onClick={() => selectTab('overview')}
+                  className={`dashboard-nav-item ${
+                    activeTab === 'overview' ? 'dashboard-nav-item-active' : ''
+                  }`}
+                >
+                  <span>Vùng trồng</span>
+                </button>
+              </li>}
               <li>
                 <button
                   type="button"
@@ -90,11 +104,10 @@ export function WorkspaceSidebar({
                     activeTab === 'security' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
-                  <span>Phân quyền &amp; RLS</span>
-                  <span className="nav-tag">N3-6</span>
+                  <span>Phân quyền</span>
                 </button>
               </li>
-              <li>
+              {hasPermission(user.role, 'events:verify') && <li>
                 <button
                   type="button"
                   onClick={() => selectTab('integrity')}
@@ -102,47 +115,12 @@ export function WorkspaceSidebar({
                     activeTab === 'integrity' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
-                  <span>Chuỗi Hash Sự kiện</span>
-                  <span className="nav-tag">N3-4</span>
+                  <span>Tính toàn vẹn</span>
                 </button>
-              </li>
-              <li>
-                <a
-                  href={`${API_BASE_URL}/docs`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="dashboard-nav-item"
-                >
-                  <span>OpenAPI Swagger</span>
-                  <span className="nav-tag">API</span>
-                </a>
-              </li>
+              </li>}
             </ul>
           </div>
 
-          <div>
-            <div className="sidebar-section-label">Trạng thái Hạ tầng</div>
-            <div className="sidebar-specs-box">
-              <div className="sidebar-spec-row">
-                <span className="sidebar-spec-key">PostgreSQL RLS</span>
-                <span className="sidebar-spec-val">FORCE ON</span>
-              </div>
-              <div className="sidebar-spec-row">
-                <span className="sidebar-spec-key">Tenant ID</span>
-                <span className="sidebar-spec-val">
-                  {user.organization_id.slice(0, 8)}...
-                </span>
-              </div>
-              <div className="sidebar-spec-row">
-                <span className="sidebar-spec-key">Session Auth</span>
-                <span className="sidebar-spec-val">SHA-256</span>
-              </div>
-              <div className="sidebar-spec-row">
-                <span className="sidebar-spec-key">Hash Chain</span>
-                <span className="sidebar-spec-val">RFC 8785</span>
-              </div>
-            </div>
-          </div>
         </nav>
       </div>
 

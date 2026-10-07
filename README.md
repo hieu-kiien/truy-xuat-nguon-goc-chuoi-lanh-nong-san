@@ -1,7 +1,7 @@
 # AgroChain — Hệ thống Truy xuất Nguồn gốc & Giám sát Chuỗi lạnh Nông sản
 
-> Học phần: Thực tập cơ sở (TTCS) — Nhóm `TTCS_T926_K18C4_N3`  
-> 
+> Học phần: Thực tập cơ sở (TTCS) — Nhóm `TTCS_T926_K18C4_N3`
+>
 
 > **Môi trường Trực tuyến (Staging - Render):**
 > - **Giao diện Người dùng (Frontend Web):** [https://ttcs-frontend-staging.onrender.com](https://ttcs-frontend-staging.onrender.com) *(Khuyên dùng: Chỉ cần mở link này để sử dụng)*

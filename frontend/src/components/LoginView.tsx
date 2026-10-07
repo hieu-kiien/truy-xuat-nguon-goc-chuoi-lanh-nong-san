@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type FocusEvent } from 'react'
-import { API_BASE_URL, login } from '../services/api'
+import { login } from '../services/api'
 import type { SessionUser } from '../types'
 
 interface LoginViewProps {
@@ -487,12 +487,11 @@ export function LoginView({
 
             <div className="audit-modal-body">
               <div className="audit-section">
-                <h4 className="audit-section-title">1. Hiện trạng Phân hệ Kỹ thuật (Sprint 1 &amp; Sprint 2)</h4>
+                <h4 className="audit-section-title">1. Tính năng hệ thống</h4>
                 <div className="audit-table-container">
                   <table className="audit-spec-table">
                     <thead>
                       <tr>
-                        <th>Mã phân hệ</th>
                         <th>Hạng mục nghiệp vụ</th>
                         <th>Công nghệ / Giải pháp kỹ thuật</th>
                         <th>Trạng thái</th>
@@ -500,31 +499,26 @@ export function LoginView({
                     </thead>
                     <tbody>
                       <tr>
-                        <td><strong>N3-4</strong></td>
                         <td>Toàn vẹn Chuỗi lạnh</td>
                         <td>Chuỗi băm SHA-256 + Canonical JSON RFC 8785</td>
                         <td><span className="badge-pass">Hoàn thành (Passed)</span></td>
                       </tr>
                       <tr>
-                        <td><strong>N3-5</strong></td>
                         <td>Quản lý Xác thực &amp; Phiên</td>
                         <td>Argon2id + HttpOnly Cookie (__Host-session)</td>
                         <td><span className="badge-pass">Bảo vệ nghiêm ngặt</span></td>
                       </tr>
                       <tr>
-                        <td><strong>N3-6</strong></td>
                         <td>Đa tổ chức &amp; Phân quyền</td>
                         <td>PostgreSQL FORCE Row Level Security (RLS) + RBAC</td>
                         <td><span className="badge-pass">Cô lập tuyệt đối</span></td>
                       </tr>
                       <tr>
-                        <td><strong>N3-7</strong></td>
                         <td>Danh mục Vùng trồng</td>
                         <td>Tọa độ GPS chuẩn WGS84 + Khóa UUID định danh</td>
                         <td><span className="badge-pass">Sẵn sàng xuất khẩu</span></td>
                       </tr>
                       <tr>
-                        <td><strong>N3-21</strong></td>
                         <td>Bất biến Nhật ký Sự kiện</td>
                         <td>Trigger PostgreSQL chặn UPDATE/DELETE + Chaining Hash</td>
                         <td><span className="badge-pass">Append-only 5 lớp</span></td>
@@ -534,25 +528,6 @@ export function LoginView({
                 </div>
               </div>
 
-              <div className="audit-section">
-                <h4 className="audit-section-title">2. Tài nguyên Kiểm thử &amp; API</h4>
-                <div className="audit-links-grid">
-                  <a
-                    href={`${API_BASE_URL}/docs`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="audit-link-card"
-                  >
-                    <span className="audit-link-title">📄 Swagger API Documentation</span>
-                    <span className="audit-link-desc">Xem toàn bộ OpenAPI Specification và chạy thử nghiệm trực tiếp</span>
-                  </a>
-
-                  <div className="audit-link-card">
-                    <span className="audit-link-title">🧪 Kiểm thử Tự động (CI Pipeline)</span>
-                    <span className="audit-link-desc">25/25 Pytest Passed • Linter Ruff Passed • Docker Build Verified</span>
-                  </div>
-                </div>
-              </div>
             </div>
 
             <div className="audit-modal-footer">

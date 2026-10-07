@@ -14,35 +14,71 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "auth:session",
             "farms:read",
             "farms:write",
+            "products:read",
             "lots:read",
+            "lots:create",
             "events:read",
             "events:create",
-            "products:read",
+            "handovers:create",
+            "handovers:resolve",
         }
     ),
     "cooperative": frozenset(
-        {"auth:session", "lots:read", "events:read", "events:create", "products:read"}
+        {
+            "auth:session",
+            "products:read",
+            "lots:read",
+            "events:read",
+            "events:create",
+            "handovers:create",
+            "handovers:resolve",
+        }
     ),
     "transporter": frozenset(
-        {"auth:session", "lots:read", "events:read", "events:create", "products:read"}
+        {
+            "auth:session",
+            "products:read",
+            "lots:read",
+            "events:read",
+            "events:create",
+            "handovers:create",
+            "handovers:resolve",
+        }
     ),
     "distributor": frozenset(
-        {"auth:session", "lots:read", "events:read", "events:create", "products:read"}
+        {
+            "auth:session",
+            "products:read",
+            "lots:read",
+            "events:read",
+            "events:create",
+            "handovers:create",
+            "handovers:resolve",
+        }
     ),
     "inspector": frozenset(
-        {"auth:session", "lots:read_all", "events:read_all", "products:read_all"}
+        {
+            "auth:session",
+            "products:read",
+            "lots:read_all",
+            "events:read_all",
+            "events:verify",
+        }
     ),
     "organization_admin": frozenset(
         {
             "auth:session",
             "farms:read",
             "farms:write",
-            "lots:read",
-            "lots:write",
-            "events:read",
-            "events:create",
             "products:read",
             "products:write",
+            "lots:read",
+            "lots:write",
+            "lots:create",
+            "events:read",
+            "events:create",
+            "handovers:create",
+            "handovers:resolve",
         }
     ),
     "system_admin": frozenset(
@@ -54,12 +90,16 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "lots:read",
             "lots:read_all",
             "lots:write",
+            "lots:create",
             "events:read",
             "events:read_all",
             "events:create",
+            "events:verify",
             "products:read",
             "products:write",
             "products:read_all",
+            "handovers:create",
+            "handovers:resolve",
         }
     ),
 }
@@ -96,40 +136,12 @@ def enforce_route_permission(
     request: Request,
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> None:
-    path = request.url.path
-    method = request.method
+    route = request.scope.get("route")
+    endpoint = getattr(route, "endpoint", None)
+    permission = getattr(endpoint, "__required_permission__", None)
 
     request.state.principal = principal
     request.state.organization_id = principal.organization_id
-
-    # Tự động gán quyền dựa theo đường dẫn API (bền vững, không sợ bị mất wrapper decorator)
-    permission = None
-    if "/api/v1/products" in path:
-        permission = (
-            "products:write" if method in ["POST", "PUT", "DELETE"] else "products:read"
-        )
-    elif "/api/v1/farms" in path:
-        permission = (
-            "farms:write" if method in ["POST", "PUT", "DELETE"] else "farms:read"
-        )
-    elif "/api/v1/lots" in path:
-        permission = (
-            "lots:write" if method in ["POST", "PUT", "DELETE"] else "lots:read"
-        )
-    elif "/api/v1/events" in path:
-        permission = (
-            "events:write" if method in ["POST", "PUT", "DELETE"] else "events:read"
-        )
-    else:
-        # Fallback kiểm tra qua thuộc tính endpoint cũ nếu có
-        route = request.scope.get("route")
-        endpoint = getattr(route, "endpoint", None)
-        current = endpoint
-        while current is not None:
-            permission = getattr(current, "__required_permission__", None)
-            if permission is not None:
-                break
-            current = getattr(current, "__wrapped__", None)
 
     if permission is None:
         logger.warning(
@@ -139,7 +151,13 @@ def enforce_route_permission(
             principal.organization_id,
             request.method,
             request.url.path,
-            extra={"event": "authorization.route_missing_permission"},
+            extra={
+                "event": "authorization.route_missing_permission",
+                "user_id": str(principal.user_id),
+                "organization_id": str(principal.organization_id),
+                "method": request.method,
+                "path": request.url.path,
+            },
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -156,6 +174,15 @@ def enforce_route_permission(
             permission,
             request.method,
             request.url.path,
+            extra={
+                "event": "authorization.permission_denied",
+                "user_id": str(principal.user_id),
+                "organization_id": str(principal.organization_id),
+                "role": principal.role,
+                "permission": permission,
+                "method": request.method,
+                "path": request.url.path,
+            },
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -89,10 +89,16 @@ export function ProductManager({ user }: ProductManagerProps) {
     event.preventDefault()
     if (saving) return
 
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      setFeedback({ type: 'error', message: 'Tên sản phẩm không được để trống.' })
+      return
+    }
+
     setSaving(true)
     setFeedback(null)
     const payload: ProductInput = {
-      name: name.trim(),
+      name: trimmedName,
       unit,
       description: description.trim() || undefined,
       price: Number(price),
