@@ -128,4 +128,3 @@ async def custom_404_handler(request: Request, exc: Exception):
             "docs_url": "/docs",
         },
     )
-

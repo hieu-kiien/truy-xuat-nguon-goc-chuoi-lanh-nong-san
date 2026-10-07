@@ -135,7 +135,6 @@ def seed_demo_data() -> None:
 
             session.flush()
 
-
             for farm_data in DEMO_FARMS:
                 existing_farm = session.get(Farm, farm_data["id"])
                 if existing_farm is None:
