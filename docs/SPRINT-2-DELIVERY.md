@@ -22,7 +22,7 @@ Use a small, consistent token set for color, spacing, type, borders, and focus s
 ## Evidence map
 
 - N3-20/21: RFC 8785 canonical hash-chain tests, transaction rollback, database append-only permission tests, and README rule.
-- N3-22: valid, tampered, missing-event, and direct SQL edit/delete verification tests; 1,000-event verification under one second; batched organization-name query; real timeline and integrity warning.
+- N3-22: valid, tampered, missing-event, and direct SQL edit/delete verification tests; 1,000-event verification under one second; batched organization-name query; real timeline and integrity warning. Inspector verification is saved as an append-only, tenant-scoped record with timestamp and recent-check history (`POST/GET /api/v1/events/lots/{lot_id}/integrity-checks`).
 - N3-23: 200-event history request under two seconds with a bounded SQL SELECT count, including organization names.
-- N3-24/25: sender/recipient workflow, duplicate/self handover rejection, atomic accept/reject tests, and pending inbox UI.
-- N3-31/32/33/34: product permission/uniqueness tests, 10,000-code collision test, field validation, disabled-while-saving forms, cursor/search/filter tests, and real lot/product screens.
+- N3-24/25: sender/recipient workflow, duplicate/self handover rejection, atomic accept/reject tests, pending inbox UI and sidebar count; lot detail links to its handover form and current request.
+- N3-31/32/33/34: product permission/uniqueness tests, 10,000-code collision test, field validation, disabled-while-saving forms, cursor/search/filter tests, and real lot/product screens. Lot codes open a dedicated detail page with event history.

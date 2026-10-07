@@ -10,6 +10,7 @@ interface LotsPanelProps {
   canReadLots: boolean
   canCreateLots: boolean
   canReadEvents?: boolean
+  onOpenLot: (lotId: string) => void
 }
 
 function displayLotCode(lot: Lot): string {
@@ -26,6 +27,7 @@ export function LotsPanel({
   canReadLots,
   canCreateLots,
   canReadEvents = true,
+  onOpenLot,
 }: LotsPanelProps) {
   const [lots, setLots] = useState<Lot[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -226,7 +228,18 @@ export function LotsPanel({
                 </tr>
               ) : lots.map((lot) => (
                 <tr key={lot.id} className={selectedLot?.id === lot.id ? 'lot-row-selected' : undefined}>
-                  <th scope="row" className="cell-strong"><code>{displayLotCode(lot)}</code></th>
+                  <th scope="row" className="cell-strong">
+                    <a
+                      className="lot-code-link"
+                      href={`/lots/${lot.id}`}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        onOpenLot(lot.id)
+                      }}
+                    >
+                      <code>{displayLotCode(lot)}</code>
+                    </a>
+                  </th>
                   <td>{lot.product?.name ?? lot.name}</td>
                   <td>{lot.harvested_on ?? '—'}</td>
                   <td>{lot.remaining_quantity} {lot.product?.unit ?? ''}</td>

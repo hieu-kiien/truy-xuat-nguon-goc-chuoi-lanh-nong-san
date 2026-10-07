@@ -14,6 +14,7 @@ from app.models.event import Event
 from app.models.farm import Farm
 from app.models.handover import Handover
 from app.models.identity import AuthSession, Organization, Role, User
+from app.models.integrity_check import IntegrityCheck
 from app.models.lot import Lot
 
 
@@ -114,10 +115,19 @@ def identity_factory(
             with admin_session.begin_nested():
                 admin_session.execute(text("ALTER TABLE events DISABLE TRIGGER USER"))
                 admin_session.execute(
+                    text("ALTER TABLE integrity_checks DISABLE TRIGGER USER")
+                )
+                admin_session.execute(
                     delete(Handover).where(Handover.lot_id.in_(lot_ids))
+                )
+                admin_session.execute(
+                    delete(IntegrityCheck).where(IntegrityCheck.lot_id.in_(lot_ids))
                 )
                 admin_session.execute(delete(Event).where(Event.lot_id.in_(lot_ids)))
                 admin_session.execute(delete(Lot).where(Lot.id.in_(lot_ids)))
+                admin_session.execute(
+                    text("ALTER TABLE integrity_checks ENABLE TRIGGER USER")
+                )
                 admin_session.execute(text("ALTER TABLE events ENABLE TRIGGER USER"))
         admin_session.execute(
             delete(Farm).where(Farm.organization_id.in_(created_organizations))

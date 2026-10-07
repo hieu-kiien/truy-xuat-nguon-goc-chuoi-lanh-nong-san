@@ -17,6 +17,7 @@ from app.main import app
 from app.models.event import Event
 from app.models.farm import Farm
 from app.models.identity import Organization
+from app.models.integrity_check import IntegrityCheck
 from app.models.lot import Lot
 from app.models.product import Product
 from app.services import event_service
@@ -109,7 +110,10 @@ def _cleanup_lot_records(db: Session, farm: Farm, product: Product, lot_ids) -> 
     if lot_ids:
         with db.begin_nested():
             db.execute(text("ALTER TABLE events DISABLE TRIGGER USER"))
+            db.execute(text("ALTER TABLE integrity_checks DISABLE TRIGGER USER"))
+            db.execute(delete(IntegrityCheck).where(IntegrityCheck.lot_id.in_(lot_ids)))
             db.execute(delete(Event).where(Event.lot_id.in_(lot_ids)))
+            db.execute(text("ALTER TABLE integrity_checks ENABLE TRIGGER USER"))
             db.execute(text("ALTER TABLE events ENABLE TRIGGER USER"))
         db.execute(delete(Lot).where(Lot.id.in_(lot_ids)))
     db.execute(delete(Farm).where(Farm.id == farm.id))
@@ -135,6 +139,81 @@ def test_one_thousand_events_verify_under_one_second():
     assert result["valid"] is True
     assert result["checked_events"] == 1_000
     assert elapsed < 1.0
+
+
+def test_integrity_check_is_persisted_with_timestamp(
+    admin_session: Session, identity_factory
+):
+    owner = identity_factory(role="inspector", organization_type="inspection")
+    farm, product, lot, principal = _create_lot_records(
+        admin_session, owner, uuid4().hex[:8]
+    )
+    try:
+        _append_chain(admin_session, principal, lot.id, 1)
+
+        principal = Principal(
+            user_id=owner.user_id,
+            email=owner.email,
+            full_name="Integrity test inspector",
+            organization_id=owner.organization_id,
+            organization_name="Integrity test organization",
+            organization_type="inspection",
+            role="inspector",
+        )
+        report = event_service.record_integrity_check(admin_session, principal, lot.id)
+
+        assert report["checked_at"] is not None
+        saved_check = admin_session.scalar(
+            select(IntegrityCheck).where(IntegrityCheck.id == report["id"])
+        )
+        assert saved_check is not None
+        assert saved_check.valid is True
+        assert saved_check.checked_events == 1
+        assert saved_check.checked_at == report["checked_at"]
+        history = event_service.get_integrity_check_history(
+            admin_session, principal, lot.id
+        )
+        assert len(history) == 1
+        assert history[0].id == report["id"]
+    finally:
+        _cleanup_lot_records(admin_session, farm, product, [lot.id])
+
+
+@pytest.mark.asyncio
+async def test_integrity_check_endpoint_returns_saved_audit_history(
+    admin_session: Session, identity_factory
+):
+    owner = identity_factory(role="inspector", organization_type="inspection")
+    farm, product, lot, principal = _create_lot_records(
+        admin_session, owner, uuid4().hex[:8]
+    )
+    _append_chain(admin_session, principal, lot.id, 2)
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="https://testserver"
+        ) as client:
+            login = await client.post(
+                "/api/v1/auth/login",
+                json={"email": owner.email, "password": owner.password},
+            )
+            assert login.status_code == 200, login.text
+
+            response = await client.post(
+                f"/api/v1/events/lots/{lot.id}/integrity-checks"
+            )
+            history = await client.get(
+                f"/api/v1/events/lots/{lot.id}/integrity-checks"
+            )
+
+        assert response.status_code == 201, response.text
+        assert response.json()["valid"] is True
+        assert response.json()["checked_events"] == 2
+        assert response.json()["checked_at"]
+        assert history.status_code == 200, history.text
+        assert len(history.json()) == 1
+        assert history.json()[0]["id"] == response.json()["id"]
+    finally:
+        _cleanup_lot_records(admin_session, farm, product, [lot.id])
 
 
 def test_tampered_event_marks_it_and_all_later_events_suspect():

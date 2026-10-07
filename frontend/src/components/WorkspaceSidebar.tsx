@@ -9,6 +9,7 @@ interface WorkspaceSidebarProps {
   onCloseSidebar: () => void
   onTabChange: (tab: WorkspaceTab) => void
   onLogout: () => void
+  pendingHandoverCount?: number | null
 }
 
 export function WorkspaceSidebar({
@@ -18,6 +19,7 @@ export function WorkspaceSidebar({
   onCloseSidebar,
   onTabChange,
   onLogout,
+  pendingHandoverCount,
 }: WorkspaceSidebarProps) {
   const selectTab = (tab: WorkspaceTab) => {
     onTabChange(tab)
@@ -79,6 +81,11 @@ export function WorkspaceSidebar({
                   }`}
                 >
                   <span>Bàn giao</span>
+                  {pendingHandoverCount != null && pendingHandoverCount > 0 && (
+                    <span className="handover-pending-count" aria-label={`${pendingHandoverCount} yêu cầu cần xác nhận`}>
+                      {pendingHandoverCount}
+                    </span>
+                  )}
                 </button>
               </li>}
               {hasPermission(user.role, 'farms:read') && <li>

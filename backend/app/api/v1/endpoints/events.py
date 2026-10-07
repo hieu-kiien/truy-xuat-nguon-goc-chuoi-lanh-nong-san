@@ -13,6 +13,7 @@ from app.schemas.event import (
     EventCreate,
     EventHistoryRead,
     EventRead,
+    IntegrityCheckRead,
     IntegrityRead,
 )
 from app.services import event_service
@@ -38,6 +39,32 @@ def verify_lot_integrity(
     db: Annotated[Session, Depends(get_db)],
 ) -> dict:
     return event_service.verify_lot_integrity(db, principal, lot_id)
+
+
+@router.post(
+    "/lots/{lot_id}/integrity-checks",
+    response_model=IntegrityCheckRead,
+    status_code=status.HTTP_201_CREATED,
+)
+@require_permission("events:verify")
+def record_lot_integrity_check(
+    lot_id: UUID,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    return event_service.record_integrity_check(db, principal, lot_id)
+
+
+@router.get(
+    "/lots/{lot_id}/integrity-checks", response_model=list[IntegrityCheckRead]
+)
+@require_permission("events:verify")
+def get_lot_integrity_check_history(
+    lot_id: UUID,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list:
+    return event_service.get_integrity_check_history(db, principal, lot_id)
 
 
 @router.get("/", response_model=list[EventRead])

@@ -149,6 +149,12 @@ export interface IntegrityReport {
   issues: IntegrityIssue[]
 }
 
+export interface IntegrityCheckRecord extends IntegrityReport {
+  id: string
+  lot_id: string
+  checked_at: string
+}
+
 export interface EventHistory {
   events: LotEvent[]
   integrity: IntegrityReport

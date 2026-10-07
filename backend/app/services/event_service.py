@@ -9,6 +9,7 @@ from app.core.auth import Principal
 from app.core.crypto import GENESIS_PREV_HASH, compute_event_hash
 from app.core.tenancy import get_tenant_record, tenant_select
 from app.models.event import Event
+from app.models.integrity_check import IntegrityCheck
 from app.models.lot import Lot
 from app.schemas.event import EventCreate, IntegrityIssue
 
@@ -210,6 +211,52 @@ def verify_lot_integrity(db: Session, principal: Principal, lot_id: UUID) -> dic
         ).all()
     )
     return verify_event_chain(events)
+
+
+def record_integrity_check(db: Session, principal: Principal, lot_id: UUID) -> dict:
+    """Verify a lot and append an immutable, timestamped audit record."""
+    lot = get_tenant_record(db, Lot, lot_id, principal)
+    events = list(
+        db.scalars(
+            select(Event)
+            .where(Event.lot_id == lot_id)
+            .order_by(Event.sequence_number.asc())
+        ).all()
+    )
+    report = verify_event_chain(events)
+    check = IntegrityCheck(
+        organization_id=principal.organization_id,
+        lot_id=lot.id,
+        checked_by_user_id=principal.user_id,
+        valid=report["valid"],
+        checked_events=report["checked_events"],
+        first_invalid_sequence=report["first_invalid_sequence"],
+        issues=[issue.model_dump() for issue in report["issues"]],
+    )
+    db.add(check)
+    db.commit()
+    db.refresh(check)
+    return {
+        "id": check.id,
+        "lot_id": check.lot_id,
+        "checked_at": check.checked_at,
+        **report,
+    }
+
+
+def get_integrity_check_history(
+    db: Session, principal: Principal, lot_id: UUID, limit: int = 10
+) -> list[IntegrityCheck]:
+    """Return recent verification records visible to the caller."""
+    get_tenant_record(db, Lot, lot_id, principal)
+    statement = select(IntegrityCheck).where(IntegrityCheck.lot_id == lot_id)
+    if principal.role not in {"inspector", "system_admin"}:
+        statement = statement.where(
+            IntegrityCheck.organization_id == principal.organization_id
+        )
+    return list(
+        db.scalars(statement.order_by(IntegrityCheck.checked_at.desc()).limit(limit)).all()
+    )
 
 
 def get_event_by_id(

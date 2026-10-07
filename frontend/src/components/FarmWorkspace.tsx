@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
-import { ApiError, createFarm, getFarms, updateFarm } from '../services/api'
+import {
+  ApiError,
+  createFarm,
+  getFarms,
+  getIncomingHandovers,
+  updateFarm,
+} from '../services/api'
 import {
   hasPermission,
   ROLE_LABELS,
@@ -11,6 +17,7 @@ import { FarmFormPanel } from './FarmFormPanel'
 import { IntegrityPanel } from './IntegrityPanel'
 import { HandoversPanel } from './HandoversPanel'
 import { LotsPanel } from './LotsPanel'
+import { LotDetailPanel } from './LotDetailPanel'
 import { ProductsPanel } from './ProductsPanel'
 import { SecurityPanel } from './SecurityPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
@@ -32,6 +39,9 @@ interface FarmWorkspaceProps {
   onTabChange: (tab: WorkspaceTab) => void
   onLogout: () => void
   onNotify: (message: string) => void
+  selectedLotId: string | null
+  onOpenLot: (lotId: string) => void
+  onBackToLots: () => void
 }
 
 export function FarmWorkspace({
@@ -42,6 +52,9 @@ export function FarmWorkspace({
   onTabChange,
   onLogout,
   onNotify,
+  selectedLotId,
+  onOpenLot,
+  onBackToLots,
 }: FarmWorkspaceProps) {
   const canReadFarms = hasPermission(user.role, 'farms:read')
   const canWriteFarms = hasPermission(user.role, 'farms:write')
@@ -54,6 +67,7 @@ export function FarmWorkspace({
   const canUseHandovers =
     hasPermission(user.role, 'handovers:create') ||
     hasPermission(user.role, 'handovers:resolve')
+  const canResolveHandovers = hasPermission(user.role, 'handovers:resolve')
   const canVerifyEvents = hasPermission(user.role, 'events:verify')
   const grantedPermissions = ROLE_PERMISSIONS[user.role] ?? []
 
@@ -77,6 +91,30 @@ export function FarmWorkspace({
   } | null>(null)
 
   const [rbacProbeResult, setRbacProbeResult] = useState<string | null>(null)
+  const [pendingHandoverCount, setPendingHandoverCount] = useState<number | null>(
+    canResolveHandovers ? null : 0,
+  )
+
+  const updatePendingHandoverCount = useCallback((count: number) => {
+    setPendingHandoverCount(count)
+  }, [])
+
+  useEffect(() => {
+    if (!canResolveHandovers) return
+    let active = true
+    getIncomingHandovers()
+      .then((handovers) => {
+        if (active) {
+          setPendingHandoverCount(
+            handovers.filter((handover) => handover.status === 'pending').length,
+          )
+        }
+      })
+      .catch(() => {
+        if (active) setPendingHandoverCount(null)
+      })
+    return () => { active = false }
+  }, [canResolveHandovers])
 
   const refreshFarms = useCallback(async () => {
     if (!canReadFarms) return
@@ -248,6 +286,7 @@ export function FarmWorkspace({
           onCloseSidebar={() => setSidebarOpen(false)}
           onTabChange={onTabChange}
           onLogout={onLogout}
+          pendingHandoverCount={pendingHandoverCount}
         />
 
         <div className="dashboard-main">
@@ -264,7 +303,7 @@ export function FarmWorkspace({
           />
 
           <main className="dashboard-content">
-            {activeTab === 'overview' && (
+            {(activeTab === 'overview' || (activeTab === 'lots' && !selectedLotId)) && canReadFarms && (
               <section aria-label="Tóm tắt vùng trồng">
               <div className="stats-grid">
                 <article className="stat-card panel-card">
@@ -281,7 +320,7 @@ export function FarmWorkspace({
                 <article className="stat-card panel-card">
                   <p className="stat-label">Vùng trồng thuộc đơn vị</p>
                   <p className="stat-value">
-                    {canReadFarms ? `${farms.length} vùng` : 'Chặn (403)'}
+                    {loadingFarms ? 'Đang tải…' : `${farms.length} vùng`}
                   </p>
                   <p className="stat-trend">Trong đơn vị hiện tại</p>
                 </article>
@@ -289,10 +328,12 @@ export function FarmWorkspace({
                 <article className="stat-card panel-card">
                   <p className="stat-label">Tổng diện tích canh tác</p>
                   <p className="stat-value">
-                    {canReadFarms ? `${totalAreaHa.toFixed(2)} ha` : '—'}
+                    {loadingFarms ? 'Đang tải…' : `${totalAreaHa.toFixed(2)} ha`}
                   </p>
                   <p className="stat-trend">
-                    {canReadFarms && farms.length > 0
+                    {loadingFarms
+                      ? 'Đang tải dữ liệu vùng trồng'
+                      : farms.length > 0
                       ? `Trung bình ${avgAreaHa.toFixed(2)} ha / vùng`
                       : 'Chưa có dữ liệu diện tích'}
                   </p>
@@ -302,11 +343,22 @@ export function FarmWorkspace({
             )}
 
             {activeTab === 'lots' && (
-              <LotsPanel
-                canReadLots={canReadLots}
-                canCreateLots={canCreateLots}
-                canReadEvents={canReadEvents}
-              />
+              selectedLotId ? (
+                <LotDetailPanel
+                  lotId={selectedLotId}
+                  canReadEvents={canReadEvents}
+                  canCreateHandover={hasPermission(user.role, 'handovers:create')}
+                  canResolveHandover={canResolveHandovers}
+                  onBack={onBackToLots}
+                />
+              ) : (
+                <LotsPanel
+                  canReadLots={canReadLots}
+                  canCreateLots={canCreateLots}
+                  canReadEvents={canReadEvents}
+                  onOpenLot={onOpenLot}
+                />
+              )
             )}
 
             {activeTab === 'products' && (
@@ -317,7 +369,8 @@ export function FarmWorkspace({
               canUseHandovers ? (
                 <HandoversPanel
                   canCreate={hasPermission(user.role, 'handovers:create')}
-                  canResolve={hasPermission(user.role, 'handovers:resolve')}
+                  canResolve={canResolveHandovers}
+                  onPendingCountChange={updatePendingHandoverCount}
                 />
               ) : (
                 <section className="panel-card panel-box" role="status">

@@ -12,7 +12,7 @@ import type {
   Product,
   ProductPayload,
   SessionUser,
-  IntegrityReport,
+  IntegrityCheckRecord,
   EventHistory,
   Handover,
   HandoverPayload,
@@ -197,6 +197,9 @@ export const getLots = (params: LotListParams = {}) => {
   return request<LotPage>(`/api/v1/lots/?${query.toString()}`)
 }
 
+export const getLot = (lotId: string) =>
+  request<Lot>(`/api/v1/lots/${lotId}`)
+
 export const getProducts = () => request<Product[]>('/api/v1/products/')
 
 export const createProduct = (payload: ProductPayload) =>
@@ -262,7 +265,12 @@ export const getEvents = (lotId?: string) => {
 }
 
 export const verifyLotIntegrity = (lotId: string) =>
-  request<IntegrityReport>(`/api/v1/events/lots/${lotId}/integrity`)
+  request<IntegrityCheckRecord>(`/api/v1/events/lots/${lotId}/integrity-checks`, {
+    method: 'POST',
+  })
+
+export const getIntegrityCheckHistory = (lotId: string) =>
+  request<IntegrityCheckRecord[]>(`/api/v1/events/lots/${lotId}/integrity-checks`)
 
 export const getLotHistory = (lotId: string) =>
   request<EventHistory>(`/api/v1/events/lots/${lotId}/history`)

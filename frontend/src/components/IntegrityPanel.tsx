@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getLots, verifyLotIntegrity } from '../services/api'
-import type { IntegrityReport, Lot } from '../types'
+import { getIntegrityCheckHistory, getLots, verifyLotIntegrity } from '../services/api'
+import type { IntegrityCheckRecord, Lot } from '../types'
 
 const ISSUE_LABELS: Record<string, string> = {
   missing_event: 'Thiếu sự kiện trong chuỗi',
@@ -21,7 +21,8 @@ export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) 
   const [loadingLots, setLoadingLots] = useState(true)
   const [checking, setChecking] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [report, setReport] = useState<IntegrityReport | null>(null)
+  const [report, setReport] = useState<IntegrityCheckRecord | null>(null)
+  const [checkHistory, setCheckHistory] = useState<IntegrityCheckRecord[]>([])
 
   useEffect(() => {
     if (!canReadLots || !canVerify) return
@@ -50,13 +51,26 @@ export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) 
     }
   }, [canReadLots, canVerify, query])
 
+  useEffect(() => {
+    if (!lotId) return
+    let active = true
+    getIntegrityCheckHistory(lotId)
+      .then((checks) => { if (active) setCheckHistory(checks) })
+      .catch((err: unknown) => {
+        if (active) setError(err instanceof Error ? err.message : 'Không thể tải lịch sử kiểm tra.')
+      })
+    return () => { active = false }
+  }, [lotId])
+
   const checkIntegrity = async () => {
     if (!lotId || checking) return
     setChecking(true)
     setError(null)
     setReport(null)
     try {
-      setReport(await verifyLotIntegrity(lotId))
+      const check = await verifyLotIntegrity(lotId)
+      setReport(check)
+      setCheckHistory((previous) => [check, ...previous.filter((item) => item.id !== check.id)].slice(0, 10))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không thể kiểm tra chuỗi sự kiện.')
     } finally {
@@ -88,7 +102,7 @@ export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) 
             id="integrity-lot-search"
             type="search"
             value={query}
-            onChange={(event) => { setQuery(event.target.value); setReport(null); setError(null) }}
+            onChange={(event) => { setQuery(event.target.value); setReport(null); setCheckHistory([]); setError(null) }}
             placeholder="Nhập mã lô"
           />
         </div>
@@ -97,7 +111,7 @@ export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) 
           <select
             id="integrity-lot"
             value={lotId}
-            onChange={(event) => { setLotId(event.target.value); setReport(null) }}
+            onChange={(event) => { setLotId(event.target.value); setReport(null); setCheckHistory([]) }}
             disabled={loadingLots || lots.length === 0}
           >
             {lots.length === 0 && <option value="">{loadingLots ? 'Đang tải lô…' : 'Không có lô phù hợp'}</option>}
@@ -123,6 +137,9 @@ export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) 
         <div className={`integrity-result ${report.valid ? 'integrity-result-valid' : 'integrity-result-invalid'}`} role="status">
           <strong>{report.valid ? 'Chuỗi sự kiện hợp lệ' : `Phát hiện sai lệch tại sự kiện ${report.first_invalid_sequence ?? 'không xác định'}`}</strong>
           <span>Đã kiểm tra {report.checked_events} sự kiện.</span>
+          <time dateTime={report.checked_at}>
+            Thời điểm kiểm tra: {new Date(report.checked_at).toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' })}
+          </time>
           {report.issues.length > 0 && (
             <ul>
               {report.issues.map((issue, index) => (
@@ -132,6 +149,28 @@ export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) 
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {checkHistory.length > 0 && (
+        <div className="integrity-check-history">
+          <h3>Lần kiểm tra gần đây</h3>
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead>
+                <tr><th scope="col">Thời điểm</th><th scope="col">Kết quả</th><th scope="col">Sự kiện</th></tr>
+              </thead>
+              <tbody>
+                {checkHistory.map((check) => (
+                  <tr key={check.id}>
+                    <td><time dateTime={check.checked_at}>{new Date(check.checked_at).toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' })}</time></td>
+                    <td><span className={`status-badge ${check.valid ? 'status-done' : 'status-danger'}`}>{check.valid ? 'Hợp lệ' : `Sai lệch tại sự kiện ${check.first_invalid_sequence ?? '—'}`}</span></td>
+                    <td>{check.checked_events}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </section>

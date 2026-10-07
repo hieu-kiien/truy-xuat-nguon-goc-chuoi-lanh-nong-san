@@ -403,6 +403,21 @@ code {
   white-space: nowrap;
 }
 
+.handover-pending-count {
+  display: grid;
+  flex: none;
+  min-width: 19px;
+  height: 19px;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--danger-soft);
+  color: var(--fg-danger);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .sidebar-specs-box {
   margin: 0 4px;
   padding: 8px;
@@ -676,7 +691,7 @@ code {
   align-items: start;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1450px) {
   .dashboard-split-main,
   .dashboard-split-equal,
   .dashboard-panels {
@@ -2224,6 +2239,78 @@ code {
   gap: 10px;
 }
 
+.lot-code-link {
+  color: var(--brand-strong);
+  text-decoration: none;
+}
+
+.lot-code-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lot-detail-back {
+  justify-self: start;
+}
+
+.lot-detail-heading h2 {
+  margin: 2px 0;
+  font-size: 18px;
+}
+
+.lot-detail-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lot-detail-facts dt {
+  margin-bottom: 4px;
+  color: var(--body-subtle);
+  font-size: 11px;
+}
+
+.lot-detail-facts dd {
+  margin: 0;
+  color: var(--heading);
+  font-size: 12px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.lot-handover-current {
+  display: grid;
+  gap: 3px;
+  margin: 8px 0 12px;
+}
+
+.lot-handover-current p {
+  margin: 0;
+  color: var(--heading);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lot-detail-handover-form {
+  grid-template-columns: minmax(230px, 1fr) minmax(260px, 1.2fr) auto;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 800px) {
+  .lot-detail-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lot-detail-handover-form {
+    grid-template-columns: 1fr;
+  }
+}
+
 .handover-view-tabs {
   display: flex;
   gap: 6px;
@@ -2395,6 +2482,26 @@ code {
 .integrity-result ul {
   margin: 3px 0 0;
   padding-left: 18px;
+}
+
+.integrity-result time {
+  color: var(--body-subtle);
+  font-size: 11px;
+}
+
+.integrity-check-history {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.integrity-check-history h3 {
+  margin: 0;
+  color: var(--heading);
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .timeline-badges {

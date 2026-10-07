@@ -42,6 +42,14 @@ class IntegrityRead(BaseModel):
     issues: list[IntegrityIssue] = Field(default_factory=list)
 
 
+class IntegrityCheckRead(IntegrityRead):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    lot_id: UUID
+    checked_at: datetime
+
+
 class EventHistoryRead(BaseModel):
     events: list[EventRead]
     integrity: IntegrityRead
