@@ -211,13 +211,36 @@ export const logout = async (): Promise<void> => {
 
 export const getFarms = () => request<Farm[]>('/api/v1/farms/')
 
-export const getLots = (params: LotListParams = {}) => {
+function normalizeLotPage(response: unknown): LotPage {
+  if (Array.isArray(response)) {
+    // Older staging API versions return the first page as a bare list.
+    return { items: response as Lot[], next_cursor: null }
+  }
+
+  if (response && typeof response === 'object') {
+    const page = response as Partial<LotPage>
+    if (Array.isArray(page.items)) {
+      return {
+        items: page.items,
+        next_cursor: typeof page.next_cursor === 'string' ? page.next_cursor : null,
+      }
+    }
+  }
+
+  throw new ApiError(
+    502,
+    'Máy chủ trả về danh sách lô không đúng định dạng. Vui lòng tải lại sau khi đồng bộ API.',
+  )
+}
+
+export const getLots = async (params: LotListParams = {}): Promise<LotPage> => {
   const query = new URLSearchParams()
   if (params.q?.trim()) query.set('q', params.q.trim())
   if (params.product_id) query.set('product_id', params.product_id)
   if (params.cursor) query.set('cursor', params.cursor)
   query.set('page_size', String(params.page_size ?? 20))
-  return request<LotPage>(`/api/v1/lots/?${query.toString()}`)
+  const response = await request<unknown>(`/api/v1/lots/?${query.toString()}`)
+  return normalizeLotPage(response)
 }
 
 export const getLot = (lotId: string) =>
