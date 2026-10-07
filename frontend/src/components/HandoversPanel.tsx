@@ -49,7 +49,10 @@ export function HandoversPanel({
   const [notice, setNotice] = useState<string | null>(null)
 
   const load = useCallback(async (showLoader = false) => {
-    if (showLoader) setLoading(true)
+    if (showLoader) {
+      setLoading(true)
+      setError(null)
+    }
     try {
       const [received, sent, orgOptions, lotPage] = await Promise.all([
         getIncomingHandovers(),
@@ -163,6 +166,7 @@ export function HandoversPanel({
     pendingCount ? pendingCount + ' yêu cầu đang chờ bạn' : 'Theo dõi yêu cầu đến và đã gửi.',
     creationUnavailable ? 'Không có lô đang giữ để gửi bàn giao.' : '',
   ].filter(Boolean).join(' · ')
+  const showEmptyMessage = !loading && !error && rows.length === 0
 
   return (
     <div className="info-stack">
@@ -217,9 +221,9 @@ export function HandoversPanel({
         {notice && <p className="alert-box alert-success table-alert" role="status">{notice}</p>}
         {loading ? (
           <p className="handover-empty" aria-busy="true">Đang tải yêu cầu…</p>
-        ) : rows.length === 0 ? (
+        ) : showEmptyMessage ? (
           <p className="handover-empty">{view === 'incoming' ? 'Chưa có yêu cầu bàn giao gửi đến.' : 'Bạn chưa gửi yêu cầu bàn giao nào.'}</p>
-        ) : (
+        ) : rows.length === 0 ? null : (
           <div className="handover-list">
             {rows.map((handover) => (
               <article className="handover-card" key={handover.id}>
