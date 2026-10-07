@@ -204,6 +204,27 @@ export default function App() {
     }
   }, [initialLocation, navigate])
 
+  useEffect(() => {
+    if (backendOnline !== false) return
+    let active = true
+    const interval = window.setInterval(async () => {
+      try {
+        await checkHealth()
+        if (active) {
+          setBackendOnline(true)
+        }
+      } catch {
+        // Still waking up
+      }
+    }, 5000)
+
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [backendOnline])
+
+
   const handleLogout = async () => {
     try {
       await logout()

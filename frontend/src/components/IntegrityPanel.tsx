@@ -9,7 +9,12 @@ const ISSUE_LABELS: Record<string, string> = {
   downstream_unverified: 'Không thể xác minh các sự kiện tiếp theo',
 }
 
-export function IntegrityPanel() {
+interface IntegrityPanelProps {
+  canReadLots: boolean
+  canVerify: boolean
+}
+
+export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) {
   const [query, setQuery] = useState('')
   const [lots, setLots] = useState<Lot[]>([])
   const [lotId, setLotId] = useState('')
@@ -19,6 +24,7 @@ export function IntegrityPanel() {
   const [report, setReport] = useState<IntegrityReport | null>(null)
 
   useEffect(() => {
+    if (!canReadLots || !canVerify) return
     let active = true
     const timer = window.setTimeout(() => {
       setLoadingLots(true)
@@ -42,7 +48,7 @@ export function IntegrityPanel() {
       active = false
       window.clearTimeout(timer)
     }
-  }, [query])
+  }, [canReadLots, canVerify, query])
 
   const checkIntegrity = async () => {
     if (!lotId || checking) return
@@ -56,6 +62,14 @@ export function IntegrityPanel() {
     } finally {
       setChecking(false)
     }
+  }
+
+  if (!canReadLots || !canVerify) {
+    return (
+      <section className="panel-card panel-box" role="status">
+        Tài khoản này không có quyền kiểm tra tính toàn vẹn lô hàng.
+      </section>
+    )
   }
 
   return (

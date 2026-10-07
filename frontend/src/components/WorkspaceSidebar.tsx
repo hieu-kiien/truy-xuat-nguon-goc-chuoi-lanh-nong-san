@@ -1,10 +1,10 @@
+import { API_BASE_URL } from '../services/api'
 import { hasPermission, ROLE_LABELS, type SessionUser } from '../types'
 import type { WorkspaceTab } from './FarmWorkspace'
 
 interface WorkspaceSidebarProps {
   user: SessionUser
   activeTab: WorkspaceTab
-  pendingHandoverCount: number
   sidebarOpen: boolean
   onCloseSidebar: () => void
   onTabChange: (tab: WorkspaceTab) => void
@@ -14,19 +14,11 @@ interface WorkspaceSidebarProps {
 export function WorkspaceSidebar({
   user,
   activeTab,
-  pendingHandoverCount,
   sidebarOpen,
   onCloseSidebar,
   onTabChange,
   onLogout,
 }: WorkspaceSidebarProps) {
-  const canReadLots = hasPermission(user.role, 'lots:read')
-  const canReadProducts = hasPermission(user.role, 'products:read')
-  const canReadFarms = hasPermission(user.role, 'farms:read')
-  const canManageSecurity = user.role === 'organization_admin' || user.role === 'system_admin'
-  const canVerifyEvents = hasPermission(user.role, 'events:verify')
-  const canCreateHandovers = hasPermission(user.role, 'handovers:create')
-
   const selectTab = (tab: WorkspaceTab) => {
     onTabChange(tab)
     onCloseSidebar()
@@ -43,6 +35,7 @@ export function WorkspaceSidebar({
         <div className="sidebar-brand">
           <div className="sidebar-brand-row">
             <div className="sidebar-brand-title">AgroChain</div>
+            <span className="sidebar-brand-badge">N3-4..7</span>
           </div>
           <p className="sidebar-brand-sub" title={user.organization_name}>
             {user.organization_name}
@@ -51,9 +44,9 @@ export function WorkspaceSidebar({
 
         <nav className="sidebar-nav">
           <div>
-            <div className="sidebar-section-label">CÔNG VIỆC</div>
+            <div className="sidebar-section-label">Phân hệ Nghiệp vụ</div>
             <ul className="sidebar-nav-list">
-              {canReadLots && <li>
+              {hasPermission(user.role, 'lots:read') && <li>
                 <button
                   type="button"
                   onClick={() => selectTab('lots')}
@@ -62,9 +55,10 @@ export function WorkspaceSidebar({
                   }`}
                 >
                   <span>Danh sách lô</span>
+                  <span className="nav-tag">N3-6</span>
                 </button>
               </li>}
-              {canReadProducts && <li>
+              {hasPermission(user.role, 'products:read') && <li>
                 <button
                   type="button"
                   onClick={() => selectTab('products')}
@@ -72,20 +66,22 @@ export function WorkspaceSidebar({
                     activeTab === 'products' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
-                  <span>Danh mục sản phẩm</span>
+                  <span>Sản phẩm</span>
                 </button>
               </li>}
-              {canCreateHandovers && <li>
+              {(hasPermission(user.role, 'handovers:create') ||
+                hasPermission(user.role, 'handovers:resolve')) && <li>
                 <button
                   type="button"
                   onClick={() => selectTab('handovers')}
-                  className={`dashboard-nav-item ${activeTab === 'handovers' ? 'dashboard-nav-item-active' : ''}`}
+                  className={`dashboard-nav-item ${
+                    activeTab === 'handovers' ? 'dashboard-nav-item-active' : ''
+                  }`}
                 >
                   <span>Bàn giao</span>
-                  {pendingHandoverCount > 0 && <span className="handover-nav-count" aria-label={`${pendingHandoverCount} yêu cầu đang chờ`}>{pendingHandoverCount}</span>}
                 </button>
               </li>}
-              {canReadFarms && <li>
+              {hasPermission(user.role, 'farms:read') && <li>
                 <button
                   type="button"
                   onClick={() => selectTab('overview')}
@@ -94,9 +90,10 @@ export function WorkspaceSidebar({
                   }`}
                 >
                   <span>Vùng trồng</span>
+                  <span className="nav-tag">N3-7</span>
                 </button>
               </li>}
-              {canManageSecurity && <li>
+              <li>
                 <button
                   type="button"
                   onClick={() => selectTab('security')}
@@ -104,10 +101,11 @@ export function WorkspaceSidebar({
                     activeTab === 'security' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
-                  <span>Bảo mật</span>
+                  <span>Phân quyền &amp; RLS</span>
+                  <span className="nav-tag">N3-6</span>
                 </button>
-              </li>}
-              {canVerifyEvents && <li>
+              </li>
+              {hasPermission(user.role, 'events:verify') && <li>
                 <button
                   type="button"
                   onClick={() => selectTab('integrity')}
@@ -115,10 +113,46 @@ export function WorkspaceSidebar({
                     activeTab === 'integrity' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
-                  <span>Kiểm tra toàn vẹn</span>
+                  <span>Chuỗi Hash Sự kiện</span>
+                  <span className="nav-tag">N3-4</span>
                 </button>
               </li>}
+              <li>
+                <a
+                  href={`${API_BASE_URL}/docs`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="dashboard-nav-item"
+                >
+                  <span>OpenAPI Swagger</span>
+                  <span className="nav-tag">API</span>
+                </a>
+              </li>
             </ul>
+          </div>
+
+          <div>
+            <div className="sidebar-section-label">Trạng thái Hạ tầng</div>
+            <div className="sidebar-specs-box">
+              <div className="sidebar-spec-row">
+                <span className="sidebar-spec-key">PostgreSQL RLS</span>
+                <span className="sidebar-spec-val">FORCE ON</span>
+              </div>
+              <div className="sidebar-spec-row">
+                <span className="sidebar-spec-key">Tenant ID</span>
+                <span className="sidebar-spec-val">
+                  {user.organization_id.slice(0, 8)}...
+                </span>
+              </div>
+              <div className="sidebar-spec-row">
+                <span className="sidebar-spec-key">Session Auth</span>
+                <span className="sidebar-spec-val">SHA-256</span>
+              </div>
+              <div className="sidebar-spec-row">
+                <span className="sidebar-spec-key">Hash Chain</span>
+                <span className="sidebar-spec-val">RFC 8785</span>
+              </div>
+            </div>
           </div>
         </nav>
       </div>

@@ -1,21 +1,28 @@
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
 import { ApiError, createFarm, getFarms, updateFarm } from '../services/api'
-import { getIncomingHandovers } from '../services/api'
 import {
   hasPermission,
+  ROLE_LABELS,
+  ROLE_PERMISSIONS,
   type Farm,
   type SessionUser,
 } from '../types'
 import { FarmFormPanel } from './FarmFormPanel'
-import { HandoversPanel } from './HandoversPanel'
 import { IntegrityPanel } from './IntegrityPanel'
+import { HandoversPanel } from './HandoversPanel'
 import { LotsPanel } from './LotsPanel'
 import { ProductsPanel } from './ProductsPanel'
 import { SecurityPanel } from './SecurityPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
 
-export type WorkspaceTab = 'lots' | 'products' | 'handovers' | 'overview' | 'security' | 'integrity'
+export type WorkspaceTab =
+  | 'lots'
+  | 'products'
+  | 'handovers'
+  | 'overview'
+  | 'security'
+  | 'integrity'
 
 interface FarmWorkspaceProps {
   user: SessionUser
@@ -40,9 +47,15 @@ export function FarmWorkspace({
   const canWriteFarms = hasPermission(user.role, 'farms:write')
   const canReadLots = hasPermission(user.role, 'lots:read')
   const canCreateLots = hasPermission(user.role, 'lots:create')
-  const canManageProducts = hasPermission(user.role, 'products:update')
-  const canCreateHandovers = hasPermission(user.role, 'handovers:create')
-  const [pendingHandoverCount, setPendingHandoverCount] = useState(0)
+  const canReadEvents = hasPermission(user.role, 'events:read')
+  const canManageProducts =
+    hasPermission(user.role, 'products:create') ||
+    hasPermission(user.role, 'products:update')
+  const canUseHandovers =
+    hasPermission(user.role, 'handovers:create') ||
+    hasPermission(user.role, 'handovers:resolve')
+  const canVerifyEvents = hasPermission(user.role, 'events:verify')
+  const grantedPermissions = ROLE_PERMISSIONS[user.role] ?? []
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -62,17 +75,6 @@ export function FarmWorkspace({
     type: 'success' | 'error'
     message: string
   } | null>(null)
-
-  useEffect(() => {
-    if (!canCreateHandovers) return
-    let active = true
-    getIncomingHandovers()
-      .then((handovers) => {
-        if (active) setPendingHandoverCount(handovers.filter((handover) => handover.status === 'pending').length)
-      })
-      .catch(() => { if (active) setPendingHandoverCount(0) })
-    return () => { active = false }
-  }, [canCreateHandovers])
 
   const [rbacProbeResult, setRbacProbeResult] = useState<string | null>(null)
 
@@ -159,7 +161,10 @@ export function FarmWorkspace({
         setFarms((prev) =>
           prev.map((item) => (item.id === updated.id ? updated : item))
         )
-        setFormFeedback({ type: 'success', message: `Đã cập nhật "${updated.name}".` })
+        setFormFeedback({
+          type: 'success',
+          message: `Đã cập nhật "${updated.name}" (UUID cố định: ${updated.id.slice(0, 8)}...).`,
+        })
         onNotify(`Đã lưu cập nhật: ${updated.name}`)
       } else {
         const created = await createFarm(payload)
@@ -187,7 +192,7 @@ export function FarmWorkspace({
     try {
       await getFarms()
       setRbacProbeResult(
-        '200 OK — Vai trò hiện tại được phép truy cập danh sách vùng trồng.'
+        '200 OK — Tài khoản hiện tại đọc được danh sách vùng trồng.'
       )
       onNotify('Kiểm tra API thành công (200 OK)')
     } catch (err) {
@@ -197,9 +202,8 @@ export function FarmWorkspace({
         )
         onNotify('Backend đã chặn truy cập trái phép (403 Forbidden)')
       } else {
-        setRbacProbeResult(
-          `Không kiểm tra được quyền truy cập: ${err instanceof Error ? err.message : 'Lỗi không xác định.'}`
-        )
+        const message = err instanceof Error ? err.message : 'Yêu cầu thất bại'
+        setRbacProbeResult(`Không thể kiểm tra quyền truy cập: ${message}`)
       }
     }
   }
@@ -214,6 +218,16 @@ export function FarmWorkspace({
       String(f.longitude).includes(q)
     )
   })
+
+  const totalAreaHa = farms.reduce(
+    (sum, item) => sum + (Number(item.area_ha) || 0),
+    0
+  )
+  const avgAreaHa = farms.length > 0 ? totalAreaHa / farms.length : 0
+  const maxAreaHa = Math.max(
+    ...farms.map((item) => Number(item.area_ha) || 1),
+    5
+  )
 
   return (
     <div className="application-shell">
@@ -230,7 +244,6 @@ export function FarmWorkspace({
         <WorkspaceSidebar
           user={user}
           activeTab={activeTab}
-          pendingHandoverCount={pendingHandoverCount}
           sidebarOpen={sidebarOpen}
           onCloseSidebar={() => setSidebarOpen(false)}
           onTabChange={onTabChange}
@@ -239,6 +252,7 @@ export function FarmWorkspace({
 
         <div className="dashboard-main">
           <WorkspaceTopbar
+            user={user}
             activeTab={activeTab}
             canReadFarms={canReadFarms}
             searchQuery={searchQuery}
@@ -250,11 +264,48 @@ export function FarmWorkspace({
           />
 
           <main className="dashboard-content">
+            {activeTab === 'overview' && (
+              <section aria-label="Tóm tắt vùng trồng">
+              <div className="stats-grid">
+                <article className="stat-card panel-card">
+                  <p className="stat-label">Đơn vị</p>
+                  <p
+                    className="stat-value stat-value-sans"
+                    title={user.organization_name}
+                  >
+                    {user.organization_name}
+                  </p>
+                  <p className="stat-trend">{ROLE_LABELS[user.role]}</p>
+                </article>
+
+                <article className="stat-card panel-card">
+                  <p className="stat-label">Vùng trồng thuộc đơn vị</p>
+                  <p className="stat-value">
+                    {canReadFarms ? `${farms.length} vùng` : 'Chặn (403)'}
+                  </p>
+                  <p className="stat-trend">Trong đơn vị hiện tại</p>
+                </article>
+
+                <article className="stat-card panel-card">
+                  <p className="stat-label">Tổng diện tích canh tác</p>
+                  <p className="stat-value">
+                    {canReadFarms ? `${totalAreaHa.toFixed(2)} ha` : '—'}
+                  </p>
+                  <p className="stat-trend">
+                    {canReadFarms && farms.length > 0
+                      ? `Trung bình ${avgAreaHa.toFixed(2)} ha / vùng`
+                      : 'Chưa có dữ liệu diện tích'}
+                  </p>
+                </article>
+              </div>
+              </section>
+            )}
+
             {activeTab === 'lots' && (
               <LotsPanel
                 canReadLots={canReadLots}
                 canCreateLots={canCreateLots}
-                canReadEvents={hasPermission(user.role, 'events:read')}
+                canReadEvents={canReadEvents}
               />
             )}
 
@@ -262,9 +313,19 @@ export function FarmWorkspace({
               <ProductsPanel canManage={canManageProducts} />
             )}
 
-            {activeTab === 'handovers' && canCreateHandovers && (
-              <HandoversPanel onPendingCountChange={setPendingHandoverCount} />
+            {activeTab === 'handovers' && (
+              canUseHandovers ? (
+                <HandoversPanel
+                  canCreate={hasPermission(user.role, 'handovers:create')}
+                  canResolve={hasPermission(user.role, 'handovers:resolve')}
+                />
+              ) : (
+                <section className="panel-card panel-box" role="status">
+                  Tài khoản này không có quyền xử lý bàn giao.
+                </section>
+              )
             )}
+
 
             {activeTab === 'overview' && (
               <>
@@ -279,7 +340,15 @@ export function FarmWorkspace({
                           HTTP 403 Forbidden
                         </span>
                       </div>
-                      <p className="panel-sub">Tài khoản hiện tại không có quyền truy cập danh sách vùng trồng.</p>
+                      <p className="panel-sub">
+                        Tài khoản <strong>{user.email}</strong> đang mang vai trò{' '}
+                        <code>{user.role}</code> (quyền được cấp:{' '}
+                        <code>{grantedPermissions.join(', ')}</code>). Theo thiết
+                        kế bảo mật N3-6, vai trò Thanh tra viên chỉ đọc lô hàng (
+                        <code>lots:read_all</code>) và bị chặn truy cập trực tiếp
+                        vào API quản lý vùng trồng (<code>farms:read</code>,{' '}
+                        <code>farms:write</code>).
+                      </p>
 
                       <div className="action-row alert-spaced">
                         <button
@@ -287,14 +356,14 @@ export function FarmWorkspace({
                           className="ds-button ds-button-brand ds-button-sm"
                           onClick={() => void runForbiddenProbe()}
                         >
-                          Kiểm tra quyền truy cập
+                          Gửi thử GET /api/v1/farms/ (Kiểm chứng chặn 403)
                         </button>
                         <button
                           type="button"
                           className="ds-button ds-button-secondary ds-button-sm"
                           onClick={() => onTabChange('security')}
                         >
-                          Xem quyền truy cập
+                          Mở Ma trận Phân quyền đầy đủ
                         </button>
                       </div>
 
@@ -312,12 +381,16 @@ export function FarmWorkspace({
                       <div className="data-table-header">
                         <div>
                           <h2 id="farms-table-title" className="section-title">
-                            Vùng trồng ({filteredFarms.length})
+                            Vùng trồng ({filteredFarms.length}
+                            )
                           </h2>
                           <p className="panel-sub">
-                            Các vùng trồng thuộc {user.organization_name}.
+                            Danh sách vùng trồng thuộc đơn vị hiện tại.
                           </p>
                         </div>
+                        <span className="status-badge status-done">
+                          {filteredFarms.length} vùng
+                        </span>
                       </div>
 
                       {listError && (
@@ -330,28 +403,34 @@ export function FarmWorkspace({
                         <table className="data-table">
                           <thead>
                             <tr>
-                              <th scope="col">Tên vùng trồng</th>
+                              <th scope="col">Mã UUID</th>
+                              <th scope="col">Tên Vùng trồng / Thửa đất</th>
                               <th scope="col">Diện tích</th>
-                              <th scope="col">Vị trí</th>
+                              <th scope="col">Tỷ trọng</th>
+                              <th scope="col">Tọa độ GPS (WGS84)</th>
                               <th scope="col">Thao tác</th>
                             </tr>
                           </thead>
                           <tbody>
                             {loadingFarms ? (
                               <tr>
-                                <td colSpan={4} className="cell-center">
+                                <td colSpan={6} className="cell-center">
                                   Đang tải danh sách vùng trồng...
                                 </td>
                               </tr>
                             ) : filteredFarms.length === 0 ? (
                               <tr>
-                                <td colSpan={4} className="cell-center">
+                                <td colSpan={6} className="cell-center">
                                   Không có vùng trồng nào khớp với bộ lọc.
                                 </td>
                               </tr>
                             ) : (
                               filteredFarms.map((farm) => {
                                 const areaNum = Number(farm.area_ha) || 0
+                                const sharePct =
+                                  totalAreaHa > 0
+                                    ? Math.round((areaNum / totalAreaHa) * 100)
+                                    : 0
                                 return (
                                   <tr
                                     key={farm.id}
@@ -361,6 +440,11 @@ export function FarmWorkspace({
                                         : undefined
                                     }
                                   >
+                                    <td>
+                                      <code title={farm.id}>
+                                        {farm.id.slice(0, 8)}...
+                                      </code>
+                                    </td>
                                     <th scope="row" className="cell-strong">
                                       {farm.name}
                                     </th>
@@ -368,6 +452,19 @@ export function FarmWorkspace({
                                       <span className="status-badge status-done">
                                         {areaNum.toFixed(2)} ha
                                       </span>
+                                    </td>
+                                    <td>
+                                      <div className="area-bar-cell">
+                                        <div className="area-bar-track">
+                                          <div
+                                            className="area-bar-fill"
+                                            style={{ width: `${sharePct}%` }}
+                                          />
+                                        </div>
+                                        <span className="area-bar-pct">
+                                          {sharePct}%
+                                        </span>
+                                      </div>
                                     </td>
                                     <td>
                                       <div className="coord-inline">
@@ -406,7 +503,11 @@ export function FarmWorkspace({
                   )}
 
                   <FarmFormPanel
+                    canReadFarms={canReadFarms}
                     canWriteFarms={canWriteFarms}
+                    farms={farms}
+                    totalAreaHa={totalAreaHa}
+                    maxAreaHa={maxAreaHa}
                     editingFarm={editingFarm}
                     name={name}
                     areaHa={areaHa}
@@ -418,8 +519,17 @@ export function FarmWorkspace({
                     onAreaChange={setAreaHa}
                     onLatChange={setLatitude}
                     onLngChange={setLongitude}
+                    onApplyPreset={(preset) => {
+                      setName(preset.name)
+                      setAreaHa(preset.area_ha)
+                      setLatitude(preset.latitude)
+                      setLongitude(preset.longitude)
+                      setFormFeedback(null)
+                      onNotify(`Đã điền mẫu: ${preset.name}`)
+                    }}
                     onSubmit={handleSubmit}
                     onCancelEdit={resetForm}
+                    onNotify={onNotify}
                   />
                 </div>
 
@@ -434,7 +544,9 @@ export function FarmWorkspace({
               />
             )}
 
-            {activeTab === 'integrity' && <IntegrityPanel />}
+            {activeTab === 'integrity' && (
+              <IntegrityPanel canReadLots={canReadLots} canVerify={canVerifyEvents} />
+            )}
           </main>
         </div>
       </div>

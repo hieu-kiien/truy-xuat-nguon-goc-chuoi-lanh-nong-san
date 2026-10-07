@@ -25,13 +25,16 @@ function resolveBaseUrl(): string {
   if (envUrl) {
     return envUrl.replace(/\/$/, '')
   }
+  if (import.meta.env.DEV) {
+    return ''
+  }
   if (
     typeof window !== 'undefined' &&
     window.location.hostname.endsWith('.onrender.com')
   ) {
     return 'https://ttcs-backend-staging.onrender.com'
   }
-  return 'http://localhost:8000'
+  return 'https://ttcs-backend-staging.onrender.com'
 }
 
 export const API_BASE_URL = resolveBaseUrl()
@@ -49,6 +52,29 @@ export class ApiError extends Error {
     this.name = 'ApiError'
     this.status = status
     this.fieldErrors = fieldErrors
+  }
+}
+
+
+const SESSION_STORAGE_KEY = 'agrochain_session_token'
+
+export function getStoredSessionToken(): string | null {
+  try {
+    return sessionStorage.getItem(SESSION_STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function setStoredSessionToken(token: string | null): void {
+  try {
+    if (token) {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, token)
+    } else {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY)
+    }
+  } catch {
+    // Ignore storage errors in restricted contexts
   }
 }
 
@@ -88,12 +114,23 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.set('Content-Type', 'application/json')
   }
 
+  headers.set('X-Client-Type', 'web-spa')
+
+  const storedToken = getStoredSessionToken()
+  if (storedToken && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${storedToken}`)
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
     credentials: 'include',
   })
 
+  const authHeader = response.headers.get('Authorization')
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    setStoredSessionToken(authHeader.substring(7).trim())
+  }
 
   if (!response.ok) {
     if (
@@ -103,6 +140,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       typeof window !== 'undefined' &&
       window.location.pathname !== '/login'
     ) {
+      setStoredSessionToken(null)
       const protectedPaths = new Set([
         '/lots',
         '/handovers',
@@ -129,7 +167,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export const checkHealth = () => request<HealthResponse>('/')
+export const checkHealth = () =>
+  request<HealthResponse>(API_BASE_URL ? '/' : '/health')
 
 export const login = (payload: LoginRequest) =>
   request<SessionUser>('/api/v1/auth/login', {
@@ -140,7 +179,11 @@ export const login = (payload: LoginRequest) =>
 export const getCurrentUser = () => request<SessionUser>('/api/v1/auth/me')
 
 export const logout = async (): Promise<void> => {
-  await request<void>('/api/v1/auth/logout', { method: 'POST' })
+  try {
+    await request<void>('/api/v1/auth/logout', { method: 'POST' })
+  } finally {
+    setStoredSessionToken(null)
+  }
 }
 
 export const getFarms = () => request<Farm[]>('/api/v1/farms/')

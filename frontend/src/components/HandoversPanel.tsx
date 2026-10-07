@@ -13,6 +13,8 @@ import type { Handover, Lot, OrganizationOption } from '../types'
 type HandoverView = 'incoming' | 'outgoing'
 
 interface HandoversPanelProps {
+  canCreate: boolean
+  canResolve: boolean
   onPendingCountChange?: (count: number) => void
 }
 
@@ -26,7 +28,11 @@ function lotCode(lot: Pick<Handover, 'lot_code' | 'lot_id'>) {
   return lot.lot_code ?? lot.lot_id.slice(0, 8)
 }
 
-export function HandoversPanel({ onPendingCountChange }: HandoversPanelProps) {
+export function HandoversPanel({
+  canCreate,
+  canResolve,
+  onPendingCountChange,
+}: HandoversPanelProps) {
   const [incoming, setIncoming] = useState<Handover[]>([])
   const [outgoing, setOutgoing] = useState<Handover[]>([])
   const [organizations, setOrganizations] = useState<OrganizationOption[]>([])
@@ -152,10 +158,15 @@ export function HandoversPanel({ onPendingCountChange }: HandoversPanelProps) {
 
   const rows = view === 'incoming' ? incoming : outgoing
   const pendingCount = incoming.filter((handover) => handover.status === 'pending').length
+  const creationUnavailable = canCreate && !loading && lots.length === 0
+  const listSummary = [
+    pendingCount ? pendingCount + ' yêu cầu đang chờ bạn' : 'Theo dõi yêu cầu đến và đã gửi.',
+    creationUnavailable ? 'Không có lô đang giữ để gửi bàn giao.' : '',
+  ].filter(Boolean).join(' · ')
 
   return (
     <div className="info-stack">
-      <section className="panel-card panel-box" aria-labelledby="handover-create-title">
+      {canCreate && !creationUnavailable && <section className="panel-card panel-box" aria-labelledby="handover-create-title">
         <div className="panel-head">
           <div>
             <h2 id="handover-create-title">Gửi yêu cầu bàn giao</h2>
@@ -185,13 +196,13 @@ export function HandoversPanel({ onPendingCountChange }: HandoversPanelProps) {
             {saving ? 'Đang gửi…' : 'Gửi yêu cầu'}
           </button>
         </form>
-      </section>
+      </section>}
 
       <section className="data-table-wrapper panel-card" aria-labelledby="handover-list-title">
         <div className="data-table-header handover-list-header">
           <div>
             <h2 id="handover-list-title" className="section-title">Yêu cầu bàn giao</h2>
-            <p className="panel-sub">{pendingCount ? pendingCount + ' yêu cầu đang chờ bạn' : 'Theo dõi yêu cầu đến và đã gửi.'}</p>
+            <p className="panel-sub">{listSummary}</p>
           </div>
           <button type="button" className="ds-button ds-button-secondary" onClick={() => void load(true)} disabled={loading}>Làm mới</button>
         </div>
@@ -222,7 +233,7 @@ export function HandoversPanel({ onPendingCountChange }: HandoversPanelProps) {
                 {handover.note && <p className="handover-note">{handover.note}</p>}
                 {handover.rejection_reason && <p className="handover-rejection">Lý do từ chối: {handover.rejection_reason}</p>}
                 <time className="panel-sub" dateTime={handover.created_at}>{new Date(handover.created_at).toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' })}</time>
-                {view === 'incoming' && handover.status === 'pending' && (
+                {canResolve && view === 'incoming' && handover.status === 'pending' && (
                   <div className="handover-actions">
                     <button type="button" className="ds-button ds-button-brand" disabled={saving} onClick={() => void accept(handover)}>Xác nhận nhận lô</button>
                     {rejectingId === handover.id ? (
