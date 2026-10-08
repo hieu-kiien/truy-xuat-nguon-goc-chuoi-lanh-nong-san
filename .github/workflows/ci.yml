@@ -65,11 +65,28 @@ jobs:
         run: |
           cd backend
           python -m app.bootstrap_db_role
+          # Đảm bảo chỉ có duy nhất 1 head revision (không bị branching vô tình)
+          HEADS_COUNT=$(alembic heads | grep -c "^[a-f0-9_]") || true
+          if [ "$HEADS_COUNT" -gt 1 ]; then
+            echo "::error::Phat hien nhieu migration heads ($HEADS_COUNT heads). Vui long chay 'alembic merge' de gop revision!"
+            exit 1
+          fi
           alembic upgrade head
           alembic check
           alembic downgrade base
           alembic upgrade head
           alembic check
+
+      - name: Verify Staging Seed Data Idempotency
+        env:
+          APP_ENV: staging
+          MIGRATION_DATABASE_URL_ENV: postgresql+psycopg://postgres:postgres-test-password@localhost:5432/ttcs_test
+        run: |
+          cd backend
+          # Chay seed lan 1 tren DB sau migrate
+          python -c "from app.seed_demo import seed_demo_data; seed_demo_data()"
+          # Chay seed lan 2 de dam bao tinh idempotent (restart service khong crash)
+          python -c "from app.seed_demo import seed_demo_data; seed_demo_data()"
 
       - name: Run backend integration tests (Pytest)
         run: |
