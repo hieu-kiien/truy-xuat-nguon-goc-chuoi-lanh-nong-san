@@ -66,3 +66,19 @@ def test_cors_rejects_wildcard_origin_with_cookie_authentication():
 def test_runtime_and_admin_database_roles_must_be_distinct():
     with pytest.raises(ValidationError, match="must be different"):
         Settings(_env_file=None, DB_USER="ttcs", DB_ADMIN_USER="ttcs")
+
+
+def test_run_migrations_invokes_alembic_upgrade(monkeypatch):
+    from unittest.mock import MagicMock
+
+    import alembic.command
+
+    from app.startup import run_migrations
+
+    mock_upgrade = MagicMock()
+    monkeypatch.setattr(alembic.command, "upgrade", mock_upgrade)
+
+    run_migrations()
+
+    mock_upgrade.assert_called_once()
+    assert mock_upgrade.call_args[0][1] == "head"
