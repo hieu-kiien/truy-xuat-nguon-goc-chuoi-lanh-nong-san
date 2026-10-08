@@ -70,8 +70,10 @@ def test_runtime_and_admin_database_roles_must_be_distinct():
 
 def test_run_migrations_invokes_alembic_upgrade(monkeypatch):
     from unittest.mock import MagicMock
-    from app.startup import run_migrations
+
     import alembic.command
+
+    from app.startup import run_migrations
 
     mock_upgrade = MagicMock()
     monkeypatch.setattr(alembic.command, "upgrade", mock_upgrade)
@@ -80,4 +82,3 @@ def test_run_migrations_invokes_alembic_upgrade(monkeypatch):
 
     mock_upgrade.assert_called_once()
     assert mock_upgrade.call_args[0][1] == "head"
-

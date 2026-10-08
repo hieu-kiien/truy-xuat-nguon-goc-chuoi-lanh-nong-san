@@ -2,13 +2,12 @@
 
 import logging
 import os
-import sys
 from collections.abc import Mapping
 from pathlib import Path
 
-from alembic import command
 from alembic.config import Config
 
+from alembic import command
 from app.bootstrap_db_role import bootstrap_database_role
 from app.core.config import settings
 from app.seed_demo import seed_demo_data
