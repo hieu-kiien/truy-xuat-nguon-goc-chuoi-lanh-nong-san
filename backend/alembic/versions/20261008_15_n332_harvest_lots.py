@@ -120,17 +120,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    role = _application_role()
-    if role:
-        op.execute(f"REVOKE INSERT ON lots FROM {role}")
-
-    op.execute("DROP POLICY IF EXISTS lots_insert_tenant ON lots")
-    op.drop_index("uq_lots_lot_code", table_name="lots")
-    op.drop_index("ix_lots_organization_harvested_on", table_name="lots")
-    op.drop_index("ix_lots_product_id", table_name="lots")
-    op.drop_constraint("ck_lots_quantity_positive", "lots", type_="check")
-    op.drop_constraint("fk_lots_product_id_products", "lots", type_="foreignkey")
-    op.drop_column("lots", "quantity")
-    op.drop_column("lots", "harvested_on")
-    op.drop_column("lots", "product_id")
-    op.drop_column("lots", "lot_code")
+    # This revision reconciles two histories that shared revision ID 08.
+    # It cannot know which schema objects predated this revision on a real
+    # database, so removing them could erase data or privileges from the
+    # historical migration. Keep the additive schema when rolling back.
+    pass
