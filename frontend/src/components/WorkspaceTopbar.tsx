@@ -13,6 +13,15 @@ interface WorkspaceTopbarProps {
   onToggleTheme: () => void
 }
 
+const TAB_TITLES: Record<WorkspaceTab, string> = {
+  lots: 'Lô hàng',
+  products: 'Sản phẩm',
+  handovers: 'Bàn giao',
+  overview: 'Vùng trồng',
+  security: 'Phân quyền & bảo mật',
+  integrity: 'Kiểm tra tính toàn vẹn',
+}
+
 export function WorkspaceTopbar({
   user,
   activeTab,
@@ -24,6 +33,8 @@ export function WorkspaceTopbar({
   onRefresh,
   onToggleTheme,
 }: WorkspaceTopbarProps) {
+  const showOverviewActions = activeTab === 'overview' && canReadFarms
+
   return (
     <header className="dashboard-topbar">
       <div className="topbar-left">
@@ -35,19 +46,7 @@ export function WorkspaceTopbar({
         >
           Menu
         </button>
-        <h1 className="topbar-title">
-          {activeTab === 'lots'
-            ? 'Lô hàng'
-            : activeTab === 'products'
-              ? 'Sản phẩm'
-              : activeTab === 'handovers'
-                ? 'Bàn giao'
-                : activeTab === 'overview'
-                  ? 'Vùng trồng'
-                  : activeTab === 'security'
-                    ? 'Phân quyền & bảo mật'
-                    : 'Kiểm tra tính toàn vẹn'}
-        </h1>
+        <h1 className="topbar-title">{TAB_TITLES[activeTab] ?? 'Không gian làm việc'}</h1>
         <span className="topbar-divider">|</span>
         <span className="status-badge status-done">
           {ORG_TYPE_LABELS[user.organization_type]}
@@ -55,26 +54,26 @@ export function WorkspaceTopbar({
       </div>
 
       <div className="topbar-actions">
-        {activeTab === 'overview' && canReadFarms && (
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Lọc tên thửa, UUID, GPS..."
-            className="dashboard-search"
-            aria-label="Tìm kiếm vùng trồng"
-          />
+        {showOverviewActions && (
+          <>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Lọc tên thửa, UUID, GPS..."
+              className="dashboard-search"
+              aria-label="Tìm kiếm vùng trồng"
+            />
+            <button
+              type="button"
+              className="ds-button ds-button-secondary ds-button-sm"
+              onClick={onRefresh}
+            >
+              Làm mới
+            </button>
+          </>
         )}
 
-        {activeTab === 'overview' && canReadFarms && (
-          <button
-            type="button"
-            className="ds-button ds-button-secondary ds-button-sm"
-            onClick={onRefresh}
-          >
-            Làm mới
-          </button>
-        )}
 
         <button
           type="button"
