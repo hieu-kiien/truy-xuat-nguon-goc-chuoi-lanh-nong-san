@@ -2,6 +2,7 @@
 
 import logging
 import os
+import sys
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -56,8 +57,10 @@ def main() -> None:
 
     port = runtime_environment.get("PORT", "8000")
     os.execvpe(
-        "uvicorn",
+        sys.executable,
         [
+            sys.executable,
+            "-m",
             "uvicorn",
             "app.main:app",
             "--host",
