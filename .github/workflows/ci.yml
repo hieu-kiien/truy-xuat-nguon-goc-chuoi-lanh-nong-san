@@ -71,9 +71,16 @@ jobs:
             echo "::error::Phat hien nhieu migration heads ($HEADS_COUNT heads). Vui long chay 'alembic merge' de gop revision!"
             exit 1
           fi
+          # Simulate a clean legacy staging database at revision 08, before
+          # Sprint 2 had added any harvest-lot fields.
+          alembic upgrade 20261007_07
+          alembic stamp 20261007_08
           alembic upgrade head
           alembic check
-          alembic downgrade base
+          # Rolling back to 07 keeps the additive schema, simulating the
+          # historical revision 08 that already added harvest-lot fields.
+          alembic downgrade 20261007_07
+          alembic stamp 20261007_08
           alembic upgrade head
           alembic check
 
