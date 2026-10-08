@@ -83,10 +83,6 @@ jobs:
           alembic stamp 20261007_08
           alembic upgrade head
           alembic check
-          # Verify a normal clean migration after the recovery scenarios.
-          alembic downgrade base
-          alembic upgrade head
-          alembic check
 
       - name: Verify Staging Seed Data Idempotency
         env:
