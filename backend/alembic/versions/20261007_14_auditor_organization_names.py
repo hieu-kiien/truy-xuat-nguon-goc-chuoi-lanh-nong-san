@@ -11,7 +11,9 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.execute("DROP POLICY organizations_visible_to_tenant_or_auth ON organizations")
+    op.execute(
+        "DROP POLICY IF EXISTS organizations_visible_to_tenant_or_auth ON organizations"
+    )
     op.execute(
         """
         CREATE POLICY organizations_visible_to_tenant_or_auth ON organizations
@@ -29,7 +31,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("DROP POLICY organizations_visible_to_tenant_or_auth ON organizations")
+    op.execute(
+        "DROP POLICY IF EXISTS organizations_visible_to_tenant_or_auth ON organizations"
+    )
     op.execute(
         """
         CREATE POLICY organizations_visible_to_tenant_or_auth ON organizations
