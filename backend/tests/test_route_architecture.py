@@ -101,10 +101,11 @@ def test_business_endpoint_queries_must_use_tenant_helpers():
                 and isinstance(node.func.value, ast.Name)
                 and node.func.value.id in {"db", "session"}
                 and any(
-                    isinstance(argument, ast.Call)
-                    and isinstance(argument.func, ast.Name)
-                    and argument.func.id == "tenant_select"
+                    isinstance(descendant, ast.Call)
+                    and isinstance(descendant.func, ast.Name)
+                    and descendant.func.id in {"tenant_select", "shared_select"}
                     for argument in node.args
+                    for descendant in ast.walk(argument)
                 )
             ):
                 continue

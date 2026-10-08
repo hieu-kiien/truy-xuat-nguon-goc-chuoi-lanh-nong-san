@@ -1,26 +1,16 @@
 """Cryptographic and canonical JSON utilities for event integrity (RFC 8785 & SHA-256)."""
 
 import hashlib
-import json
 from typing import Any
+
+import rfc8785
 
 GENESIS_PREV_HASH: str = "0" * 64
 
 
 def canonicalize_json(data: Any) -> str:
-    """Serialize data into canonical JSON according to RFC 8785 (JCS).
-
-    - Lexicographically sort dictionary keys
-    - Remove superfluous whitespace between separators (',' and ':')
-    - Uniform UTF-8 character encoding with ensure_ascii=False
-    """
-    return json.dumps(
-        data,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-        allow_nan=False,
-    )
+    """Serialize JSON values with RFC 8785's JSON Canonicalization Scheme."""
+    return rfc8785.dumps(data).decode("utf-8")
 
 
 def sha256_hex(data: str | bytes) -> str:

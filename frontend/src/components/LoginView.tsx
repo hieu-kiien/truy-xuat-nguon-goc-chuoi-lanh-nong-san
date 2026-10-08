@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type FocusEvent } from 'react'
-import { API_BASE_URL, login } from '../services/api'
+import { login } from '../services/api'
 import type { SessionUser } from '../types'
 
 interface LoginViewProps {
@@ -9,6 +9,41 @@ interface LoginViewProps {
   onLoginSuccess: (user: SessionUser) => void
   onNotify: (message: string) => void
 }
+
+const DEMO_PRESETS = [
+  {
+    roleName: 'Quản trị hệ thống',
+    badge: 'system_admin',
+    email: 'admin@system.vn',
+    password: 'Password123!',
+    icon: '🛡️',
+    desc: 'Quản lý cấu hình và danh mục dùng chung toàn hệ thống',
+  },
+  {
+    roleName: 'Quản trị HTX Mộc Châu',
+    badge: 'organization_admin',
+    email: 'admin@mocchau.vn',
+    password: 'Password123!',
+    icon: '🏢',
+    desc: 'Quản lý dữ liệu và hoạt động trong phạm vi hợp tác xã',
+  },
+  {
+    roleName: 'Nông hộ Cầu Đất',
+    badge: 'grower',
+    email: 'grower@caudat.vn',
+    password: 'Password123!',
+    icon: '🌱',
+    desc: 'Quản trị thửa đất, lô thu hoạch & ghi nhật ký chuỗi lạnh',
+  },
+  {
+    roleName: 'Chi cục Quản lý',
+    badge: 'inspector',
+    email: 'inspector@chicuc.gov.vn',
+    password: 'Password123!',
+    icon: '🔍',
+    desc: 'Thanh tra độc lập, giám sát chuỗi lạnh & sự kiện bất biến',
+  },
+]
 
 export function LoginView({
   backendOnline,
@@ -48,8 +83,11 @@ export function LoginView({
       onNotify(`Chào mừng trở lại, ${user.full_name}`)
       onLoginSuccess(user)
     } catch (err) {
+      const rawMsg = err instanceof Error ? err.message : 'Không thể đăng nhập vào hệ thống.'
       setErrorMessage(
-        err instanceof Error ? err.message : 'Không thể đăng nhập vào hệ thống. Vui lòng kiểm tra lại.'
+        rawMsg.includes('không đúng')
+          ? `${rawMsg} (Gợi ý: Dùng tài khoản mẫu bên dưới, mật khẩu: Password123!)`
+          : rawMsg
       )
     } finally {
       setSubmitting(false)
@@ -119,7 +157,7 @@ export function LoginView({
                 }`}
               />
               <span className="status-label">
-                {backendOnline === true ? 'Hệ thống Sẵn sàng' : backendOnline === false ? 'Mất kết nối' : 'Đang kết nối'}
+                {backendOnline === true ? 'Hệ thống Sẵn sàng' : backendOnline === false ? 'Đang kết nối lại...' : 'Đang kết nối'}
               </span>
             </div>
           </div>
@@ -204,6 +242,20 @@ export function LoginView({
             <p className="form-subtitle">Nhập thông tin tài khoản được cấp phát để truy cập không gian điều hành</p>
           </div>
 
+          {backendOnline === false && (
+            <div className="auth-alert-box" role="status" style={{ borderColor: 'rgba(234, 179, 8, 0.4)', background: 'rgba(234, 179, 8, 0.1)', color: 'var(--text-primary)' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                Máy chủ đám mây đang thức dậy sau thời gian chờ (Cold Start ~30s). Hệ thống đang tự động kết nối lại, bạn có thể thử đăng nhập sau giây lát...
+              </span>
+            </div>
+          )}
+
+
           {errorMessage && (
             <div className="auth-alert-box" role="alert">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -231,6 +283,7 @@ export function LoginView({
                   type="email"
                   required
                   autoComplete="email"
+                  disabled={submitting}
                   value={email}
                   onBlur={handleBlur}
                   onChange={(e) => {
@@ -257,6 +310,7 @@ export function LoginView({
                 <button
                   type="button"
                   className="field-helper-link"
+                  disabled={submitting}
                   onClick={handleForgotPassword}
                 >
                   Quên mật khẩu?
@@ -273,6 +327,7 @@ export function LoginView({
                   type={showPassword ? 'text' : 'password'}
                   required
                   autoComplete="current-password"
+                  disabled={submitting}
                   value={password}
                   onBlur={handleBlur}
                   onChange={(e) => {
@@ -288,6 +343,7 @@ export function LoginView({
                 <button
                   type="button"
                   className="password-toggle-btn"
+                  disabled={submitting}
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                   tabIndex={-1}
@@ -314,6 +370,7 @@ export function LoginView({
               <label className="checkbox-label">
                 <input
                   type="checkbox"
+                  disabled={submitting}
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="modern-checkbox"
@@ -344,6 +401,43 @@ export function LoginView({
             </button>
           </form>
 
+          {/* Quick Demo Accounts Presets for Evaluators & Users */}
+          <div className="demo-accounts-card">
+            <div className="demo-accounts-header">
+              <div className="demo-accounts-title-wrap">
+                <span className="demo-badge-icon">🎯</span>
+                <span className="demo-accounts-title">Tài khoản Mẫu Thử nghiệm (Demo)</span>
+              </div>
+              <span className="demo-accounts-hint">Mật khẩu: <code>Password123!</code></span>
+            </div>
+            <div className="demo-presets-grid">
+              {DEMO_PRESETS.map((preset) => (
+                <button
+                  key={preset.email}
+                  type="button"
+                  disabled={submitting}
+                  className={`demo-preset-btn ${email === preset.email ? 'active' : ''}`}
+                  onClick={() => {
+                    setEmail(preset.email)
+                    setPassword(preset.password)
+                    setErrorMessage(null)
+                    onNotify(`Đã điền tài khoản: ${preset.roleName}`)
+                  }}
+                  title={`Chọn tài khoản ${preset.roleName}`}
+                >
+                  <span className="preset-icon">{preset.icon}</span>
+                  <div className="preset-info">
+                    <div className="preset-name-row">
+                      <span className="preset-name">{preset.roleName}</span>
+                      <span className={`preset-badge badge-${preset.badge}`}>{preset.badge}</span>
+                    </div>
+                    <span className="preset-email">{preset.email}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Security Assurance Notice */}
           <div className="security-guarantee-box">
             <div className="security-icon-shield">🛡️</div>
@@ -365,7 +459,7 @@ export function LoginView({
             </button>
 
             <span className="copyright-tag">
-              © 2026 AgroChain • Bản quyền thuộc Nhóm 3 CNTT
+              © 2026 AgroChain • TTCS_T926_K18C4_N3
             </span>
           </div>
         </section>
@@ -401,12 +495,11 @@ export function LoginView({
 
             <div className="audit-modal-body">
               <div className="audit-section">
-                <h4 className="audit-section-title">1. Hiện trạng Phân hệ Kỹ thuật (Sprint 1 &amp; Sprint 2)</h4>
+                <h4 className="audit-section-title">1. Tính năng hệ thống</h4>
                 <div className="audit-table-container">
                   <table className="audit-spec-table">
                     <thead>
                       <tr>
-                        <th>Mã phân hệ</th>
                         <th>Hạng mục nghiệp vụ</th>
                         <th>Công nghệ / Giải pháp kỹ thuật</th>
                         <th>Trạng thái</th>
@@ -414,31 +507,26 @@ export function LoginView({
                     </thead>
                     <tbody>
                       <tr>
-                        <td><strong>N3-4</strong></td>
                         <td>Toàn vẹn Chuỗi lạnh</td>
                         <td>Chuỗi băm SHA-256 + Canonical JSON RFC 8785</td>
                         <td><span className="badge-pass">Hoàn thành (Passed)</span></td>
                       </tr>
                       <tr>
-                        <td><strong>N3-5</strong></td>
                         <td>Quản lý Xác thực &amp; Phiên</td>
                         <td>Argon2id + HttpOnly Cookie (__Host-session)</td>
                         <td><span className="badge-pass">Bảo vệ nghiêm ngặt</span></td>
                       </tr>
                       <tr>
-                        <td><strong>N3-6</strong></td>
                         <td>Đa tổ chức &amp; Phân quyền</td>
                         <td>PostgreSQL FORCE Row Level Security (RLS) + RBAC</td>
                         <td><span className="badge-pass">Cô lập tuyệt đối</span></td>
                       </tr>
                       <tr>
-                        <td><strong>N3-7</strong></td>
                         <td>Danh mục Vùng trồng</td>
                         <td>Tọa độ GPS chuẩn WGS84 + Khóa UUID định danh</td>
                         <td><span className="badge-pass">Sẵn sàng xuất khẩu</span></td>
                       </tr>
                       <tr>
-                        <td><strong>N3-21</strong></td>
                         <td>Bất biến Nhật ký Sự kiện</td>
                         <td>Trigger PostgreSQL chặn UPDATE/DELETE + Chaining Hash</td>
                         <td><span className="badge-pass">Append-only 5 lớp</span></td>
@@ -448,25 +536,6 @@ export function LoginView({
                 </div>
               </div>
 
-              <div className="audit-section">
-                <h4 className="audit-section-title">2. Tài nguyên Kiểm thử &amp; API</h4>
-                <div className="audit-links-grid">
-                  <a
-                    href={`${API_BASE_URL}/docs`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="audit-link-card"
-                  >
-                    <span className="audit-link-title">📄 Swagger API Documentation</span>
-                    <span className="audit-link-desc">Xem toàn bộ OpenAPI Specification và chạy thử nghiệm trực tiếp</span>
-                  </a>
-
-                  <div className="audit-link-card">
-                    <span className="audit-link-title">🧪 Kiểm thử Tự động (CI Pipeline)</span>
-                    <span className="audit-link-desc">25/25 Pytest Passed • Linter Ruff Passed • Docker Build Verified</span>
-                  </div>
-                </div>
-              </div>
             </div>
 
             <div className="audit-modal-footer">

@@ -1,129 +1,187 @@
-# Hệ thống Truy xuất Nguồn gốc và Giám sát Chuỗi lạnh Nông sản
+# AgroChain — Hệ thống Truy xuất Nguồn gốc & Giám sát Chuỗi lạnh Nông sản
 
-Ứng dụng quản lý quy trình canh tác, theo dõi lô hàng và giám sát điều kiện bảo quản nông sản theo thời gian thực.
+> Học phần: Thực tập cơ sở (TTCS) — Nhóm `TTCS_T926_K18C4_N3`
+>
 
-## Công nghệ sử dụng
+> **Môi trường Trực tuyến (Staging - Render):**
+> - **Giao diện Người dùng (Frontend Web):** [https://ttcs-frontend-staging.onrender.com](https://ttcs-frontend-staging.onrender.com) *(Khuyên dùng: Chỉ cần mở link này để sử dụng)*
+> - **Cổng Dịch vụ API (Backend Service):** [https://ttcs-backend-staging.onrender.com](https://ttcs-backend-staging.onrender.com)
+> - **Tài liệu API tương tác (Swagger UI):** [https://ttcs-backend-staging.onrender.com/docs](https://ttcs-backend-staging.onrender.com/docs)
+> - **Tài liệu API (Redoc):** [https://ttcs-backend-staging.onrender.com/redoc](https://ttcs-backend-staging.onrender.com/redoc)
+> 
+> *💡 Ghi chú cho thành viên nhóm & chấm bài:* Chỉ cần mở link **Frontend Web** trên trình duyệt để trải nghiệm toàn bộ hệ thống mà không cần cài đặt bất kỳ công cụ nào vào máy tính cá nhân.
 
-- **Backend:** Python 3.12+, FastAPI, SQLAlchemy 2.0, Alembic, PostgreSQL
-- **Frontend:** React 19, TypeScript, Vite
-- **Hạ tầng & CI/CD:** Docker, Docker Compose, Nginx, GitHub Actions, Render
 
-## Cấu trúc dự án
+Hệ thống quản lý quy trình chuỗi lạnh nông sản từ vùng trồng đến phân phối: theo dõi lô hàng, ghi nhật ký telemetry (nhiệt độ, độ ẩm, GPS) theo cơ chế bất biến và phân quyền đa tổ chức.
+
+---
+
+### Bảng Địa chỉ Môi trường (Environments)
+
+| Môi trường | Frontend Web | Backend API Service | Tài liệu API (Swagger / Redoc) |
+|---|---|---|---|
+| **Staging (Cloud Render)** | [ttcs-frontend-staging.onrender.com](https://ttcs-frontend-staging.onrender.com) | [ttcs-backend-staging.onrender.com](https://ttcs-backend-staging.onrender.com) | [/docs](https://ttcs-backend-staging.onrender.com/docs) \| [/redoc](https://ttcs-backend-staging.onrender.com/redoc) |
+| **Local (Docker / Dev)** | [http://localhost:5173](http://localhost:5173) | [http://localhost:8000](http://localhost:8000) | [http://localhost:8000/docs](http://localhost:8000/docs) |
+
+---
+
+## 1. Phân hệ Kỹ thuật Cốt lõi
+
+| Mã phân hệ | Nghiệp vụ | Giải pháp kỹ thuật | Trạng thái |
+|---|---|---|---|
+| **N3-4** | Toàn vẹn dữ liệu chuỗi lạnh | Băm SHA-256 nối chuỗi + chuẩn hóa Canonical JSON RFC 8785 | Đạt kiểm thử |
+| **N3-5** | Quản lý xác thực & phiên | Argon2id + Cookie HttpOnly (`__Host-session`, SameSite=None, Secure) | Đạt kiểm thử |
+| **N3-6** | Phân quyền & Đa tổ chức | PostgreSQL FORCE Row Level Security (RLS) + RBAC | Đạt kiểm thử |
+| **N3-7** | Danh mục vùng trồng | Tọa độ GPS chuẩn WGS84, mã định danh UUID v4 | Đạt kiểm thử |
+| **N3-21** | Bất biến nhật ký sự kiện | Trigger PostgreSQL chặn mọi thao tác UPDATE/DELETE | Đạt kiểm thử |
+
+---
+
+## 2. Tài khoản Thử nghiệm (Demo Accounts)
+
+Hệ thống được khởi tạo sẵn dữ liệu mẫu cho 3 vai trò nghiệp vụ. Mật khẩu mặc định cho toàn bộ tài khoản mẫu là: `Password123!`
+
+| Vai trò | Email đăng nhập | Mật khẩu | Phạm vi quyền hạn |
+|---|---|---|---|
+| **Nông hộ (Grower)** | `grower@caudat.vn` | `Password123!` | Quản lý nông trại Cầu Đất, tạo lô hàng, ghi nhật ký chuỗi lạnh |
+| **Quản trị HTX (Admin)** | `admin@mocchau.vn` | `Password123!` | Quản lý hợp tác xã Mộc Châu, phân quyền thành viên và vùng trồng |
+| **Thanh tra viên (Inspector)** | `inspector@chicuc.gov.vn` | `Password123!` | Đọc dữ liệu toàn hệ thống, kiểm tra chéo tính toàn vẹn chuỗi sự kiện |
+
+*Cơ chế chống brute-force: Nhập sai mật khẩu 5 lần liên tiếp sẽ bị khóa phiên tạm thời 15 phút.*
+
+---
+
+## 3. Công nghệ Sử dụng
+
+- **Backend:** Python 3.12+, FastAPI, SQLAlchemy 2.0, Alembic, PostgreSQL 16 (`psycopg3`).
+- **Frontend:** React 19, TypeScript, Vite, Vanilla CSS.
+- **Kiểm thử & Linter:** Pytest (Async/ASGITransport), Ruff, Oxlint.
+- **Hạ tầng:** Docker, Docker Compose, Render (Web Service + Static Site + Managed PostgreSQL), GitHub Actions CI/CD.
+
+---
+
+## 4. Cấu trúc Dự án
 
 ```text
 .
-├── .github/workflows/       # Cấu hình CI/CD tự động (lint, test, build, deploy)
 ├── backend/
 │   ├── alembic/             # Quản lý phiên bản migration cơ sở dữ liệu
 │   ├── app/
-│   │   ├── api/v1/          # Định tuyến RESTful API (endpoints, router)
-│   │   ├── core/            # Cấu hình ứng dụng và kết nối cơ sở dữ liệu
-│   │   ├── models/          # Khai báo SQLAlchemy ORM models
-│   │   ├── schemas/         # Khai báo Pydantic schemas (validation & serialization)
-│   │   ├── services/        # Xử lý nghiệp vụ (business logic)
-│   │   └── main.py          # Điểm khởi chạy ứng dụng FastAPI
-│   ├── tests/               # Kiểm thử đơn vị và tích hợp (Pytest)
-│   ├── Dockerfile           # Đóng gói container Backend
-│   ├── pyproject.toml       # Cấu hình Ruff linter, formatter và Pytest
-│   ├── requirements.txt     # Thư viện môi trường production
-│   └── requirements-dev.txt # Thư viện môi trường phát triển
+│   │   ├── api/v1/          # Endpoints: auth, farms, lots, events
+│   │   ├── core/            # Config, database engine, auth, crypto
+│   │   ├── models/          # SQLAlchemy ORM models
+│   │   ├── schemas/         # Pydantic schemas (validation & serialization)
+│   │   ├── services/        # Nghiệp vụ băm, tính toàn vẹn chuỗi sự kiện
+│   │   ├── main.py          # Khởi tạo ứng dụng FastAPI & cấu hình CORS
+│   │   └── startup.py       # Bootstrap quyền database và nâng cấp migration
+│   └── tests/               # Kiểm thử tự động (Pytest)
 ├── frontend/
-│   ├── public/              # Tài nguyên tĩnh
 │   ├── src/
-│   │   ├── components/      # Các thành phần giao diện tái sử dụng
-│   │   ├── hooks/           # Custom React hooks
-│   │   ├── pages/           # Các trang giao diện chính
-│   │   ├── services/        # Tầng giao tiếp API với Backend
-│   │   ├── types/           # Định nghĩa kiểu dữ liệu TypeScript
-│   │   └── utils/           # Các hàm tiện ích dùng chung
-│   ├── Dockerfile           # Đóng gói container Frontend (Node build + Nginx)
-│   ├── nginx.conf           # Cấu hình định tuyến SPA cho Nginx
-│   └── package.json         # Quản lý thư viện và script Frontend
-├── docs/                    # Tài liệu đặc tả kỹ thuật và API
-├── docker-compose.yml       # Khởi chạy toàn bộ hệ thống bằng Docker
-├── Makefile                 # Tập hợp các lệnh tắt phục vụ phát triển
-├── render.yaml              # Khai báo hạ tầng đám mây (Infrastructure as Code)
-└── CONTRIBUTING.md          # Quy chuẩn làm việc nhóm và đóng góp mã nguồn
+│   │   ├── components/      # LoginView, FarmWorkspace, LotsPanel, EventTimeline
+│   │   ├── services/api.ts  # Tầng kết nối REST API & quản lý phiên
+│   │   ├── types/           # Định nghĩa Type TypeScript
+│   │   ├── App.tsx          # Điều hướng & đồng bộ phiên
+│   │   └── index.css        # Hệ thống thiết kế giao diện
+│   └── vite.config.ts       # Cấu hình Vite & reverse proxy dev
+├── docs/                    # Tài liệu đặc tả kỹ thuật (API, RLS, tính toàn vẹn)
+├── docker-compose.yml       # Cấu hình container khởi chạy toàn bộ dịch vụ
+└── Makefile                 # Tập hợp các lệnh tắt phục vụ phát triển
 ```
 
-## Hướng dẫn cài đặt và khởi chạy
+---
 
-### 1. Khởi chạy nhanh bằng Docker Compose
+## 5. Hướng dẫn Khởi chạy
 
-Yêu cầu máy tính đã cài đặt và bật **Docker Desktop**. Chạy lệnh sau tại thư mục gốc của dự án:
+### Cách 1: Khởi chạy bằng Docker Compose (Khuyên dùng)
+
+Yêu cầu máy đã cài và bật Docker Desktop:
 
 ```bash
+# 1. Sao chép file cấu hình môi trường
 cp .env.example .env
-# Set unique local values for DB_PASSWORD, DB_ADMIN_PASSWORD, and DEMO_PASSWORD.
+
+# 2. Khởi chạy toàn bộ hệ thống (PostgreSQL + Backend + Frontend)
 docker compose up --build -d
 ```
 
-Sau khi các container khởi động hoàn tất:
-- **Giao diện Web:** http://localhost:5173
-- **Tài liệu API (Swagger UI):** http://localhost:8000/docs
-- **Cơ sở dữ liệu PostgreSQL:** `localhost:5432` (database: `ttcs_db`)
+Sau khi khởi động hoàn tất:
+- **Giao diện Web:** [http://localhost:5173](http://localhost:5173)
+- **Backend API Service:** [http://localhost:8000](http://localhost:8000)
+- **Tài liệu API (Swagger UI):** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Tài liệu API (Redoc):** [http://localhost:8000/redoc](http://localhost:8000/redoc)
+- **Dừng dịch vụ:** `docker compose down`
 
-Để dừng toàn bộ dịch vụ:
-```bash
-docker compose down
-```
+---
 
-### 2. Khởi chạy trực tiếp trên máy (Môi trường phát triển)
+### Cách 2: Khởi chạy trực tiếp trên máy (Local Development)
 
-#### Backend (FastAPI)
+#### 1. Backend (FastAPI)
+Yêu cầu Python 3.12+ và PostgreSQL 16:
 
 ```bash
 cd backend
+
+# Khởi tạo môi trường ảo
 python -m venv .venv
 
-# Kích hoạt môi trường ảo (Windows)
+# Kích hoạt môi trường ảo:
+# Windows (cmd/PowerShell):
 .venv\Scripts\activate
-# Hoặc trên Linux/macOS: source .venv/bin/activate
+# Linux/macOS:
+# source .venv/bin/activate
 
+# Cài đặt thư viện phát triển
 pip install -r requirements-dev.txt
+
+# Cấu hình biến môi trường
 cp .env.example .env
-# Set DB_PASSWORD and DB_ADMIN_PASSWORD to different local secrets.
+# Cập nhật DB_PASSWORD và DB_ADMIN_PASSWORD trong file .env cho khớp máy cục bộ
+
+# Chạy migration và khởi động server
 python -m app.startup
 ```
 
-#### Frontend (React + Vite)
-
+#### 2. Frontend (React + Vite)
 Mở một cửa sổ terminal mới:
 
 ```bash
 cd frontend
-npm install
-cp .env.example .env.local
 
+# Cài đặt thư viện
+npm install
+
+# Chạy máy chủ phát triển
 npm run dev
 ```
 
-## Các lệnh hỗ trợ phát triển
+*Lưu ý về Dev Proxy:* Khi chạy `npm run dev`, Vite được cấu hình proxy ngầm các yêu cầu `/api` sang Backend Staging (hoặc Backend local nếu đặt biến `VITE_BACKEND_TARGET`). Do đó, bạn có thể kiểm thử toàn bộ giao diện và chức năng đăng nhập ngay cả khi chưa bật PostgreSQL cục bộ.
 
-Dự án tích hợp sẵn `Makefile` để rút gọn các thao tác thường ngày:
+---
 
-| Lệnh | Mô tả |
+## 6. Lệnh Thường dùng (Makefile)
+
+Nếu môi trường hỗ trợ `make`:
+
+| Lệnh | Mục đích |
 |---|---|
-| `make install` | Cài đặt toàn bộ thư viện cho Backend và Frontend |
-| `make dev-backend` | Chạy máy chủ phát triển Backend |
-| `make dev-frontend` | Chạy máy chủ phát triển Frontend |
+| `make install` | Cài đặt dependencies cho cả Backend và Frontend |
+| `make dev-backend` | Khởi chạy máy chủ Backend (FastAPI) |
+| `make dev-frontend` | Khởi chạy máy chủ Frontend (Vite) |
 | `make test` | Chạy bộ kiểm thử tự động với Pytest |
 | `make lint` | Kiểm tra quy chuẩn mã nguồn (Ruff & Oxlint) |
-| `make lint-fix` | Tự động định dạng mã nguồn và sửa lỗi lint |
-| `make migration msg="mô tả"` | Tự động sinh file migration mới từ thay đổi model |
-| `make migrate` | Áp dụng các bản migration mới nhất vào cơ sở dữ liệu |
+| `make lint-fix` | Tự động định dạng và sửa lỗi lint |
+| `make migrate` | Áp dụng bản migration mới nhất vào cơ sở dữ liệu |
 
-## Môi trường Staging
+---
 
-Hệ thống được thiết lập cơ chế triển khai liên tục (Continuous Deployment). Khi mã nguồn được gộp (merge) vào nhánh `main`, dịch vụ đám mây sẽ tự động cập nhật phiên bản mới nhất:
+## 7. Kiến trúc An toàn Dữ liệu
 
-- **Web Staging:** https://ttcs-frontend-staging.onrender.com
-- **API Staging:** https://ttcs-backend-staging.onrender.com/docs
+1. **Cô lập Đa tổ chức (PostgreSQL RLS):** Cơ chế Row Level Security được kích hoạt với mức nghiêm ngặt (`FORCE ROW LEVEL SECURITY`). Tầng ứng dụng derive tenant trực tiếp từ session hash trong transaction context, ngăn chặn triệt để nguy cơ giả mạo tổ chức từ tham số request.
+2. **Nhật ký Sự kiện Bất biến (N3-21):** Bảng `events` chỉ cấp quyền `SELECT` và `INSERT` cho app role. Hai database trigger `trg_events_prevent_update` và `trg_events_prevent_delete` chặn đứng mọi nỗ lực can thiệp hoặc sửa đổi dữ liệu đã ghi.
+3. **Quản lý Phiên (N3-5):** Phiên làm việc sử dụng cookie `__Host-session` với cờ `HttpOnly`, `Secure` và `SameSite=None`. Mã phiên không bao giờ xuất hiện trong response body hay Web Storage (`localStorage`), ngăn ngừa tấn công XSS đánh cắp phiên.
 
-Staging creates the application database role at startup and runs migrations
-with the separate migration role. Demo accounts are seeded only for local
-development when DEMO_PASSWORD is configured.
+---
 
-## Quy trình đóng góp
+## 8. Quy trình Đóng góp
 
-Vui lòng đọc kỹ các quy định về phân nhánh, đặt tên commit và tạo Pull Request tại [CONTRIBUTING.md](./CONTRIBUTING.md) trước khi bắt đầu làm việc.
+Vui lòng tham khảo [CONTRIBUTING.md](./CONTRIBUTING.md) để tuân thủ quy định về phân nhánh, đặt tên commit theo chuẩn Conventional Commits và tạo Pull Request.

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasPath, BaseModel, ConfigDict, Field
 
 
 class EventCreate(BaseModel):
@@ -27,6 +27,32 @@ class EventRead(BaseModel):
     payload: dict[str, Any]
     prev_hash: str
     event_hash: str
+    organization_name: str = Field(validation_alias=AliasPath("organization", "name"))
+
+
+class IntegrityIssue(BaseModel):
+    sequence_number: int
+    kind: str
+
+
+class IntegrityRead(BaseModel):
+    valid: bool
+    checked_events: int
+    first_invalid_sequence: int | None = None
+    issues: list[IntegrityIssue] = Field(default_factory=list)
+
+
+class IntegrityCheckRead(IntegrityRead):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    lot_id: UUID
+    checked_at: datetime
+
+
+class EventHistoryRead(BaseModel):
+    events: list[EventRead]
+    integrity: IntegrityRead
 
 
 # ARCHITECTURAL INVARIANT (N3-21):

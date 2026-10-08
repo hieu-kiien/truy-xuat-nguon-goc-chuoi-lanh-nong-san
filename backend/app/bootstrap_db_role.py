@@ -10,6 +10,15 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _table_columns(cursor, table_name: str) -> set[str]:
+    cursor.execute(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_schema = 'public' AND table_name = %s",
+        (table_name,),
+    )
+    return {row[0] for row in cursor.fetchall()}
+
+
 def _grant_existing_table_permissions(cursor, app_role: str) -> None:
     role_ident = sql.Identifier(app_role)
     cursor.execute(
@@ -42,9 +51,23 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
             sql.SQL("GRANT SELECT, INSERT, UPDATE ON farms TO {}").format(role_ident)
         )
     if "lots" in tables:
-        cursor.execute(sql.SQL("GRANT SELECT ON lots TO {}").format(role_ident))
+        cursor.execute(sql.SQL("GRANT SELECT, INSERT ON lots TO {}").format(role_ident))
         cursor.execute(
-            sql.SQL("REVOKE INSERT, UPDATE, DELETE ON lots FROM {}").format(role_ident)
+            sql.SQL("REVOKE UPDATE, DELETE ON lots FROM {}").format(role_ident)
+        )
+        columns = _table_columns(cursor, "lots")
+        if {"current_holder_organization_id", "status"}.issubset(columns):
+            cursor.execute(
+                sql.SQL(
+                    "GRANT UPDATE (current_holder_organization_id, status) "
+                    "ON lots TO {}"
+                ).format(role_ident)
+            )
+    if "products" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT, UPDATE, DELETE ON products TO {}").format(
+                role_ident
+            )
         )
     if "events" in tables:
         cursor.execute(
@@ -53,7 +76,19 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
         cursor.execute(
             sql.SQL("REVOKE UPDATE, DELETE ON events FROM {}").format(role_ident)
         )
-
+    if "handovers" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT ON handovers TO {}").format(role_ident)
+        )
+        cursor.execute(
+            sql.SQL("REVOKE UPDATE, DELETE ON handovers FROM {}").format(role_ident)
+        )
+        cursor.execute(
+            sql.SQL(
+                "GRANT UPDATE (status, resolved_at, resolved_by_user_id, "
+                "rejection_reason) ON handovers TO {}"
+            ).format(role_ident)
+        )
     cursor.execute(
         "SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public'"
     )

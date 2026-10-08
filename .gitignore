@@ -25,3 +25,9 @@ Thumbs.db
 .vscode/settings.json
 *.suo
 *.user
+
+# Local agent toolkits & binaries
+.agent/
+.github/agents/
+.github/hooks/
+.github/skills/

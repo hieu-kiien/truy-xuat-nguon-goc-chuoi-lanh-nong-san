@@ -7,10 +7,21 @@ import type { SessionUser } from './types'
 const THEME_STORAGE_KEY = 'ttcs_theme'
 const WORKSPACE_PATHS = new Set([
   '/lots',
+  '/handovers',
+  '/products',
   '/farms',
   '/security',
   '/integrity',
 ])
+const LOT_DETAIL_PATH = /^\/lots\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i
+
+function isWorkspacePath(pathname: string): boolean {
+  return WORKSPACE_PATHS.has(pathname) || LOT_DETAIL_PATH.test(pathname)
+}
+
+function lotIdForPath(pathname: string): string | null {
+  return LOT_DETAIL_PATH.exec(pathname)?.[1] ?? null
+}
 
 function readLocation() {
   return {
@@ -26,7 +37,7 @@ function safeWorkspacePath(candidate: string | null): string | null {
   }
 
   const url = new URL(candidate, window.location.origin)
-  if (url.origin !== window.location.origin || !WORKSPACE_PATHS.has(url.pathname)) {
+  if (url.origin !== window.location.origin || !isWorkspacePath(url.pathname)) {
     return null
   }
   return `${url.pathname}${url.search}${url.hash}`
@@ -34,6 +45,8 @@ function safeWorkspacePath(candidate: string | null): string | null {
 
 function routeForTab(tab: WorkspaceTab): string {
   if (tab === 'overview') return '/farms'
+  if (tab === 'handovers') return '/handovers'
+  if (tab === 'products') return '/products'
   if (tab === 'security') return '/security'
   if (tab === 'integrity') return '/integrity'
   return '/lots'
@@ -41,6 +54,8 @@ function routeForTab(tab: WorkspaceTab): string {
 
 function tabForPath(pathname: string): WorkspaceTab {
   if (pathname === '/farms') return 'overview'
+  if (pathname === '/handovers') return 'handovers'
+  if (pathname === '/products') return 'products'
   if (pathname === '/security') return 'security'
   if (pathname === '/integrity') return 'integrity'
   return 'lots'
@@ -57,6 +72,7 @@ export default function App() {
   const [initialLocation] = useState(readLocation)
   const [location, setLocation] = useState(initialLocation)
   const activeTab = tabForPath(location.pathname)
+  const selectedLotId = lotIdForPath(location.pathname)
   const currentUserRef = useRef<SessionUser | null>(null)
   const [isDark, setIsDark] = useState<boolean>(() => {
     try {
@@ -113,7 +129,7 @@ export default function App() {
         nextLocation = readLocation()
       } else if (
         currentUserRef.current &&
-        !WORKSPACE_PATHS.has(nextLocation.pathname)
+        !isWorkspacePath(nextLocation.pathname)
       ) {
         window.history.replaceState(null, '', '/lots')
         nextLocation = readLocation()
@@ -175,7 +191,7 @@ export default function App() {
               new URLSearchParams(initialLocation.search).get('next')
             )
             navigate(requestedReturnTo ?? '/lots', true)
-          } else if (!WORKSPACE_PATHS.has(initialLocation.pathname)) {
+          } else if (!isWorkspacePath(initialLocation.pathname)) {
             navigate('/lots', true)
           }
         }
@@ -197,6 +213,27 @@ export default function App() {
       active = false
     }
   }, [initialLocation, navigate])
+
+  useEffect(() => {
+    if (backendOnline !== false) return
+    let active = true
+    const interval = window.setInterval(async () => {
+      try {
+        await checkHealth()
+        if (active) {
+          setBackendOnline(true)
+        }
+      } catch {
+        // Still waking up
+      }
+    }, 5000)
+
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [backendOnline])
+
 
   const handleLogout = async () => {
     try {
@@ -234,6 +271,9 @@ export default function App() {
           onTabChange={(tab) => navigate(routeForTab(tab))}
           onLogout={() => void handleLogout()}
           onNotify={notify}
+          selectedLotId={selectedLotId}
+          onOpenLot={(lotId) => navigate(`/lots/${lotId}`)}
+          onBackToLots={() => navigate('/lots')}
         />
       ) : (
         <LoginView

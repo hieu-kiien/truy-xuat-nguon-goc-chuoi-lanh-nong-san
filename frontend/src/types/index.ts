@@ -56,6 +56,73 @@ export interface Lot {
   organization_id: string
   farm_id: string
   name: string
+  lot_code: string | null
+  product_id: string | null
+  harvested_on: string | null
+  quantity: string | null
+  remaining_quantity: string
+  current_holder_organization_id: string
+  current_holder_organization_name: string
+  status: 'active' | 'pending_handover' | 'closed'
+  product: Product | null
+}
+
+export interface LotPage {
+  items: Lot[]
+  next_cursor: string | null
+}
+
+export type ProductUnit = 'kg' | 'tấn' | 'thùng'
+
+export interface Product {
+  id: string
+  name: string
+  unit: ProductUnit
+}
+
+export interface ProductPayload {
+  name: string
+  unit: ProductUnit
+}
+
+export interface OrganizationOption {
+  id: string
+  name: string
+}
+
+export interface Handover {
+  id: string
+  lot_id: string
+  lot_code: string | null
+  lot_name: string
+  from_organization_id: string
+  from_organization_name: string
+  to_organization_id: string
+  to_organization_name: string
+  status: 'pending' | 'accepted' | 'rejected'
+  note: string | null
+  rejection_reason: string | null
+  created_at: string
+}
+
+export interface HandoverPayload {
+  lot_id: string
+  to_organization_id: string
+  note?: string
+}
+
+export interface LotPayload {
+  farm_id: string
+  product_id: string
+  harvested_on: string
+  quantity: string
+}
+
+export interface LotListParams {
+  q?: string
+  product_id?: string
+  cursor?: string
+  page_size?: number
 }
 
 export interface LotEvent {
@@ -68,6 +135,30 @@ export interface LotEvent {
   payload: Record<string, unknown>
   prev_hash: string
   event_hash: string
+  organization_name: string
+}
+
+export interface IntegrityIssue {
+  sequence_number: number
+  kind: string
+}
+
+export interface IntegrityReport {
+  valid: boolean
+  checked_events: number
+  first_invalid_sequence: number | null
+  issues: IntegrityIssue[]
+}
+
+export interface IntegrityCheckRecord extends IntegrityReport {
+  id: string
+  lot_id: string
+  checked_at: string
+}
+
+export interface EventHistory {
+  events: LotEvent[]
+  integrity: IntegrityReport
 }
 
 export interface CreateEventRequest {
@@ -100,23 +191,75 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'auth:session',
     'farms:read',
     'farms:write',
+    'products:read',
+    'lots:read',
+    'lots:create',
+    'events:read',
+    'events:create',
+    'handovers:create',
+    'handovers:resolve',
+  ],
+  cooperative: [
+    'auth:session',
+    'products:read',
     'lots:read',
     'events:read',
     'events:create',
+    'handovers:create',
+    'handovers:resolve',
   ],
-  cooperative: ['auth:session', 'lots:read', 'events:read', 'events:create'],
-  transporter: ['auth:session', 'lots:read', 'events:read', 'events:create'],
-  distributor: ['auth:session', 'lots:read', 'events:read', 'events:create'],
-  inspector: ['auth:session', 'lots:read_all', 'events:read_all'],
+  transporter: [
+    'auth:session',
+    'products:read',
+    'lots:read',
+    'events:read',
+    'events:create',
+    'handovers:create',
+    'handovers:resolve',
+  ],
+  distributor: [
+    'auth:session',
+    'products:read',
+    'lots:read',
+    'events:read',
+    'events:create',
+    'handovers:create',
+    'handovers:resolve',
+  ],
+  inspector: [
+    'auth:session',
+    'products:read',
+    'lots:read_all',
+    'events:read_all',
+    'events:verify',
+  ],
   organization_admin: [
     'auth:session',
     'farms:read',
     'farms:write',
+    'products:read',
     'lots:read',
+    'lots:create',
     'events:read',
     'events:create',
+    'handovers:create',
+    'handovers:resolve',
   ],
-  system_admin: ['auth:session'],
+  system_admin: [
+    'auth:session',
+    'farms:read',
+    'farms:write',
+    'farms:read_all',
+    'lots:read',
+    'lots:read_all',
+    'events:read',
+    'events:read_all',
+    'events:verify',
+    'products:read',
+    'products:write',
+    'products:read_all',
+    'security:read',
+  ],
 }
 
 export function hasPermission(role: RoleCode, permission: string): boolean {
@@ -124,10 +267,16 @@ export function hasPermission(role: RoleCode, permission: string): boolean {
   if (perms.includes(permission)) {
     return true
   }
+  if (permission === 'farms:read' && perms.includes('farms:read_all')) {
+    return true
+  }
   if (permission === 'lots:read' && perms.includes('lots:read_all')) {
     return true
   }
   if (permission === 'events:read' && perms.includes('events:read_all')) {
+    return true
+  }
+  if (permission === 'products:read' && perms.includes('products:read_all')) {
     return true
   }
   return false

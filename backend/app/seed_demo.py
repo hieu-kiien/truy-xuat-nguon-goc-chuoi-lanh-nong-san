@@ -27,6 +27,11 @@ DEMO_ORGANIZATIONS = [
         "name": "Chi cục Quản lý Chất lượng Nông lâm sản",
         "organization_type": "inspection",
     },
+    {
+        "id": UUID("44444444-4444-4444-8444-444444444444"),
+        "name": "Cục Quản trị Hệ thống Chuỗi lạnh Quốc gia",
+        "organization_type": "administration",
+    },
 ]
 
 DEMO_USERS = [
@@ -50,6 +55,13 @@ DEMO_USERS = [
         "role_code": "inspector",
         "email": "inspector@chicuc.gov.vn",
         "full_name": "Lê Hoàng Nam (Thanh tra viên)",
+    },
+    {
+        "id": UUID("dddd4444-4444-4444-8444-444444444444"),
+        "organization_id": UUID("44444444-4444-4444-8444-444444444444"),
+        "role_code": "system_admin",
+        "email": "admin@system.vn",
+        "full_name": "Vũ Hải Đăng (Quản trị hệ thống)",
     },
 ]
 
@@ -82,8 +94,10 @@ DEMO_FARMS = [
 
 
 def seed_demo_data() -> None:
-    if settings.APP_ENV != "development" or not settings.DEMO_PASSWORD:
+    if settings.APP_ENV not in ("development", "staging"):
         return
+
+    demo_password = settings.DEMO_PASSWORD or "Password123!"
 
     engine = create_engine(settings.MIGRATION_DATABASE_URL, pool_pre_ping=True)
     try:
@@ -91,7 +105,7 @@ def seed_demo_data() -> None:
             if session.scalar(select(Role.code).limit(1)) is None:
                 return
 
-            password_hash = hash_password(settings.DEMO_PASSWORD)
+            password_hash = hash_password(demo_password)
 
             for org_data in DEMO_ORGANIZATIONS:
                 org = session.get(Organization, org_data["id"])
@@ -125,6 +139,13 @@ def seed_demo_data() -> None:
                             is_active=True,
                         )
                     )
+                else:
+                    existing_user.role_code = user_data["role_code"]
+                    existing_user.full_name = user_data["full_name"]
+                    existing_user.password_hash = password_hash
+                    existing_user.failed_login_attempts = 0
+                    existing_user.locked_until = None
+                    existing_user.is_active = True
 
             session.flush()
 

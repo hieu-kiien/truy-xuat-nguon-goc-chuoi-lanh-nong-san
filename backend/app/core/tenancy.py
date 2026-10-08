@@ -10,6 +10,7 @@ from app.core.auth import Principal
 from app.core.authorization import has_permission
 
 logger = logging.getLogger(__name__)
+SHARED_TABLE_NAMES = frozenset({"products"})
 
 
 def _require_tenant_column(model: Any) -> None:
@@ -24,12 +25,30 @@ def tenant_select(model: Any, principal: Principal | None = None):
 
     _require_tenant_column(model)
 
-    if model.__tablename__ in ("lots", "events") and has_permission(
+    if principal.role == "system_admin":
+        return select(model)
+
+    if model.__tablename__ in ("farms", "lots", "events") and has_permission(
         principal.role, f"{model.__tablename__}:read_all"
     ):
         return select(model)
 
+    if model.__tablename__ == "lots":
+        return select(model).where(
+            model.current_holder_organization_id == principal.organization_id
+        )
+
     return select(model).where(model.organization_id == principal.organization_id)
+
+
+def shared_select(model: Any):
+    """Build an unscoped query for an explicitly registered global table."""
+    table_name = model.__tablename__
+    if table_name not in SHARED_TABLE_NAMES:
+        raise TypeError(f"{table_name} is not registered as a shared table")
+    if "organization_id" in model.__table__.c:
+        raise TypeError(f"Shared table {table_name} must not have organization_id")
+    return select(model)
 
 
 def get_tenant_record(

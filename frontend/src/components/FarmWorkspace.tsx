@@ -1,20 +1,35 @@
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
-import { createFarm, getFarms, updateFarm } from '../services/api'
+import {
+  ApiError,
+  createFarm,
+  getFarms,
+  getIncomingHandovers,
+  updateFarm,
+} from '../services/api'
 import {
   hasPermission,
   ROLE_LABELS,
-  ROLE_PERMISSIONS,
   type Farm,
   type SessionUser,
 } from '../types'
 import { FarmFormPanel } from './FarmFormPanel'
 import { IntegrityPanel } from './IntegrityPanel'
+import { HandoversPanel } from './HandoversPanel'
 import { LotsPanel } from './LotsPanel'
+import { LotDetailPanel } from './LotDetailPanel'
+import { ProductManager } from './ProductManager'
 import { SecurityPanel } from './SecurityPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
+import { ErrorBoundary } from './ErrorBoundary'
 
-export type WorkspaceTab = 'lots' | 'overview' | 'security' | 'integrity'
+export type WorkspaceTab =
+  | 'lots'
+  | 'products'
+  | 'handovers'
+  | 'overview'
+  | 'security'
+  | 'integrity'
 
 interface FarmWorkspaceProps {
   user: SessionUser
@@ -24,6 +39,9 @@ interface FarmWorkspaceProps {
   onTabChange: (tab: WorkspaceTab) => void
   onLogout: () => void
   onNotify: (message: string) => void
+  selectedLotId: string | null
+  onOpenLot: (lotId: string) => void
+  onBackToLots: () => void
 }
 
 export function FarmWorkspace({
@@ -34,12 +52,20 @@ export function FarmWorkspace({
   onTabChange,
   onLogout,
   onNotify,
+  selectedLotId,
+  onOpenLot,
+  onBackToLots,
 }: FarmWorkspaceProps) {
   const canReadFarms = hasPermission(user.role, 'farms:read')
   const canWriteFarms = hasPermission(user.role, 'farms:write')
   const canReadLots = hasPermission(user.role, 'lots:read')
-  const grantedPermissions = ROLE_PERMISSIONS[user.role] ?? []
-
+  const canCreateLots = hasPermission(user.role, 'lots:create')
+  const canReadEvents = hasPermission(user.role, 'events:read')
+  const canUseHandovers =
+    hasPermission(user.role, 'handovers:create') ||
+    hasPermission(user.role, 'handovers:resolve')
+  const canResolveHandovers = hasPermission(user.role, 'handovers:resolve')
+  const canVerifyEvents = hasPermission(user.role, 'events:verify')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -60,7 +86,35 @@ export function FarmWorkspace({
   } | null>(null)
 
   const [rbacProbeResult, setRbacProbeResult] = useState<string | null>(null)
-  const [tamperSimulated, setTamperSimulated] = useState(false)
+  const [pendingHandoverCount, setPendingHandoverCount] = useState<number | null>(
+    canResolveHandovers ? null : 0,
+  )
+  const contentRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    contentRef.current?.scrollTo(0, 0)
+  }, [activeTab, selectedLotId])
+
+  const updatePendingHandoverCount = useCallback((count: number) => {
+    setPendingHandoverCount(count)
+  }, [])
+
+  useEffect(() => {
+    if (!canResolveHandovers) return
+    let active = true
+    getIncomingHandovers()
+      .then((handovers) => {
+        if (active) {
+          setPendingHandoverCount(
+            handovers.filter((handover) => handover.status === 'pending').length,
+          )
+        }
+      })
+      .catch(() => {
+        if (active) setPendingHandoverCount(null)
+      })
+    return () => { active = false }
+  }, [canResolveHandovers])
 
   const refreshFarms = useCallback(async () => {
     if (!canReadFarms) return
@@ -128,13 +182,19 @@ export function FarmWorkspace({
     event.preventDefault()
     if (savingRef.current) return
 
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      setFormFeedback({ type: 'error', message: 'Tên vùng trồng không được để trống.' })
+      return
+    }
+
     savingRef.current = true
     setSaving(true)
     setFormFeedback(null)
 
     try {
       const payload = {
-        name: name.trim(),
+        name: trimmedName,
         area_ha: areaHa.trim(),
         latitude: latitude.trim(),
         longitude: longitude.trim(),
@@ -172,19 +232,22 @@ export function FarmWorkspace({
   }
 
   const runForbiddenProbe = async () => {
-    setRbacProbeResult('Đang gửi GET /api/v1/farms/ tới Backend...')
+    setRbacProbeResult('Đang kiểm tra quyền truy cập vùng trồng...')
     try {
       await getFarms()
       setRbacProbeResult(
-        '200 OK — Vai trò hiện tại được phép truy cập danh sách vùng trồng.'
+        '200 OK — Tài khoản hiện tại đọc được danh sách vùng trồng.'
       )
-      onNotify('Kiểm tra API thành công (200 OK)')
+      onNotify('Kiểm tra quyền truy cập thành công (200 OK)')
     } catch (err) {
-      if (err instanceof Error) {
+      if (err instanceof ApiError && err.status === 403) {
         setRbacProbeResult(
           `403 Forbidden — Backend đã chặn truy cập theo đúng ma trận RBAC: "${err.message}"`
         )
         onNotify('Backend đã chặn truy cập trái phép (403 Forbidden)')
+      } else {
+        const message = err instanceof Error ? err.message : 'Yêu cầu thất bại'
+        setRbacProbeResult(`Không thể kiểm tra quyền truy cập: ${message}`)
       }
     }
   }
@@ -229,6 +292,7 @@ export function FarmWorkspace({
           onCloseSidebar={() => setSidebarOpen(false)}
           onTabChange={onTabChange}
           onLogout={onLogout}
+          pendingHandoverCount={pendingHandoverCount}
         />
 
         <div className="dashboard-main">
@@ -244,85 +308,89 @@ export function FarmWorkspace({
             onToggleTheme={onToggleTheme}
           />
 
-          <main className="dashboard-content">
-            <section aria-label="Chỉ số vận hành tổng hợp">
+          <main ref={contentRef} className="dashboard-content">
+            {(activeTab === 'overview' || (activeTab === 'lots' && !selectedLotId)) && canReadFarms && (
+              <section aria-label="Tóm tắt vùng trồng">
               <div className="stats-grid">
                 <article className="stat-card panel-card">
-                  <p className="stat-label">Đơn vị thành viên (Tenant)</p>
+                  <p className="stat-label">Đơn vị</p>
                   <p
                     className="stat-value stat-value-sans"
                     title={user.organization_name}
                   >
                     {user.organization_name}
                   </p>
-                  <p className="stat-trend">
-                    ID: {user.organization_id.slice(0, 8)}...
-                  </p>
+                  <p className="stat-trend">{ROLE_LABELS[user.role]}</p>
                 </article>
 
                 <article className="stat-card panel-card">
                   <p className="stat-label">Vùng trồng thuộc đơn vị</p>
                   <p className="stat-value">
-                    {canReadFarms ? `${farms.length} vùng` : 'Chặn (403)'}
+                    {loadingFarms ? 'Đang tải…' : `${farms.length} vùng`}
                   </p>
-                  <p className="stat-trend">
-                    {canReadFarms
-                      ? 'Cô lập bởi PostgreSQL RLS'
-                      : 'Không có quyền farms:read'}
-                  </p>
+                  <p className="stat-trend">Trong đơn vị hiện tại</p>
                 </article>
 
                 <article className="stat-card panel-card">
                   <p className="stat-label">Tổng diện tích canh tác</p>
                   <p className="stat-value">
-                    {canReadFarms ? `${totalAreaHa.toFixed(2)} ha` : '—'}
+                    {loadingFarms ? 'Đang tải…' : `${totalAreaHa.toFixed(2)} ha`}
                   </p>
                   <p className="stat-trend">
-                    {canReadFarms
-                      ? `TB: ${avgAreaHa.toFixed(2)} ha / thửa`
-                      : 'Bị giới hạn theo RBAC'}
+                    {loadingFarms
+                      ? 'Đang tải dữ liệu vùng trồng'
+                      : farms.length > 0
+                      ? `Trung bình ${avgAreaHa.toFixed(2)} ha / vùng`
+                      : 'Chưa có dữ liệu diện tích'}
                   </p>
-                </article>
-
-                <article className="stat-card panel-card">
-                  <p className="stat-label">Vai trò &amp; Quyền RBAC</p>
-                  <p className="stat-value stat-value-sans">
-                    {ROLE_LABELS[user.role]}
-                  </p>
-                  <p className="stat-trend">
-                    <code>{user.role}</code> ({grantedPermissions.length} quyền)
-                  </p>
-                </article>
-
-                <article className="stat-card panel-card">
-                  <p className="stat-label">Chuỗi băm sự kiện (N3-4)</p>
-                  <p className="stat-value">
-                    {tamperSimulated ? 'Lỗi Hash!' : '4/4 Hợp lệ'}
-                  </p>
-                  <p
-                    className={`stat-trend ${
-                      tamperSimulated ? 'stat-trend-danger' : ''
-                    }`}
-                  >
-                    {tamperSimulated
-                      ? 'Phát hiện can thiệp tại #03'
-                      : 'SHA-256 · 147,8k sự kiện/s'}
-                  </p>
-                </article>
-
-                <article className="stat-card panel-card">
-                  <p className="stat-label">Bảo mật phiên (N3-5)</p>
-                  <p className="stat-value stat-value-sans">Argon2id + Cookie</p>
-                  <p className="stat-trend">Khóa 15p nếu sai mật khẩu 5 lần</p>
                 </article>
               </div>
-            </section>
+
+              </section>
+            )}
 
             {activeTab === 'lots' && (
-              <LotsPanel
-                canReadLots={canReadLots}
-                canReadEvents={hasPermission(user.role, 'events:read')}
-              />
+              selectedLotId ? (
+                <LotDetailPanel
+                  lotId={selectedLotId}
+                  canReadEvents={canReadEvents}
+                  canCreateHandover={hasPermission(user.role, 'handovers:create')}
+                  canResolveHandover={canResolveHandovers}
+                  onBack={onBackToLots}
+                />
+              ) : (
+                <LotsPanel
+                  canReadLots={canReadLots}
+                  canCreateLots={canCreateLots}
+                  canReadEvents={canReadEvents}
+                  onOpenLot={onOpenLot}
+                />
+              )
+            )}
+
+            {activeTab === 'products' && (
+              hasPermission(user.role, 'products:read') ? (
+                <ProductManager user={user} />
+              ) : (
+                <section className="panel-card panel-box" role="status">
+                  Bạn không có quyền xem danh mục sản phẩm.
+                </section>
+              )
+            )}
+
+            {activeTab === 'handovers' && (
+              canUseHandovers ? (
+                <HandoversPanel
+                  canCreate={hasPermission(user.role, 'handovers:create')}
+                  canResolve={canResolveHandovers}
+                  onPendingCountChange={updatePendingHandoverCount}
+                />
+              ) : (
+                <section className="panel-card panel-box" role="status">
+                  Tài khoản này không có quyền xử lý bàn giao.
+                </section>
+              )
+
             )}
 
 
@@ -332,21 +400,16 @@ export function FarmWorkspace({
                   {!canReadFarms ? (
                     <section className="panel-card panel-box">
                       <div className="panel-head">
-                        <h2>
-                          Chặn Truy cập Danh mục Vùng trồng theo RBAC (N3-6)
-                        </h2>
+                        <h2>Quyền truy cập vùng trồng</h2>
                         <span className="status-badge status-danger">
                           HTTP 403 Forbidden
                         </span>
                       </div>
                       <p className="panel-sub">
                         Tài khoản <strong>{user.email}</strong> đang mang vai trò{' '}
-                        <code>{user.role}</code> (quyền được cấp:{' '}
-                        <code>{grantedPermissions.join(', ')}</code>). Theo thiết
-                        kế bảo mật N3-6, vai trò Thanh tra viên chỉ đọc lô hàng (
-                        <code>lots:read_all</code>) và bị chặn truy cập trực tiếp
-                        vào API quản lý vùng trồng (<code>farms:read</code>,{' '}
-                        <code>farms:write</code>).
+                        <code>{user.role}</code> chưa được cấp quyền xem hoặc
+                        chỉnh sửa vùng trồng. Tài khoản chỉ có thể truy cập các
+                        chức năng đã được phân quyền.
                       </p>
 
                       <div className="action-row alert-spaced">
@@ -355,7 +418,7 @@ export function FarmWorkspace({
                           className="ds-button ds-button-brand ds-button-sm"
                           onClick={() => void runForbiddenProbe()}
                         >
-                          Gửi thử GET /api/v1/farms/ (Kiểm chứng chặn 403)
+                          Kiểm tra quyền truy cập
                         </button>
                         <button
                           type="button"
@@ -380,20 +443,15 @@ export function FarmWorkspace({
                       <div className="data-table-header">
                         <div>
                           <h2 id="farms-table-title" className="section-title">
-                            Danh mục Vùng trồng &amp; Thửa đất ({filteredFarms.length}
+                            Vùng trồng ({filteredFarms.length}
                             )
                           </h2>
                           <p className="panel-sub">
-                            Dữ liệu lọc tự động theo{' '}
-                            <code>
-                              organization_id = {user.organization_id.slice(0, 8)}
-                              ...
-                            </code>{' '}
-                            tại tầng PostgreSQL RLS
+                            Danh sách vùng trồng thuộc đơn vị hiện tại.
                           </p>
                         </div>
                         <span className="status-badge status-done">
-                          UUID Bất biến (N3-7)
+                          {filteredFarms.length} vùng
                         </span>
                       </div>
 
@@ -532,115 +590,36 @@ export function FarmWorkspace({
                       onNotify(`Đã điền mẫu: ${preset.name}`)
                     }}
                     onSubmit={handleSubmit}
-                    onCancelEdit={resetForm}
-                    onNotify={onNotify}
-                  />
-                </div>
-
-                <div className="dashboard-split-equal">
-                  <IntegrityPanel
-                    compact
-                    tamperSimulated={tamperSimulated}
-                    onToggleTamper={() => {
-                      setTamperSimulated((prev) => !prev)
-                      onNotify(
-                        !tamperSimulated
-                          ? 'Đã mô phỏng sửa lén nhiệt độ tại sự kiện #03!'
-                          : 'Đã khôi phục dữ liệu gốc hợp lệ.'
-                      )
+                    onCancelEdit={() => {
+                      resetForm()
+                      setFormFeedback(null)
                     }}
                   />
-
-                  <section className="panel-card panel-box">
-                    <div className="panel-head">
-                      <h2>
-                        Trạng thái Cô lập Đa tổ chức (RLS) &amp; Phân quyền RBAC (N3-6)
-                      </h2>
-                      <button
-                        type="button"
-                        className="ds-button ds-button-secondary ds-button-xs"
-                        onClick={() => onTabChange('security')}
-                      >
-                        Chi tiết ma trận
-                      </button>
-                    </div>
-
-                    <div className="info-grid-2">
-                      <div className="info-item">
-                        <span className="info-item-label">
-                          Biến phiên PostgreSQL (app.current_organization)
-                        </span>
-                        <code>{user.organization_id}</code>
-                      </div>
-
-                      <div className="info-item">
-                        <span className="info-item-label">
-                          Quyền hạn RBAC được cấp cho {user.role}
-                        </span>
-                        <div className="badge-row">
-                          {grantedPermissions.map((perm) => (
-                            <span
-                              key={perm}
-                              className="status-badge status-done"
-                            >
-                              {perm}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="action-row alert-spaced">
-                      <button
-                        type="button"
-                        className="ds-button ds-button-brand ds-button-xs"
-                        onClick={() => void runForbiddenProbe()}
-                      >
-                        Kiểm tra API: GET /api/v1/farms/
-                      </button>
-                      <span className="panel-sub">
-                        Đổi nhanh sang tài khoản Mộc Châu hoặc Thanh tra trên
-                        thanh công cụ để so sánh kết quả
-                      </span>
-                    </div>
-
-                    {rbacProbeResult && (
-                      <div
-                        className={`alert-box alert-spaced ${
-                          rbacProbeResult.startsWith('200')
-                            ? 'alert-success'
-                            : 'alert-error'
-                        }`}
-                        role="status"
-                      >
-                        {rbacProbeResult}
-                      </div>
-                    )}
-                  </section>
                 </div>
+
               </>
             )}
 
-            {activeTab === 'security' && (
-              <SecurityPanel
-                user={user}
-                rbacProbeResult={rbacProbeResult}
-                onRunProbe={() => void runForbiddenProbe()}
-              />
+            {activeTab === 'security' && hasPermission(user.role, 'security:read') && (
+              <ErrorBoundary fallbackTitle="Không thể tải phân hệ Phân quyền & Bảo mật">
+                <SecurityPanel
+                  user={user}
+                  rbacProbeResult={rbacProbeResult}
+                  onRunProbe={() => void runForbiddenProbe()}
+                />
+              </ErrorBoundary>
+            )}
+
+            {activeTab === 'security' && !hasPermission(user.role, 'security:read') && (
+              <section className="panel-card panel-box" role="status">
+                Tài khoản này không có quyền xem thông tin bảo mật hệ thống.
+              </section>
             )}
 
             {activeTab === 'integrity' && (
-              <IntegrityPanel
-                tamperSimulated={tamperSimulated}
-                onToggleTamper={() => {
-                  setTamperSimulated((prev) => !prev)
-                  onNotify(
-                    !tamperSimulated
-                      ? 'Đã mô phỏng sửa lén nhiệt độ tại sự kiện #03!'
-                      : 'Đã khôi phục dữ liệu gốc hợp lệ.'
-                  )
-                }}
-              />
+
+              <IntegrityPanel canReadLots={canReadLots} canVerify={canVerifyEvents} />
+
             )}
           </main>
         </div>

@@ -14,32 +14,88 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "auth:session",
             "farms:read",
             "farms:write",
+            "products:read",
             "lots:read",
+            "lots:create",
             "events:read",
             "events:create",
+            "handovers:create",
+            "handovers:resolve",
         }
     ),
     "cooperative": frozenset(
-        {"auth:session", "lots:read", "events:read", "events:create"}
+        {
+            "auth:session",
+            "products:read",
+            "lots:read",
+            "events:read",
+            "events:create",
+            "handovers:create",
+            "handovers:resolve",
+        }
     ),
     "transporter": frozenset(
-        {"auth:session", "lots:read", "events:read", "events:create"}
+        {
+            "auth:session",
+            "products:read",
+            "lots:read",
+            "events:read",
+            "events:create",
+            "handovers:create",
+            "handovers:resolve",
+        }
     ),
     "distributor": frozenset(
-        {"auth:session", "lots:read", "events:read", "events:create"}
+        {
+            "auth:session",
+            "products:read",
+            "lots:read",
+            "events:read",
+            "events:create",
+            "handovers:create",
+            "handovers:resolve",
+        }
     ),
-    "inspector": frozenset({"auth:session", "lots:read_all", "events:read_all"}),
+    "inspector": frozenset(
+        {
+            "auth:session",
+            "products:read",
+            "lots:read_all",
+            "events:read_all",
+            "events:verify",
+        }
+    ),
     "organization_admin": frozenset(
         {
             "auth:session",
             "farms:read",
             "farms:write",
+            "products:read",
             "lots:read",
+            "lots:create",
             "events:read",
             "events:create",
+            "handovers:create",
+            "handovers:resolve",
         }
     ),
-    "system_admin": frozenset({"auth:session"}),
+    "system_admin": frozenset(
+        {
+            "auth:session",
+            "farms:read",
+            "farms:write",
+            "farms:read_all",
+            "lots:read",
+            "lots:read_all",
+            "events:read",
+            "events:read_all",
+            "events:verify",
+            "products:read",
+            "products:write",
+            "products:read_all",
+            "security:read",
+        }
+    ),
 }
 
 
@@ -47,9 +103,13 @@ def has_permission(role: str, permission: str) -> bool:
     permissions = ROLE_PERMISSIONS.get(role, frozenset())
     if permission in permissions:
         return True
+    if permission == "farms:read" and "farms:read_all" in permissions:
+        return True
     if permission == "lots:read" and "lots:read_all" in permissions:
         return True
     if permission == "events:read" and "events:read_all" in permissions:
+        return True
+    if permission == "products:read" and "products:read_all" in permissions:
         return True
     return False
 

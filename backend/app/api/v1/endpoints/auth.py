@@ -39,6 +39,7 @@ def _session_user(user: User, organization: Organization, role: Role) -> Session
 @router.post("/login", response_model=SessionUser)
 def login(
     payload: LoginRequest,
+    request: Request,
     response: Response,
     db: Annotated[Session, Depends(get_db)],
 ) -> SessionUser:
@@ -90,10 +91,12 @@ def login(
         value=token,
         max_age=settings.SESSION_TTL_MINUTES * 60,
         httponly=True,
-        secure=True,
-        samesite="lax",
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite=settings.SESSION_COOKIE_SAMESITE,
         path="/",
     )
+    if request.headers.get("X-Client-Type") == "web-spa":
+        response.headers["Authorization"] = f"Bearer {token}"
     return _session_user(user, organization, role)
 
 
@@ -136,8 +139,8 @@ def logout(
     response.delete_cookie(
         key=settings.SESSION_COOKIE_NAME,
         httponly=True,
-        secure=True,
-        samesite="lax",
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite=settings.SESSION_COOKIE_SAMESITE,
         path="/",
     )
     response.status_code = status.HTTP_204_NO_CONTENT
