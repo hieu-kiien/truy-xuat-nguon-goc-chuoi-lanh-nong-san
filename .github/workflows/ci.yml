@@ -73,6 +73,18 @@ jobs:
           fi
           alembic upgrade head
           alembic check
+          # Simulate a staging database that recorded the legacy revision 08.
+          alembic downgrade base
+          alembic upgrade 20261007_07
+          alembic stamp 20261007_08
+          alembic upgrade head
+          alembic check
+          # Simulate revision 08 already having the harvest columns.
+          alembic downgrade base
+          alembic upgrade 20261008_15
+          alembic stamp 20261007_08
+          alembic upgrade head
+          alembic check
           alembic downgrade base
           alembic upgrade head
           alembic check
