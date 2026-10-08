@@ -1,7 +1,7 @@
 """Add current lot custody and append-only organization handovers.
 
 Revision ID: 20261007_09
-Revises: 20261007_08
+Revises: 20261008_15
 """
 
 from collections.abc import Sequence
@@ -13,7 +13,7 @@ from alembic import op
 from app.core.config import settings
 
 revision: str = "20261007_09"
-down_revision: str | None = "20261007_08"
+down_revision: str | None = "20261008_15"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | None = None
 
