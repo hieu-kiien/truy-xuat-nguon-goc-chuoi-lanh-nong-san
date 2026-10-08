@@ -2,15 +2,28 @@
 
 import logging
 import os
-import subprocess
 import sys
 from collections.abc import Mapping
+from pathlib import Path
+
+from alembic import command
+from alembic.config import Config
 
 from app.bootstrap_db_role import bootstrap_database_role
 from app.core.config import settings
 from app.seed_demo import seed_demo_data
 
 logger = logging.getLogger(__name__)
+
+
+def run_migrations() -> None:
+    backend_dir = Path(__file__).resolve().parent.parent
+    ini_path = backend_dir / "alembic.ini"
+    alembic_cfg = Config(str(ini_path))
+    alembic_cfg.set_main_option("script_location", str(backend_dir / "alembic"))
+    logger.info("Starting database migration (alembic upgrade head)...")
+    command.upgrade(alembic_cfg, "head")
+    logger.info("Database migration completed successfully.")
 
 
 def _runtime_environment(
@@ -29,10 +42,12 @@ def main() -> None:
     except Exception as exc:
         logger.warning("Database role bootstrap skipped or failed: %s", exc)
 
-    subprocess.run(
-        [sys.executable, "-m", "alembic", "upgrade", "head"],
-        check=True,
-    )
+    try:
+        run_migrations()
+    except Exception as exc:
+        logger.critical("Database migration failed: %s", exc, exc_info=True)
+        raise
+
     seed_demo_data()
 
     runtime_environment = _runtime_environment(
