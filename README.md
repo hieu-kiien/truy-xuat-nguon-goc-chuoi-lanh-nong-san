@@ -1,5 +1,7 @@
 # AgroChain — Hệ thống Truy xuất Nguồn gốc & Giám sát Chuỗi lạnh Nông sản
 
+**Kế hoạch Sprint 3–4 (11/10/2026):** [docs/SPRINT-3-4-DELIVERY.md](docs/SPRINT-3-4-DELIVERY.md) — phạm vi Jira, thứ tự nhánh/PR, điều kiện nghiệm thu và ghi nhận đóng góp thật.
+
 > Học phần: Thực tập cơ sở (TTCS) — Nhóm `TTCS_T926_K18C4_N3`
 >
 
