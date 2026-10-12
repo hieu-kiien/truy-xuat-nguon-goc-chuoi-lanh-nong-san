@@ -96,9 +96,9 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
             {fieldErrors.farm_id && <small className="form-field-error">{fieldErrors.farm_id}</small>}
           </div>
           <div className="form-field">
-            <label htmlFor="lot-product">Sản phẩm</label>
+            <label htmlFor="lot-product">Nông sản</label>
             <select id="lot-product" value={productId} onChange={(event) => setProductId(event.target.value)} required>
-              <option value="" disabled>Chọn sản phẩm</option>
+              <option value="" disabled>Chọn nông sản</option>
               {products.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.unit})</option>)}
             </select>
             {fieldErrors.product_id && <small className="form-field-error">{fieldErrors.product_id}</small>}

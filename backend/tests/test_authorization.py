@@ -12,6 +12,16 @@ from app.core.authorization import (
 )
 
 
+@pytest.mark.parametrize("role", ["cooperative", "distributor", "organization_admin"])
+def test_lot_transform_permission_is_separate_from_harvest_permission(role):
+    assert has_permission(role, "lots:transform") is True
+
+
+@pytest.mark.parametrize("role", ["grower", "transporter", "inspector", "system_admin"])
+def test_roles_without_processing_responsibility_cannot_transform_lots(role):
+    assert has_permission(role, "lots:transform") is False
+
+
 def test_system_admin_has_highest_privileges():
     # system_admin must have all system permissions
     all_known_permissions = [

@@ -2,6 +2,7 @@
 
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -11,7 +12,61 @@ from app.core.tenancy import get_tenant_record, tenant_select
 from app.models.event import Event
 from app.models.integrity_check import IntegrityCheck
 from app.models.lot import Lot
-from app.schemas.event import EventCreate, IntegrityIssue
+from app.schemas.event import EventCreate, EventRead, IntegrityIssue
+
+
+def _payload_lot_ids(value) -> set[UUID]:
+    identifiers: set[UUID] = set()
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key.endswith("lot_id") and isinstance(item, str):
+                try:
+                    identifiers.add(UUID(item))
+                except ValueError:
+                    pass
+            identifiers.update(_payload_lot_ids(item))
+    elif isinstance(value, list):
+        for item in value:
+            identifiers.update(_payload_lot_ids(item))
+    return identifiers
+
+
+def readable_events(
+    db: Session, principal: Principal, events: list[Event]
+) -> list[EventRead]:
+    """Project visibility without altering the canonical payload or its hash.
+
+    Canonical events remain available to integrity verification in this service.
+    Third-party ancestor logistics and inaccessible sibling references are hidden
+    in every public read route, with an explicit flag on the display projection.
+    """
+    if not events:
+        return []
+    if principal.role in {"system_admin", "inspector"}:
+        return [EventRead.model_validate(item) for item in events]
+    references = [_payload_lot_ids(item.payload) for item in events]
+    identifiers = {item.lot_id for item in events}.union(*references)
+    holders = dict(
+        db.execute(
+            select(Lot.id, Lot.current_holder_organization_id).where(
+                Lot.id.in_(identifiers)
+            )
+        ).all()
+    )
+    visible = holders.keys()
+    result = []
+    for item, refs in zip(events, references, strict=True):
+        projected = EventRead.model_validate(item)
+        third_party_source = (
+            holders.get(item.lot_id) != principal.organization_id
+            and item.organization_id != principal.organization_id
+        )
+        if third_party_source or not refs.issubset(visible):
+            projected = projected.model_copy(
+                update={"payload": {}, "payload_redacted": True}
+            )
+        result.append(projected)
+    return result
 
 
 def record_event(
@@ -29,6 +84,16 @@ def record_event(
     """
     # Verify lot exists and is visible to caller's organization
     lot = get_tenant_record(db, Lot, event_in.lot_id, principal)
+    lot = db.scalar(
+        select(Lot)
+        .where(Lot.id == lot.id)
+        .with_for_update(of=Lot)
+        .execution_options(populate_existing=True)
+    )
+    if lot is None or lot.current_holder_organization_id != principal.organization_id:
+        raise HTTPException(403, "Chỉ đơn vị đang giữ lô được ghi sự kiện.")
+    if lot.status != "active":
+        raise HTTPException(409, "Lô không ở trạng thái cho phép ghi sự kiện.")
 
     event = append_event(
         db,
@@ -99,7 +164,7 @@ def list_events_for_lot(
 ) -> list[Event]:
     """List all immutable events for a specific lot, ordered chronologically."""
     # Ensure lot is accessible
-    get_tenant_record(db, Lot, lot_id, principal)
+    get_tenant_record(db, Lot, lot_id, principal, allow_historical=True)
 
     return list(
         db.scalars(
@@ -114,13 +179,15 @@ def list_events(
     db: Session,
     principal: Principal,
     lot_id: UUID | None = None,
-) -> list[Event]:
+) -> list[EventRead]:
     """List the caller's accessible events, optionally for one visible lot."""
     if lot_id is not None:
-        return list_events_for_lot(db, principal, lot_id)
+        return readable_events(
+            db, principal, list_events_for_lot(db, principal, lot_id)
+        )
 
     statement = tenant_select(Event, principal).order_by(Event.sequence_number.asc())
-    return list(db.scalars(statement).all())
+    return readable_events(db, principal, list(db.scalars(statement).all()))
 
 
 def verify_event_chain(events: list[Event]) -> dict:
@@ -190,7 +257,7 @@ def verify_event_chain(events: list[Event]) -> dict:
 
 def get_event_history(db: Session, principal: Principal, lot_id: UUID) -> dict:
     """Return a chronological timeline and its integrity result in one event query."""
-    get_tenant_record(db, Lot, lot_id, principal)
+    get_tenant_record(db, Lot, lot_id, principal, allow_historical=True)
     events = list(
         db.scalars(
             select(Event)
@@ -198,7 +265,10 @@ def get_event_history(db: Session, principal: Principal, lot_id: UUID) -> dict:
             .order_by(Event.sequence_number.asc())
         ).all()
     )
-    return {"events": events, "integrity": verify_event_chain(events)}
+    return {
+        "events": readable_events(db, principal, events),
+        "integrity": verify_event_chain(events),
+    }
 
 
 def verify_lot_integrity(db: Session, principal: Principal, lot_id: UUID) -> dict:
@@ -265,6 +335,7 @@ def get_event_by_id(
     db: Session,
     principal: Principal,
     event_id: UUID,
-) -> Event:
+) -> EventRead:
     """Retrieve a single immutable event by ID, enforcing tenant isolation."""
-    return get_tenant_record(db, Event, event_id, principal)
+    original = get_tenant_record(db, Event, event_id, principal)
+    return readable_events(db, principal, [original])[0]

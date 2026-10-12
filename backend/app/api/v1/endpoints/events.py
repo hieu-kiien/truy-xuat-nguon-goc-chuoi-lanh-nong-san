@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from app.core.auth import Principal, get_current_principal
 from app.core.authorization import require_permission
 from app.core.database import get_db
-from app.core.tenancy import get_tenant_record
 from app.models.event import Event
 from app.schemas.event import (
     EventCreate,
@@ -71,7 +70,7 @@ def list_events(
     principal: Annotated[Principal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
     lot_id: UUID | None = None,
-) -> list[Event]:
+) -> list[EventRead]:
     """List all events accessible to the caller's organization."""
     return event_service.list_events(db, principal, lot_id)
 
@@ -96,9 +95,9 @@ def get_event(
     event_id: UUID,
     principal: Annotated[Principal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
-) -> Event:
+) -> EventRead:
     """Read a specific event by ID with tenant isolation."""
-    return get_tenant_record(db, Event, event_id, principal)
+    return event_service.get_event_by_id(db, principal, event_id)
 
 
 # ARCHITECTURAL INVARIANT (N3-21):

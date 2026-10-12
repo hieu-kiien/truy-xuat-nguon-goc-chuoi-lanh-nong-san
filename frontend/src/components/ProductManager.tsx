@@ -1,5 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { hasPermission, type SessionUser } from '../types'
+import { CsvImportPanel } from './CsvImportPanel'
+import { TaskLink } from './TaskLink'
+import { EditDialog } from './EditDialog'
 import {
   productService,
   type Product,
@@ -18,11 +21,15 @@ interface ProductManagerProps {
 }
 
 export function ProductManager({ user }: ProductManagerProps) {
+  const params = new URLSearchParams(window.location.search)
+  const task = params.get('task')
+  const editId = params.get('id')
   const canWriteProducts = hasPermission(user.role, 'products:write')
+  const [refresh, setRefresh] = useState(0)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [formOpen, setFormOpen] = useState(false)
+  const [formOpen, setFormOpen] = useState(task === 'create')
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [name, setName] = useState('')
   const [unit, setUnit] = useState<ProductUnit>('kg')
@@ -40,7 +47,16 @@ export function ProductManager({ user }: ProductManagerProps) {
     productService
       .getProducts()
       .then((data) => {
-        if (active) setProducts(data)
+        if (active) {
+          setProducts(data); setLoadError(null)
+          if (task === 'edit') {
+            const product = data.find(item => item.id === editId)
+            if (product) {
+              setEditingProduct(product); setName(product.name); setUnit(product.unit)
+              setDescription(product.description ?? ''); setPrice(String(product.price)); setQuantity(String(product.quantity ?? 0)); setFormOpen(true)
+            } else setLoadError('Không tìm thấy sản phẩm cần sửa. Quay lại danh mục để chọn sản phẩm khác.')
+          }
+        }
       })
       .catch((error: unknown) => {
         if (active) {
@@ -57,7 +73,7 @@ export function ProductManager({ user }: ProductManagerProps) {
     return () => {
       active = false
     }
-  }, [])
+  }, [refresh, task, editId])
 
   const resetForm = () => {
     setEditingProduct(null)
@@ -68,20 +84,13 @@ export function ProductManager({ user }: ProductManagerProps) {
     setQuantity('0')
   }
 
-  const startCreate = () => {
+  const openForm = (product: Product | null) => {
     resetForm()
     setFeedback(null)
-    setFormOpen(true)
-  }
-
-  const startEdit = (product: Product) => {
-    setEditingProduct(product)
-    setName(product.name)
-    setUnit(product.unit)
-    setDescription(product.description ?? '')
-    setPrice(String(product.price))
-    setQuantity(String(product.quantity ?? 0))
-    setFeedback(null)
+    if (product) {
+      setEditingProduct(product); setName(product.name); setUnit(product.unit)
+      setDescription(product.description ?? ''); setPrice(String(product.price)); setQuantity(String(product.quantity ?? 0))
+    }
     setFormOpen(true)
   }
 
@@ -138,21 +147,29 @@ export function ProductManager({ user }: ProductManagerProps) {
 
   return (
     <div className="info-stack">
+      {task && <a className="ds-button ds-button-secondary" href="/products">← Danh mục sản phẩm</a>}
+      {task === 'csv' && feedback && <p role={feedback.type === 'error' ? 'alert' : 'status'} className={`alert-box ${feedback.type === 'error' ? 'alert-error' : 'alert-success'}`}>{feedback.message}</p>}
+      {task && loadError && <p role="alert">{loadError}</p>}
+      {task && loading && <p aria-busy="true">Đang tải danh mục…</p>}
+      {task === 'csv' && user.role === 'system_admin' && <CsvImportPanel onImported={() => setRefresh(value => value + 1)} />}
+      {task && !canWriteProducts && <p role="status">Tài khoản này không có quyền thay đổi danh mục.</p>}
       {canWriteProducts && formOpen && (
+        <EditDialog title={editingProduct ? 'Sửa nông sản' : 'Thêm nông sản'} busy={saving} onClose={() => setFormOpen(false)}>
         <section
           className="panel-box panel-card"
           aria-labelledby="product-form-title"
         >
           <div className="panel-head">
             <h2 id="product-form-title">
-              {editingProduct ? 'Sửa sản phẩm' : 'Thêm sản phẩm'}
+              {editingProduct ? editingProduct.name : 'Thông tin nông sản'}
             </h2>
           </div>
+          {feedback?.type === 'error' && <p role="alert" className="alert-box alert-error">{feedback.message}</p>}
           <form onSubmit={handleSubmit} className="form-stack">
             <div className="form-row-2">
               <div className="form-field">
                 <label htmlFor="product-name">
-                  Tên sản phẩm <span className="required-mark">*</span>
+                  Tên nông sản <span className="required-mark">*</span>
                 </label>
                 <input
                   id="product-name"
@@ -161,7 +178,7 @@ export function ProductManager({ user }: ProductManagerProps) {
                   maxLength={200}
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  placeholder="VD: Xoài cát Hòa Lộc"
+                  placeholder="Ví dụ: Xoài cát Hòa Lộc"
                 />
               </div>
               <div className="form-field">
@@ -190,13 +207,13 @@ export function ProductManager({ user }: ProductManagerProps) {
                 type="text"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                placeholder="Mô tả ngắn (không bắt buộc)"
+                placeholder="Ví dụ: Xoài tươi, vỏ vàng khi chín; tính theo kg."
               />
             </div>
 
             <div className="form-row-2">
               <div className="form-field">
-                <label htmlFor="product-price">Giá mặc định</label>
+                <label htmlFor="product-price">Giá tham khảo (đồng / đơn vị)</label>
                 <input
                   id="product-price"
                   type="number"
@@ -228,46 +245,31 @@ export function ProductManager({ user }: ProductManagerProps) {
                 {saving
                   ? 'Đang lưu...'
                   : editingProduct
-                    ? 'Lưu cập nhật'
-                    : 'Thêm vào danh mục'}
+                    ? 'Lưu'
+                    : 'Thêm'}
               </button>
-              <button
-                type="button"
-                className="ds-button ds-button-secondary ds-button-sm"
-                onClick={() => {
-                  setFormOpen(false)
-                  resetForm()
-                  setFeedback(null)
-                }}
-              >
-                Hủy
-              </button>
+              <button type="button" className="ds-button ds-button-secondary" disabled={saving} onClick={() => setFormOpen(false)}>Hủy</button>
             </div>
           </form>
         </section>
+        </EditDialog>
       )}
 
-      <section
+      {task !== 'csv' && <section
         className="data-table-wrapper panel-card"
         aria-labelledby="products-table-title"
       >
         <div className="data-table-header">
           <div>
             <h2 id="products-table-title" className="section-title">
-              Danh mục sản phẩm dùng chung ({products.length})
+              Nông sản ({products.length})
             </h2>
             <p className="panel-sub">
-              Mọi tổ chức cùng sử dụng tên và đơn vị tính chuẩn.
+              Danh mục nông sản dùng chung. Chọn tên rõ ràng và đơn vị cân, đếm phù hợp.
             </p>
           </div>
           {canWriteProducts && (
-            <button
-              type="button"
-              className="ds-button ds-button-brand ds-button-sm"
-              onClick={startCreate}
-            >
-              Thêm sản phẩm
-            </button>
+            <div className="action-row"><button type="button" className="ds-button ds-button-brand" onClick={() => openForm(null)}>Thêm nông sản</button>{user.role === 'system_admin' && <TaskLink href="/products?task=csv" secondary>Nhập CSV</TaskLink>}</div>
           )}
         </div>
 
@@ -290,10 +292,10 @@ export function ProductManager({ user }: ProductManagerProps) {
           <table className="data-table product-table">
             <thead>
               <tr>
-                <th scope="col">Tên sản phẩm</th>
+                <th scope="col">Nông sản</th>
                 <th scope="col">Đơn vị</th>
                 <th scope="col">Mô tả</th>
-                <th scope="col">Giá</th>
+                <th scope="col">Giá tham khảo</th>
                 <th scope="col">Số lượng</th>
                 {canWriteProducts && <th scope="col">Thao tác</th>}
               </tr>
@@ -319,18 +321,11 @@ export function ProductManager({ user }: ProductManagerProps) {
                     </th>
                     <td>{product.unit}</td>
                     <td>{product.description || '—'}</td>
-                    <td>{product.price.toFixed(2)}</td>
+                    <td>{product.price > 0 ? `${product.price.toLocaleString('vi-VN')} đ / ${product.unit}` : 'Chưa nhập'}</td>
                     <td>{product.quantity ?? 0}</td>
                     {canWriteProducts && (
                       <td>
-                        <button
-                          type="button"
-                          className="ds-button ds-button-secondary ds-button-xs"
-                          aria-label={`Sửa ${product.name}`}
-                          onClick={() => startEdit(product)}
-                        >
-                          Sửa
-                        </button>
+                        <button type="button" className="ds-button ds-button-secondary" onClick={() => openForm(product)}>Sửa<span className="sr-only"> {product.name}</span></button>
                       </td>
                     )}
                   </tr>
@@ -339,7 +334,7 @@ export function ProductManager({ user }: ProductManagerProps) {
             </tbody>
           </table>
         </div>
-      </section>
+      </section>}
     </div>
   )
 }

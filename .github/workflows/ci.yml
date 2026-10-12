@@ -129,6 +129,11 @@ jobs:
           cd frontend
           npm run build
 
+      - name: Test frontend task pages and quantity validation
+        run: |
+          cd frontend
+          npm test
+
   docker-check:
     name: 🐳 Docker Images Build Check
     runs-on: ubuntu-latest

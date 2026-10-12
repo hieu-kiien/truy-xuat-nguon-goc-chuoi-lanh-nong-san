@@ -4,6 +4,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.api.v1.endpoints import auth
 from app.api.v1.router import api_router
+from app.core.audit import AuditMiddleware
 from app.core.config import settings
 
 app = FastAPI(
@@ -20,6 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Authorization"],
 )
+app.add_middleware(AuditMiddleware)
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(auth.session_router, prefix="/api/v1/auth", tags=["auth"])

@@ -39,6 +39,12 @@ class Handover(Base):
         ),
         Index("ix_handovers_recipient_status", "to_organization_id", "status"),
         Index("ix_handovers_sender_status", "from_organization_id", "status"),
+        Index(
+            "ix_handovers_pending_overdue_scan",
+            "created_at",
+            "id",
+            postgresql_where=text("status = 'pending' AND overdue_at IS NULL"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -80,3 +86,4 @@ class Handover(Base):
         server_default=text("now()"),
     )
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    overdue_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

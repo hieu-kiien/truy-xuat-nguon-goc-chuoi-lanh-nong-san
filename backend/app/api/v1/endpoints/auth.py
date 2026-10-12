@@ -44,11 +44,21 @@ def login(
     db: Annotated[Session, Depends(get_db)],
 ) -> SessionUser:
     email = str(payload.email).strip().lower()
+    request.state.audit_login_email = email
+    request.state.audit_status = 401
     set_db_context(db, login_email=email)
     user = db.scalar(select(User).where(User.email == email).with_for_update())
     if user is None:
         verify_dummy_password(payload.password)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=AUTH_ERROR)
+
+    organization = db.get(Organization, user.organization_id)
+    request.state.audit_actor = {
+        "user_id": user.id,
+        "full_name": user.full_name,
+        "organization_id": user.organization_id,
+        "organization_name": organization.name if organization else None,
+    }
 
     password_ok = verify_password(user.password_hash, payload.password)
     now = datetime.now(UTC)
@@ -69,13 +79,14 @@ def login(
 
     user.failed_login_attempts = 0
     user.locked_until = None
-    organization = db.get(Organization, user.organization_id)
     role = db.get(Role, user.role_code)
     if organization is None or role is None or not organization.is_active:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=AUTH_ERROR)
 
     token = new_session_token()
+    request.state.audit_status = 200
+    request.state.audit_actor["organization_name"] = organization.name
     db.add(
         AuthSession(
             user_id=user.id,

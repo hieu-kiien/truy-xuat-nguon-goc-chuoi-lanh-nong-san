@@ -1,5 +1,7 @@
 # AgroChain — Hệ thống Truy xuất Nguồn gốc & Giám sát Chuỗi lạnh Nông sản
 
+**Kế hoạch Sprint 3–4 (11/10/2026):** [docs/SPRINT-3-4-DELIVERY.md](docs/SPRINT-3-4-DELIVERY.md) — phạm vi Jira, thứ tự nhánh/PR, điều kiện nghiệm thu và ghi nhận đóng góp thật.
+
 > Học phần: Thực tập cơ sở (TTCS) — Nhóm `TTCS_T926_K18C4_N3`
 >
 
@@ -185,3 +187,9 @@ Nếu môi trường hỗ trợ `make`:
 ## 8. Quy trình Đóng góp
 
 Vui lòng tham khảo [CONTRIBUTING.md](./CONTRIBUTING.md) để tuân thủ quy định về phân nhánh, đặt tên commit theo chuẩn Conventional Commits và tạo Pull Request.
+
+### Kiểm chứng Sprint 3–4 local
+
+Bộ mẫu nghiệp vụ: `3 lô thu hoạch → 6 lô tách → 3 lô gộp chéo → 6 lô tách cuối`.
+Xem [sơ đồ và oracle](docs/LINEAGE-ACCEPTANCE.md), [đối chiếu Jira](docs/SPRINT-3-4-SUBTASK-AUDIT.md)
+và [hướng dẫn demo](docs/UX-DEMO.md). Test local dùng DB riêng qua `backend/scripts/test-local.ps1`.

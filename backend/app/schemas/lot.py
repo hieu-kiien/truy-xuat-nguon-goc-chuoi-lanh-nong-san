@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.schemas.location import LocationRead
 from app.schemas.product import ProductRead
 
 
@@ -41,7 +42,7 @@ class LotRead(BaseModel):
 
     id: UUID
     organization_id: UUID
-    farm_id: UUID
+    farm_id: UUID | None
     name: str
     lot_code: str | None = None
     product_id: UUID | None = None
@@ -50,6 +51,8 @@ class LotRead(BaseModel):
     remaining_quantity: Decimal
     current_holder_organization_id: UUID
     current_holder_organization_name: str
+    current_location_id: UUID | None = None
+    current_location: LocationRead | None = None
     status: str
     product: ProductRead | None = None
 

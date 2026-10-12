@@ -17,6 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.models.identity import Organization
+from app.models.location import Location
 from app.models.product import Product
 
 
@@ -33,8 +34,18 @@ class Lot(Base):
             name="ck_lots_remaining_quantity_range",
         ),
         CheckConstraint(
-            "status IN ('active', 'pending_handover', 'closed')",
+            "status IN ('active', 'pending_handover', 'closed', 'consumed')",
             name="ck_lots_status_supported",
+        ),
+        CheckConstraint(
+            "status <> 'consumed' OR remaining_quantity = 0",
+            name="ck_lots_consumed_zero",
+        ),
+        ForeignKeyConstraint(
+            ["current_location_id", "current_holder_organization_id"],
+            ["locations.id", "locations.organization_id"],
+            name="fk_lots_location_current_holder",
+            ondelete="RESTRICT",
         ),
         ForeignKeyConstraint(
             ["farm_id", "organization_id"],
@@ -87,7 +98,10 @@ class Lot(Base):
         ),
         nullable=False,
     )
-    farm_id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=False)
+    farm_id: Mapped[UUID | None] = mapped_column(PostgreSQLUUID(as_uuid=True))
+    current_location_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True)
+    )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     lot_code: Mapped[str | None] = mapped_column(String(12))
     product_id: Mapped[UUID | None] = mapped_column(
@@ -107,6 +121,9 @@ class Lot(Base):
     product: Mapped[Product | None] = relationship(lazy="joined")
     current_holder_organization: Mapped[Organization] = relationship(
         foreign_keys=[current_holder_organization_id], lazy="joined"
+    )
+    current_location: Mapped[Location | None] = relationship(
+        foreign_keys=[current_location_id], lazy="joined", viewonly=True
     )
 
     @property

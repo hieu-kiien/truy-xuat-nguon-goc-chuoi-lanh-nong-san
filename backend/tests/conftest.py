@@ -16,6 +16,21 @@ from app.models.handover import Handover
 from app.models.identity import AuthSession, Organization, Role, User
 from app.models.integrity_check import IntegrityCheck
 from app.models.lot import Lot
+from app.models.lot_relation import LotRelation
+
+
+def pytest_sessionstart(session):
+    """Stop before fixtures or tests can mutate the local presentation database."""
+    for url in (settings.DATABASE_URL, settings.MIGRATION_DATABASE_URL):
+        if (
+            url.host in {"127.0.0.1", "localhost"}
+            and url.port == 55434
+            and url.database == "ttcs_test"
+        ):
+            raise pytest.UsageError(
+                "DB trình diễn không dùng để chạy test. Dùng scripts/test-local.ps1 "
+                "với DB ttcs_s34_tests."
+            )
 
 
 @dataclass(frozen=True)
@@ -113,6 +128,18 @@ def identity_factory(
         )
         if lot_ids:
             with admin_session.begin_nested():
+                admin_session.execute(
+                    text("ALTER TABLE lot_relations DISABLE TRIGGER USER")
+                )
+                admin_session.execute(
+                    delete(LotRelation).where(
+                        (LotRelation.parent_lot_id.in_(lot_ids))
+                        | (LotRelation.child_lot_id.in_(lot_ids))
+                    )
+                )
+                admin_session.execute(
+                    text("ALTER TABLE lot_relations ENABLE TRIGGER USER")
+                )
                 admin_session.execute(text("ALTER TABLE events DISABLE TRIGGER USER"))
                 admin_session.execute(
                     text("ALTER TABLE integrity_checks DISABLE TRIGGER USER")

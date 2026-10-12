@@ -1,0 +1,267 @@
+from decimal import Decimal
+from time import perf_counter
+from uuid import UUID, uuid4
+
+import pytest
+from sqlalchemy import event, text
+
+from app.core.auth import Principal
+from app.core.database import SessionLocal, set_db_context
+from app.models.lot import Lot
+from app.models.lot_relation import LotRelation
+from app.services.traversal_service import get_detail
+from tests import test_sprint3_lineage as fixtures
+from tests.lineage_helpers import add_lot, client, login, split_body
+
+lineage = fixtures.lineage
+lineage_products = fixtures.lineage_products
+
+
+@pytest.mark.asyncio
+async def test_trace_merge_has_all_roots_and_descendants(lineage, admin_session):
+    owner, products, _ = lineage
+    roots = [add_lot(admin_session, owner, products[0]) for _ in range(2)]
+    async with client() as api:
+        await login(api, owner)
+        split = await api.post(
+            f"/api/v1/lots/{roots[0].id}/split", json=split_body("10", "10")
+        )
+        first_child = split.json()["children"][0]
+        merged = await api.post(
+            "/api/v1/lots/merge",
+            json={
+                "name": "Mixed",
+                "parents": [
+                    {"lot_id": first_child["id"], "quantity": "10"},
+                    {"lot_id": str(roots[1].id), "quantity": "20"},
+                ],
+            },
+        )
+        trace = await api.get(
+            f"/api/v1/lots/{merged.json()['id']}/lineage?direction=ancestors"
+        )
+        assert trace.status_code == 200, trace.text
+        assert set(trace.json()["roots"]) == {str(root.id) for root in roots}
+        assert len(trace.json()["nodes"]) == 4
+        downstream = await api.get(
+            f"/api/v1/lots/{roots[0].id}/lineage?direction=descendants"
+        )
+        assert downstream.status_code == 200
+        assert {node["id"] for node in downstream.json()["nodes"]} == {
+            str(roots[0].id),
+            merged.json()["id"],
+            *(item["id"] for item in split.json()["children"]),
+        }
+        # Elevated injected corruption still must terminate and report a cycle.
+        admin_session.execute(
+            text(
+                "INSERT INTO lot_relations(id, organization_id, parent_lot_id, child_lot_id, quantity, operation) VALUES (gen_random_uuid(), :org, :parent, :child, 1, 'split')"
+            ),
+            {
+                "org": owner.organization_id,
+                "parent": UUID(merged.json()["id"]),
+                "child": roots[0].id,
+            },
+        )
+        admin_session.commit()
+        cycle = await api.get(
+            f"/api/v1/lots/{roots[0].id}/lineage?direction=descendants"
+        )
+        assert cycle.status_code == 409, cycle.text
+
+
+@pytest.mark.asyncio
+async def test_receiver_reads_sources_but_old_holder_history_is_cut_off(
+    lineage, admin_session
+):
+    receiver, products, identities = lineage
+    grower = identities()
+    root = add_lot(admin_session, grower, products[0])
+    unrelated = add_lot(admin_session, grower, products[0])
+    async with client() as source_api, client() as receiving_api:
+        await login(source_api, grower)
+        await login(receiving_api, receiver)
+        transfer = await source_api.post(
+            "/api/v1/handovers/",
+            json={
+                "lot_id": str(root.id),
+                "to_organization_id": str(receiver.organization_id),
+            },
+        )
+        await receiving_api.post(f"/api/v1/handovers/{transfer.json()['id']}/accept")
+        split = await receiving_api.post(
+            f"/api/v1/lots/{root.id}/split", json=split_body("10")
+        )
+        trace = await receiving_api.get(
+            f"/api/v1/lots/{split.json()['children'][0]['id']}/lineage?direction=ancestors"
+        )
+        assert trace.status_code == 200, trace.text
+        assert trace.json()["roots"] == [str(root.id)]
+        assert (
+            await receiving_api.get(f"/api/v1/lots/{unrelated.id}")
+        ).status_code == 403
+        former = await source_api.get(f"/api/v1/events/lots/{root.id}/history")
+        assert former.status_code == 200, former.text
+        assert [event["event_type"] for event in former.json()["events"]] == [
+            "handover_pending",
+            "handover_accepted",
+        ]
+        assert former.json()["integrity"]["valid"]
+        forbidden_write = await source_api.post(
+            "/api/v1/events/", json={"lot_id": str(root.id), "event_type": "forged"}
+        )
+        assert forbidden_write.status_code == 403
+        third = identities(role="distributor", organization_type="distribution")
+        child_id = split.json()["children"][0]["id"]
+        transfer_child = await receiving_api.post(
+            "/api/v1/handovers/",
+            json={"lot_id": child_id, "to_organization_id": str(third.organization_id)},
+        )
+        async with client() as third_api:
+            await login(third_api, third)
+            assert (
+                await third_api.post(
+                    f"/api/v1/handovers/{transfer_child.json()['id']}/accept"
+                )
+            ).status_code == 200
+            third_trace = await third_api.get(f"/api/v1/lots/{child_id}/lineage")
+            assert third_trace.status_code == 200, third_trace.text
+            assert third_trace.json()["roots"] == [str(root.id)]
+            assert third_trace.json()["root_farms"][0]["id"] == str(root.farm_id)
+            assert (
+                await third_api.get(f"/api/v1/lots/{unrelated.id}")
+            ).status_code == 403
+            fourth = identities(role="distributor", organization_type="distribution")
+            next_handover = await third_api.post(
+                "/api/v1/handovers/",
+                json={
+                    "lot_id": child_id,
+                    "to_organization_id": str(fourth.organization_id),
+                },
+            )
+            assert next_handover.status_code == 201
+            async with client() as fourth_api:
+                await login(fourth_api, fourth)
+                assert (
+                    await fourth_api.post(
+                        f"/api/v1/handovers/{next_handover.json()['id']}/accept"
+                    )
+                ).status_code == 200
+            later = await receiving_api.post(
+                "/api/v1/events/",
+                json={
+                    "lot_id": str(root.id),
+                    "event_type": "inspection",
+                    "payload": {"note": "After former child's handover"},
+                },
+            )
+            assert later.status_code == 201
+            former_ancestor = await third_api.get(
+                f"/api/v1/events/lots/{root.id}/history"
+            )
+            assert former_ancestor.status_code == 200, former_ancestor.text
+            assert later.json()["id"] not in {
+                item["id"] for item in former_ancestor.json()["events"]
+            }
+            historical_graph = await third_api.get(f"/api/v1/lots/{child_id}/lineage")
+            assert historical_graph.status_code == 200, historical_graph.text
+            assert all(
+                node["historical_only"] for node in historical_graph.json()["nodes"]
+            )
+            assert all(
+                node["remaining_quantity"] is None
+                for node in historical_graph.json()["nodes"]
+            )
+        # The former custodian still knows the sources of its former child.
+        historical_source = await receiving_api.get(
+            f"/api/v1/events/lots/{root.id}/history"
+        )
+        assert historical_source.status_code == 200, historical_source.text
+        assert historical_source.json()["integrity"]["valid"]
+
+
+@pytest.mark.asyncio
+async def test_thousand_node_chain_is_complete_and_under_two_seconds(
+    lineage, admin_session
+):
+    owner, products, _ = lineage
+    root = add_lot(admin_session, owner, products[0])
+    children = [
+        Lot(
+            id=uuid4(),
+            organization_id=owner.organization_id,
+            current_holder_organization_id=owner.organization_id,
+            farm_id=None,
+            name=f"Performance node {index}",
+            lot_code=uuid4().hex[:12],
+            product_id=products[0].id,
+            quantity=Decimal("1"),
+            remaining_quantity=Decimal("1"),
+            status="active",
+        )
+        for index in range(999)
+    ]
+    admin_session.add_all(children)
+    admin_session.flush()
+    nodes = [root, *children]
+    admin_session.add_all(
+        [
+            LotRelation(
+                organization_id=owner.organization_id,
+                parent_lot_id=parent.id,
+                child_lot_id=child.id,
+                quantity=Decimal("1"),
+                operation="split",
+            )
+            for parent, child in zip(nodes, nodes[1:], strict=False)
+        ]
+    )
+    admin_session.commit()
+    async with client() as api:
+        await login(api, owner)
+        for target, direction in [(root, "descendants"), (children[-1], "ancestors")]:
+            started = perf_counter()
+            result = await api.get(
+                f"/api/v1/lots/{target.id}/lineage?direction={direction}"
+            )
+            elapsed = perf_counter() - started
+            print(f"1000 nodes {direction}: {elapsed:.3f}s")
+            assert result.status_code == 200, result.text
+            assert len(result.json()["nodes"]) == 1000
+            assert len(result.json()["edges"]) == 999
+            assert elapsed < 2, f"{direction}: {elapsed:.3f}s"
+
+
+def test_detail_uses_three_queries_with_runtime_role(lineage, admin_session):
+    owner, products, _ = lineage
+    root = add_lot(admin_session, owner, products[0])
+    principal = Principal(
+        owner.user_id,
+        owner.email,
+        "Test",
+        owner.organization_id,
+        "Test",
+        "cooperative",
+        "cooperative",
+    )
+    with SessionLocal() as db:
+        set_db_context(db, session_token_hash=owner.session_token_hash)
+        statements = []
+        connection = db.connection()
+
+        def record_statement(
+            connection, cursor, statement, parameters, context, executemany
+        ):
+            statements.append(statement)
+
+        event.listen(connection, "before_cursor_execute", record_statement)
+        try:
+            result = get_detail(db, principal, root.id)
+            assert result["id"] == root.id
+            assert result["event_count"] == 0
+            assert not any(
+                "WITH RECURSIVE" in statement.upper() for statement in statements
+            )
+            assert len(statements) == 3, statements
+        finally:
+            event.remove(connection, "before_cursor_execute", record_statement)

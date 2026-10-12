@@ -15,11 +15,12 @@ interface WorkspaceTopbarProps {
 
 const TAB_TITLES: Record<WorkspaceTab, string> = {
   lots: 'Lô hàng',
-  products: 'Sản phẩm',
+  products: 'Nông sản',
   handovers: 'Bàn giao',
   overview: 'Vùng trồng',
   security: 'Phân quyền & bảo mật',
   integrity: 'Kiểm tra tính toàn vẹn',
+  demo: 'Hướng dẫn trình diễn',
 }
 
 export function WorkspaceTopbar({
@@ -60,7 +61,7 @@ export function WorkspaceTopbar({
               type="search"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Lọc tên thửa, UUID, GPS..."
+              placeholder="Tìm vùng trồng theo tên…"
               className="dashboard-search"
               aria-label="Tìm kiếm vùng trồng"
             />

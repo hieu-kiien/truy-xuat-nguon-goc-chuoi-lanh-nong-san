@@ -25,6 +25,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     ),
     "cooperative": frozenset(
         {
+            "lots:transform",
             "auth:session",
             "products:read",
             "lots:read",
@@ -47,6 +48,9 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     ),
     "distributor": frozenset(
         {
+            "locations:manage",
+            "lots:consume",
+            "lots:transform",
             "auth:session",
             "products:read",
             "lots:read",
@@ -67,6 +71,9 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     ),
     "organization_admin": frozenset(
         {
+            "locations:manage",
+            "lots:consume",
+            "lots:transform",
             "auth:session",
             "farms:read",
             "farms:write",

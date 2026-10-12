@@ -3,7 +3,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import and_, false, func, select
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal
@@ -11,6 +11,16 @@ from app.core.authorization import has_permission
 
 logger = logging.getLogger(__name__)
 SHARED_TABLE_NAMES = frozenset({"products"})
+
+
+def lot_is_historical(model: Any, principal: Principal):
+    """Former custodians may read history but never current logistics fields."""
+    if principal.role in {"inspector", "system_admin"}:
+        return false()
+    return and_(
+        model.current_holder_organization_id != principal.organization_id,
+        func.app_event_cutoff(model.id).is_not(None),
+    )
 
 
 def _require_tenant_column(model: Any) -> None:
@@ -56,9 +66,17 @@ def get_tenant_record(
     model: Any,
     record_id: UUID,
     principal: Principal,
+    *,
+    allow_historical: bool = False,
 ) -> Any:
     """Fetch one visible row; never query around RLS to detect foreign rows."""
     statement = tenant_select(model, principal).where(model.id == record_id)
+    if model.__tablename__ in {"lots", "events"}:
+        # These reads include provenance and pre-transfer history. PostgreSQL's
+        # policies define that scope; mutation services still require custody.
+        statement = select(model).where(model.id == record_id)
+        if model.__tablename__ == "lots" and not allow_historical:
+            statement = statement.where(~lot_is_historical(model, principal))
     record = db.scalar(statement)
     if record is not None:
         return record

@@ -8,6 +8,7 @@ import {
 } from '../services/api'
 import {
   hasPermission,
+  canManageDistribution,
   ROLE_LABELS,
   type Farm,
   type SessionUser,
@@ -17,11 +18,14 @@ import { IntegrityPanel } from './IntegrityPanel'
 import { HandoversPanel } from './HandoversPanel'
 import { LotsPanel } from './LotsPanel'
 import { LotDetailPanel } from './LotDetailPanel'
+import { LocationsPanel } from './LocationsPanel'
 import { ProductManager } from './ProductManager'
 import { SecurityPanel } from './SecurityPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
 import { ErrorBoundary } from './ErrorBoundary'
+import { DemoGuide } from './DemoGuide'
+import { EditDialog } from './EditDialog'
 
 export type WorkspaceTab =
   | 'lots'
@@ -30,6 +34,7 @@ export type WorkspaceTab =
   | 'overview'
   | 'security'
   | 'integrity'
+  | 'demo'
 
 interface FarmWorkspaceProps {
   user: SessionUser
@@ -56,6 +61,8 @@ export function FarmWorkspace({
   onOpenLot,
   onBackToLots,
 }: FarmWorkspaceProps) {
+  const task = new URLSearchParams(window.location.search).get('task')
+  const editId = new URLSearchParams(window.location.search).get('id')
   const canReadFarms = hasPermission(user.role, 'farms:read')
   const canWriteFarms = hasPermission(user.role, 'farms:write')
   const canReadLots = hasPermission(user.role, 'lots:read')
@@ -73,6 +80,7 @@ export function FarmWorkspace({
   const [loadingFarms, setLoadingFarms] = useState<boolean>(canReadFarms)
   const [listError, setListError] = useState<string | null>(null)
 
+  const [farmFormOpen, setFarmFormOpen] = useState(task === 'create' || task === 'edit')
   const [editingFarm, setEditingFarm] = useState<Farm | null>(null)
   const [name, setName] = useState('')
   const [areaHa, setAreaHa] = useState('')
@@ -92,7 +100,8 @@ export function FarmWorkspace({
   const contentRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
-    contentRef.current?.scrollTo(0, 0)
+    window.scrollTo(0, 0)
+    contentRef.current?.focus({preventScroll: true})
   }, [activeTab, selectedLotId])
 
   const updatePendingHandoverCount = useCallback((count: number) => {
@@ -140,6 +149,11 @@ export function FarmWorkspace({
       .then((data) => {
         if (!cancelled) {
           setFarms(data)
+          if (task === 'edit') {
+            const farm = data.find(item => item.id === editId)
+            if (farm) { setEditingFarm(farm); setName(farm.name); setAreaHa(String(farm.area_ha)); setLatitude(String(farm.latitude)); setLongitude(String(farm.longitude)) }
+            else setListError('Không tìm thấy vùng trồng cần sửa.')
+          }
           setLoadingFarms(false)
         }
       })
@@ -157,7 +171,7 @@ export function FarmWorkspace({
     return () => {
       cancelled = true
     }
-  }, [canReadFarms])
+  }, [canReadFarms, task, editId])
 
   const resetForm = () => {
     setEditingFarm(null)
@@ -165,17 +179,6 @@ export function FarmWorkspace({
     setAreaHa('')
     setLatitude('')
     setLongitude('')
-  }
-
-  const startEdit = (farm: Farm) => {
-    setEditingFarm(farm)
-    setName(farm.name)
-    setAreaHa(String(farm.area_ha))
-    setLatitude(String(farm.latitude))
-    setLongitude(String(farm.longitude))
-    setFormFeedback(null)
-    onTabChange('overview')
-    onNotify(`Đang chỉnh sửa: ${farm.name}`)
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -220,6 +223,7 @@ export function FarmWorkspace({
         onNotify(`Đã thêm vùng trồng: ${created.name}`)
       }
       resetForm()
+      setFarmFormOpen(false)
     } catch (err) {
       setFormFeedback({
         type: 'error',
@@ -275,6 +279,7 @@ export function FarmWorkspace({
 
   return (
     <div className="application-shell">
+      <a className="skip-link" href="#main-content">Đến nội dung chính</a>
       {sidebarOpen && (
         <button
           type="button"
@@ -308,8 +313,9 @@ export function FarmWorkspace({
             onToggleTheme={onToggleTheme}
           />
 
-          <main ref={contentRef} className="dashboard-content">
-            {(activeTab === 'overview' || (activeTab === 'lots' && !selectedLotId)) && canReadFarms && (
+          <main id="main-content" tabIndex={-1} ref={contentRef} className="dashboard-content">
+            {activeTab === 'demo' && <DemoGuide />}
+            {activeTab === 'overview' && canReadFarms && (
               <section aria-label="Tóm tắt vùng trồng">
               <div className="stats-grid">
                 <article className="stat-card panel-card">
@@ -352,19 +358,30 @@ export function FarmWorkspace({
             {activeTab === 'lots' && (
               selectedLotId ? (
                 <LotDetailPanel
+                    canManageDistribution={canManageDistribution(user)}
+                    canTransform={hasPermission(user.role, 'lots:transform')}
+                    organizationId={user.organization_id}
+                    onOpenLot={onOpenLot}
                   lotId={selectedLotId}
                   canReadEvents={canReadEvents}
+                  canCreateEvents={hasPermission(user.role, 'events:create')}
                   canCreateHandover={hasPermission(user.role, 'handovers:create')}
                   canResolveHandover={canResolveHandovers}
                   onBack={onBackToLots}
                 />
               ) : (
-                <LotsPanel
+                <>
+                {canManageDistribution(user) && task !== 'create' && <LocationsPanel />}
+                {task === 'locations' && !canManageDistribution(user) && <p role="status">Chỉ đơn vị phân phối có thể quản lý cửa hàng và kho.</p>}
+                {task !== 'locations' && <LotsPanel
                   canReadLots={canReadLots}
                   canCreateLots={canCreateLots}
+                  canTransform={hasPermission(user.role, 'lots:transform')}
+                  organizationId={user.organization_id}
                   canReadEvents={canReadEvents}
                   onOpenLot={onOpenLot}
-                />
+                />}
+                </>
               )
             )}
 
@@ -396,8 +413,13 @@ export function FarmWorkspace({
 
             {activeTab === 'overview' && (
               <>
+                {task && <a className="ds-button ds-button-secondary" href="/farms">← Danh sách vùng trồng</a>}
+                {task && loadingFarms && <p aria-busy="true">Đang tải vùng trồng…</p>}
+                {task && listError && <p role="alert">{listError}</p>}
+                {task && !canWriteFarms && <p role="status">Tài khoản này không có quyền chỉnh sửa vùng trồng.</p>}
+                {!farmFormOpen && formFeedback && <p role={formFeedback.type === 'error' ? 'alert' : 'status'}>{formFeedback.message}</p>}
                 <div className="dashboard-split-main">
-                  {!canReadFarms ? (
+                  {(!canReadFarms ? (
                     <section className="panel-card panel-box">
                       <div className="panel-head">
                         <h2>Quyền truy cập vùng trồng</h2>
@@ -453,6 +475,7 @@ export function FarmWorkspace({
                         <span className="status-badge status-done">
                           {filteredFarms.length} vùng
                         </span>
+                        {canWriteFarms && <button type="button" className="ds-button ds-button-brand" onClick={() => { resetForm(); setFormFeedback(null); setFarmFormOpen(true) }}>Thêm vùng trồng</button>}
                       </div>
 
                       {listError && (
@@ -462,11 +485,10 @@ export function FarmWorkspace({
                       )}
 
                       <div className="table-scroll">
-                        <table className="data-table">
+                        <table className="data-table farms-table">
                           <thead>
                             <tr>
-                              <th scope="col">Mã UUID</th>
-                              <th scope="col">Tên Vùng trồng / Thửa đất</th>
+                              <th scope="col">Vùng trồng</th>
                               <th scope="col">Diện tích</th>
                               <th scope="col">Tỷ trọng</th>
                               <th scope="col">Tọa độ GPS (WGS84)</th>
@@ -476,13 +498,13 @@ export function FarmWorkspace({
                           <tbody>
                             {loadingFarms ? (
                               <tr>
-                                <td colSpan={6} className="cell-center">
+                                <td colSpan={5} className="cell-center">
                                   Đang tải danh sách vùng trồng...
                                 </td>
                               </tr>
                             ) : filteredFarms.length === 0 ? (
                               <tr>
-                                <td colSpan={6} className="cell-center">
+                                <td colSpan={5} className="cell-center">
                                   Không có vùng trồng nào khớp với bộ lọc.
                                 </td>
                               </tr>
@@ -502,11 +524,6 @@ export function FarmWorkspace({
                                         : undefined
                                     }
                                   >
-                                    <td>
-                                      <code title={farm.id}>
-                                        {farm.id.slice(0, 8)}...
-                                      </code>
-                                    </td>
                                     <th scope="row" className="cell-strong">
                                       {farm.name}
                                     </th>
@@ -545,13 +562,7 @@ export function FarmWorkspace({
                                     </td>
                                     <td>
                                       {canWriteFarms && (
-                                        <button
-                                          type="button"
-                                          className="ds-button ds-button-secondary ds-button-xs"
-                                          onClick={() => startEdit(farm)}
-                                        >
-                                          Sửa
-                                        </button>
+                                        <button type="button" className="ds-button ds-button-secondary" onClick={() => { setEditingFarm(farm); setName(farm.name); setAreaHa(String(farm.area_ha)); setLatitude(String(farm.latitude)); setLongitude(String(farm.longitude)); setFormFeedback(null); setFarmFormOpen(true) }}>Sửa<span className="sr-only"> {farm.name}</span></button>
                                       )}
                                     </td>
                                   </tr>
@@ -562,9 +573,9 @@ export function FarmWorkspace({
                         </table>
                       </div>
                     </section>
-                  )}
+                  ))}
 
-                  <FarmFormPanel
+                  {farmFormOpen && canWriteFarms && <EditDialog title={editingFarm ? 'Sửa vùng trồng' : 'Thêm vùng trồng'} busy={saving} onClose={() => setFarmFormOpen(false)}><FarmFormPanel showChart={false}
                     canReadFarms={canReadFarms}
                     canWriteFarms={canWriteFarms}
                     farms={farms}
@@ -591,10 +602,11 @@ export function FarmWorkspace({
                     }}
                     onSubmit={handleSubmit}
                     onCancelEdit={() => {
+                      setFarmFormOpen(false)
                       resetForm()
                       setFormFeedback(null)
                     }}
-                  />
+                  /></EditDialog>}
                 </div>
 
               </>
