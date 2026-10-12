@@ -72,4 +72,4 @@ class Event(Base):
     )
     prev_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     event_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    organization: Mapped["Organization"] = relationship(lazy="joined")
+    organization: Mapped["Organization"] = relationship(lazy="selectin")

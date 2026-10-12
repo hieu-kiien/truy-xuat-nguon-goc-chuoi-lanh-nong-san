@@ -52,6 +52,7 @@ class HandoverRead(BaseModel):
     note: str | None
     rejection_reason: str | None
     created_at: datetime
+    overdue_at: datetime | None
 
 
 class HandoverDecisionRead(BaseModel):

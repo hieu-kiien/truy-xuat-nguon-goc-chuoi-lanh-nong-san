@@ -1,0 +1,353 @@
+"""Sprint 3 transformations must preserve mass, custody and atomic event chains."""
+
+from concurrent.futures import ThreadPoolExecutor
+from decimal import Decimal
+from threading import Barrier
+from uuid import UUID, uuid4
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import delete, select, text
+
+from app.main import app
+from app.models.event import Event
+from app.models.lot import Lot
+from app.models.product import Product
+from app.services import event_service
+from tests.lineage_helpers import add_lot, client, login, merge_body, split_body
+
+
+@pytest.fixture
+def lineage_products(admin_session):
+    products = [
+        Product(name=f"lineage-product-{uuid4().hex}", unit="kg") for _ in range(2)
+    ]
+    admin_session.add_all(products)
+    admin_session.commit()
+    yield products
+    admin_session.execute(
+        delete(Product).where(Product.id.in_([p.id for p in products]))
+    )
+    admin_session.commit()
+
+
+@pytest.fixture
+def lineage(request, admin_session):
+    # Set up products first: identity_factory then tears down all lots before products.
+    products = request.getfixturevalue("lineage_products")
+    identities = request.getfixturevalue("identity_factory")
+    owner = identities(role="cooperative", organization_type="cooperative")
+    return owner, products, identities
+
+
+def assert_mass(db, lot_id, expected, status="active"):
+    db.expire_all()
+    lot = db.get(Lot, lot_id)
+    assert lot.remaining_quantity == Decimal(expected)
+    assert lot.status == status
+
+
+def relations(db, child_id):
+    return (
+        db.execute(
+            text(
+                "SELECT parent_lot_id, child_lot_id, quantity, operation FROM lot_relations "
+                "WHERE child_lot_id = :child_id"
+            ),
+            {"child_id": child_id},
+        )
+        .mappings()
+        .all()
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "quantities,remaining,status",
+    [
+        (("10.001", "9.999"), "20.000", "active"),
+        (("10.001", "29.999"), "0.000", "closed"),
+    ],
+)
+async def test_split_conserves_decimal_mass_and_logs_both_sides(
+    lineage, admin_session, quantities, remaining, status
+):
+    owner, products, _ = lineage
+    parent = add_lot(admin_session, owner, products[0])
+    async with client() as api:
+        await login(api, owner)
+        response = await api.post(
+            f"/api/v1/lots/{parent.id}/split", json=split_body(*quantities)
+        )
+        assert response.status_code == 201, response.text
+        result = response.json()
+        assert result["parent"]["id"] == str(parent.id)
+        assert len(result["children"]) == 2
+        assert_mass(admin_session, parent.id, remaining, status)
+        for child, quantity in zip(result["children"], quantities, strict=True):
+            child_id = UUID(child["id"])
+            assert Decimal(str(child["quantity"])) == Decimal(quantity)
+            assert child["product_id"] == str(products[0].id)
+            assert child["current_holder_organization_id"] == str(owner.organization_id)
+            assert_mass(admin_session, child_id, quantity)
+            (edge,) = relations(admin_session, child_id)
+            assert edge["parent_lot_id"] == parent.id
+            assert edge["quantity"] == Decimal(quantity)
+            assert edge["operation"] == "split"
+        for lot_id in [parent.id, *(UUID(c["id"]) for c in result["children"])]:
+            history = await api.get(f"/api/v1/events/lots/{lot_id}/history")
+            assert history.status_code == 200, history.text
+            assert history.json()["integrity"]["valid"] is True
+            assert history.json()["events"], (
+                "Transformation needs an immutable event on every lot"
+            )
+            expected_type = "lot_split" if lot_id == parent.id else "lot_derived"
+            assert history.json()["events"][-1]["event_type"] == expected_type
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "status,amount",
+    [
+        ("pending_handover", "1"),
+        ("closed", "1"),
+        ("active", "40.001"),
+    ],
+)
+async def test_split_rejects_unavailable_stock_without_writing(
+    lineage, admin_session, status, amount
+):
+    owner, products, _ = lineage
+    parent = add_lot(admin_session, owner, products[0], status=status)
+    async with client() as api:
+        await login(api, owner)
+        response = await api.post(
+            f"/api/v1/lots/{parent.id}/split", json=split_body(amount)
+        )
+    assert response.status_code == 409, response.text
+    assert_mass(admin_session, parent.id, "40", status)
+    assert not admin_session.scalars(
+        select(Event).where(Event.lot_id == parent.id)
+    ).all()
+
+
+@pytest.mark.asyncio
+async def test_split_denies_foreign_holder_and_grower(lineage, admin_session):
+    owner, products, identities = lineage
+    parent = add_lot(admin_session, owner, products[0])
+    outsider = identities(role="distributor", organization_type="distribution")
+    grower = identities()
+    own_grower_lot = add_lot(admin_session, grower, products[0])
+    for identity, lot in [(outsider, parent), (grower, own_grower_lot)]:
+        async with client() as api:
+            await login(api, identity)
+            response = await api.post(
+                f"/api/v1/lots/{lot.id}/split", json=split_body("1")
+            )
+        assert response.status_code == 403, response.text
+        assert_mass(admin_session, lot.id, "40")
+
+
+@pytest.mark.asyncio
+async def test_receiver_can_split_original_farm_lot_after_real_handover(
+    lineage, admin_session
+):
+    receiver, products, identities = lineage
+    grower = identities()
+    parent = add_lot(admin_session, grower, products[0])
+    async with client() as sender_api, client() as receiver_api:
+        await login(sender_api, grower)
+        await login(receiver_api, receiver)
+        handover = await sender_api.post(
+            "/api/v1/handovers/",
+            json={
+                "lot_id": str(parent.id),
+                "to_organization_id": str(receiver.organization_id),
+            },
+        )
+        assert handover.status_code == 201, handover.text
+        accepted = await receiver_api.post(
+            f"/api/v1/handovers/{handover.json()['id']}/accept"
+        )
+        assert accepted.status_code == 200, accepted.text
+        result = await receiver_api.post(
+            f"/api/v1/lots/{parent.id}/split", json=split_body("30")
+        )
+        assert result.status_code == 201, result.text
+        child = result.json()["children"][0]
+        assert child["current_holder_organization_id"] == str(receiver.organization_id)
+        assert_mass(admin_session, parent.id, "10")
+        history = await receiver_api.get(f"/api/v1/events/lots/{parent.id}/history")
+        assert history.status_code == 200, history.text
+        assert history.json()["integrity"]["valid"] is True
+        assert len(history.json()["events"]) >= 3
+        assert history.json()["events"][-1]["event_type"] == "lot_split"
+
+
+@pytest.mark.asyncio
+async def test_merge_consumes_exact_parent_portions(lineage, admin_session):
+    owner, products, _ = lineage
+    parents = [add_lot(admin_session, owner, products[0]) for _ in range(2)]
+    async with client() as api:
+        await login(api, owner)
+        response = await api.post(
+            "/api/v1/lots/merge",
+            json=merge_body(
+                (parents[0], "10.001"),
+                (parents[1], "40"),
+            ),
+        )
+        assert response.status_code == 201, response.text
+        child_id = UUID(response.json()["id"])
+        assert_mass(admin_session, child_id, "50.001")
+        edges = relations(admin_session, child_id)
+        assert {(e["parent_lot_id"], e["quantity"], e["operation"]) for e in edges} == {
+            (parents[0].id, Decimal("10.001"), "merge"),
+            (parents[1].id, Decimal("40"), "merge"),
+        }
+        for lot_id in [child_id, *(p.id for p in parents)]:
+            history = await api.get(f"/api/v1/events/lots/{lot_id}/history")
+            assert history.status_code == 200, history.text
+            assert history.json()["events"]
+            assert history.json()["integrity"]["valid"] is True
+            expected_type = "lot_derived" if lot_id == child_id else "lot_merged"
+            assert history.json()["events"][-1]["event_type"] == expected_type
+    assert_mass(admin_session, parents[0].id, "29.999")
+    assert_mass(admin_session, parents[1].id, "0", "closed")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("different_owner", [False, True])
+async def test_merge_rejects_incompatible_product_or_holder(
+    lineage, admin_session, different_owner
+):
+    owner, products, identities = lineage
+    other = (
+        identities(role="distributor", organization_type="distribution")
+        if different_owner
+        else owner
+    )
+    first = add_lot(admin_session, owner, products[0])
+    second = add_lot(
+        admin_session, other, products[0] if different_owner else products[1]
+    )
+    async with client() as api:
+        await login(api, owner)
+        response = await api.post(
+            "/api/v1/lots/merge", json=merge_body((first, "1"), (second, "1"))
+        )
+    assert response.status_code == (403 if different_owner else 422), response.text
+    for parent in [first, second]:
+        assert_mass(admin_session, parent.id, "40")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["split", "merge"])
+async def test_event_failure_rolls_back_mass_children_and_edges(
+    lineage, admin_session, monkeypatch, operation
+):
+    owner, products, _ = lineage
+    parents = [add_lot(admin_session, owner, products[0]) for _ in range(2)]
+    before_lots = set(admin_session.scalars(select(Lot.id)).all())
+    original_append = event_service.append_event
+
+    def append_then_fail(*args, **kwargs):
+        original_append(*args, **kwargs)
+        raise RuntimeError("lineage event failure")
+
+    async with client() as api:
+        await login(api, owner)
+        monkeypatch.setattr(event_service, "append_event", append_then_fail)
+        with pytest.raises(RuntimeError, match="lineage event failure"):
+            if operation == "split":
+                await api.post(
+                    f"/api/v1/lots/{parents[0].id}/split", json=split_body("10", "20")
+                )
+            else:
+                await api.post(
+                    "/api/v1/lots/merge",
+                    json=merge_body((parents[0], "10"), (parents[1], "20")),
+                )
+    admin_session.expire_all()
+    assert set(admin_session.scalars(select(Lot.id)).all()) == before_lots
+    for parent in parents:
+        assert_mass(admin_session, parent.id, "40")
+        assert not admin_session.scalars(
+            select(Event).where(Event.lot_id == parent.id)
+        ).all()
+        assert not admin_session.execute(
+            text("SELECT id FROM lot_relations WHERE parent_lot_id = :id"),
+            {"id": parent.id},
+        ).all()
+
+
+@pytest.mark.parametrize("_attempt", range(20), ids=lambda i: f"race-{i + 1:02}")
+def test_concurrent_split_allows_only_one_thirty_from_forty(
+    lineage, admin_session, _attempt
+):
+    owner, products, _ = lineage
+    parent = add_lot(admin_session, owner, products[0])
+    parent_id = (
+        parent.id
+    )  # Never access an expired admin-session ORM object in workers.
+    barrier = Barrier(2)
+
+    def transform():
+        with TestClient(app, base_url="https://testserver") as api:
+            logged_in = api.post(
+                "/api/v1/auth/login",
+                json={
+                    "email": owner.email,
+                    "password": owner.password,
+                },
+            )
+            assert logged_in.status_code == 200, logged_in.text
+            barrier.wait(timeout=10)
+            return api.post(f"/api/v1/lots/{parent_id}/split", json=split_body("30"))
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _: transform(), range(2)))
+    assert sorted(r.status_code for r in results) == [201, 409], [
+        r.text for r in results
+    ]
+    assert_mass(admin_session, parent.id, "10")
+    successful = next(r for r in results if r.status_code == 201).json()
+    assert len(successful["children"]) == 1
+    assert_mass(admin_session, UUID(successful["children"][0]["id"]), "30")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("quantity", ["0", "-1", "NaN", "Infinity", "1.0001", True])
+async def test_split_and_merge_reject_invalid_quantities(
+    lineage, admin_session, quantity
+):
+    owner, products, _ = lineage
+    parents = [add_lot(admin_session, owner, products[0]) for _ in range(2)]
+    async with client() as api:
+        await login(api, owner)
+        split = await api.post(
+            f"/api/v1/lots/{parents[0].id}/split", json=split_body(quantity)
+        )
+        merge = await api.post(
+            "/api/v1/lots/merge",
+            json=merge_body((parents[0], quantity), (parents[1], "1")),
+        )
+    assert split.status_code == 422, split.text
+    assert merge.status_code == 422, merge.text
+    for parent in parents:
+        assert_mass(admin_session, parent.id, "40")
+
+
+@pytest.mark.asyncio
+async def test_merge_rejects_repeated_parent_without_consuming_twice(
+    lineage, admin_session
+):
+    owner, products, _ = lineage
+    parent = add_lot(admin_session, owner, products[0])
+    async with client() as api:
+        await login(api, owner)
+        response = await api.post(
+            "/api/v1/lots/merge", json=merge_body((parent, "10"), (parent, "10"))
+        )
+    assert response.status_code == 422, response.text
+    assert_mass(admin_session, parent.id, "40")

@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     DEMO_PASSWORD: str | None = None
     LOGIN_LOCK_MINUTES: int = Field(default=15, ge=1, le=1440)
     SESSION_TTL_MINUTES: int = Field(default=480, ge=1, le=10080)
+    HANDOVER_OVERDUE_HOURS: int = Field(default=48, ge=1, le=8760)
     SESSION_COOKIE_NAME: str = "__Host-session"
     SESSION_COOKIE_SAMESITE: str = "none"
     SESSION_COOKIE_SECURE: bool = True

@@ -1,0 +1,20 @@
+{
+  "note": "Expected sets written explicitly from the 3 -> 6 -> 3 -> 6 diagram. No traversal code generated these sets. Two-human review was waived by the project owner; no signatures claimed.",
+  "ancestors": {
+    "R1": [], "R2": [], "R3": [],
+    "A1": ["R1"], "A2": ["R1"], "B1": ["R2"], "B2": ["R2"], "C1": ["R3"], "C2": ["R3"],
+    "M1": ["A1", "B1", "R1", "R2"], "M2": ["A2", "C1", "R1", "R3"], "M3": ["B2", "C2", "R2", "R3"],
+    "D1": ["M1", "A1", "B1", "R1", "R2"], "D2": ["M1", "A1", "B1", "R1", "R2"],
+    "E1": ["M2", "A2", "C1", "R1", "R3"], "E2": ["M2", "A2", "C1", "R1", "R3"],
+    "F1": ["M3", "B2", "C2", "R2", "R3"], "F2": ["M3", "B2", "C2", "R2", "R3"]
+  },
+  "descendants": {
+    "R1": ["A1", "A2", "M1", "M2", "D1", "D2", "E1", "E2"],
+    "R2": ["B1", "B2", "M1", "M3", "D1", "D2", "F1", "F2"],
+    "R3": ["C1", "C2", "M2", "M3", "E1", "E2", "F1", "F2"],
+    "A1": ["M1", "D1", "D2"], "A2": ["M2", "E1", "E2"], "B1": ["M1", "D1", "D2"],
+    "B2": ["M3", "F1", "F2"], "C1": ["M2", "E1", "E2"], "C2": ["M3", "F1", "F2"],
+    "M1": ["D1", "D2"], "M2": ["E1", "E2"], "M3": ["F1", "F2"],
+    "D1": [], "D2": [], "E1": [], "E2": [], "F1": [], "F2": []
+  }
+}

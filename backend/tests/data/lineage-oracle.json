@@ -1,0 +1,104 @@
+{
+  "fixture": "12-lot-lineage",
+  "note": "Fixed expected sets copied from existing acceptance constants; not computed by traversal. Human review requirement waived by project owner.",
+  "ancestors": {
+    "R1": [],
+    "R2": [],
+    "A": [
+      "R1"
+    ],
+    "B": [
+      "R1"
+    ],
+    "C": [
+      "R2"
+    ],
+    "D": [
+      "R2"
+    ],
+    "E": [
+      "A",
+      "C",
+      "R1",
+      "R2"
+    ],
+    "F": [
+      "B",
+      "R1"
+    ],
+    "G": [
+      "B",
+      "R1"
+    ],
+    "H": [
+      "B",
+      "D",
+      "F",
+      "R1",
+      "R2"
+    ],
+    "I": [
+      "A",
+      "C",
+      "E",
+      "R1",
+      "R2"
+    ],
+    "J": [
+      "A",
+      "C",
+      "E",
+      "R1",
+      "R2"
+    ]
+  },
+  "descendants": {
+    "R1": [
+      "A",
+      "B",
+      "E",
+      "F",
+      "G",
+      "H",
+      "I",
+      "J"
+    ],
+    "R2": [
+      "C",
+      "D",
+      "E",
+      "H",
+      "I",
+      "J"
+    ],
+    "A": [
+      "E",
+      "I",
+      "J"
+    ],
+    "B": [
+      "F",
+      "G",
+      "H"
+    ],
+    "C": [
+      "E",
+      "I",
+      "J"
+    ],
+    "D": [
+      "H"
+    ],
+    "E": [
+      "I",
+      "J"
+    ],
+    "F": [
+      "H"
+    ],
+    "G": [],
+    "H": [],
+    "I": [],
+    "J": []
+  }
+}

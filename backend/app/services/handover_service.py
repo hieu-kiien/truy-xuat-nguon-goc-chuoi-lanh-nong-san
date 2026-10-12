@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from app.core.auth import Principal
+from app.core.config import settings
 from app.models.handover import Handover
 from app.models.identity import Organization
 from app.models.lot import Lot
@@ -60,6 +61,7 @@ def list_handovers(db: Session, principal: Principal, *, incoming: bool) -> list
             "note": handover.note,
             "rejection_reason": handover.rejection_reason,
             "created_at": handover.created_at,
+            "overdue_at": handover.overdue_at,
         }
         for handover, lot, sender_name, recipient_name in rows
     ]
@@ -163,6 +165,7 @@ def create_handover(db: Session, principal: Principal, payload: HandoverCreate) 
         "note": handover.note,
         "rejection_reason": handover.rejection_reason,
         "created_at": handover.created_at,
+        "overdue_at": handover.overdue_at,
     }
 
 
@@ -182,12 +185,27 @@ def _get_incoming_pending(
         )
 
     lot = db.scalar(
-        select(Lot).where(Lot.id == handover.lot_id).with_for_update(of=Lot)
+        select(Lot)
+        .where(Lot.id == handover.lot_id)
+        .with_for_update(of=Lot)
+        .execution_options(populate_existing=True)
     )
     if lot is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Không thể tìm thấy lô đang chờ bàn giao.",
+        )
+    # The row lock may have waited for another accept/reject transaction. Refresh
+    # the handover after acquiring it; the earlier identity-map value is stale.
+    handover = db.scalar(
+        select(Handover)
+        .where(Handover.id == handover_id)
+        .execution_options(populate_existing=True)
+    )
+    if handover is None or handover.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Yêu cầu bàn giao đã được xử lý.",
         )
     return handover, lot
 
@@ -201,7 +219,13 @@ def accept_handover(db: Session, principal: Principal, handover_id: UUID) -> Han
         )
 
     try:
-        event_service.append_event(
+        accepted_at = datetime.now(UTC)
+        is_late = handover.overdue_at is not None or (
+            handover.created_at
+            < accepted_at - timedelta(hours=settings.HANDOVER_OVERDUE_HOURS)
+        )
+        overdue_at = handover.overdue_at or (accepted_at if is_late else None)
+        accepted_event = event_service.append_event(
             db,
             principal,
             lot.id,
@@ -210,15 +234,21 @@ def accept_handover(db: Session, principal: Principal, handover_id: UUID) -> Han
                 "handover_id": str(handover.id),
                 "from_organization_id": str(handover.from_organization_id),
                 "to_organization_id": str(principal.organization_id),
+                "late_acknowledgement": is_late,
+                "overdue_at": overdue_at.isoformat() if overdue_at else None,
+                "overdue_threshold_hours": settings.HANDOVER_OVERDUE_HOURS,
             },
         )
         lot.current_holder_organization_id = principal.organization_id
+        lot.current_location_id = None
         lot.status = "active"
         # Keep the handover pending until the recipient's new custody is visible.
-        db.flush([lot])
+        db.flush()
         handover.status = "accepted"
         handover.resolved_by_user_id = principal.user_id
-        handover.resolved_at = datetime.now(UTC)
+        # Historical RLS includes the acceptance event at the cutoff itself.
+        handover.resolved_at = accepted_event.recorded_at
+        handover.overdue_at = overdue_at
         db.commit()
     except Exception:
         db.rollback()
@@ -252,7 +282,7 @@ def reject_handover(
         )
         lot.status = "active"
         # The recipient may update the lot only while the handover is pending.
-        db.flush([lot])
+        db.flush()
         handover.status = "rejected"
         handover.rejection_reason = reason
         handover.resolved_by_user_id = principal.user_id

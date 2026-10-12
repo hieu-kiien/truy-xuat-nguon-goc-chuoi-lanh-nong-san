@@ -50,6 +50,10 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
         cursor.execute(
             sql.SQL("GRANT SELECT, INSERT, UPDATE ON farms TO {}").format(role_ident)
         )
+    if "locations" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT ON locations TO {}").format(role_ident)
+        )
     if "lots" in tables:
         cursor.execute(sql.SQL("GRANT SELECT, INSERT ON lots TO {}").format(role_ident))
         cursor.execute(
@@ -59,10 +63,23 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
         if {"current_holder_organization_id", "status"}.issubset(columns):
             cursor.execute(
                 sql.SQL(
-                    "GRANT UPDATE (current_holder_organization_id, status) "
+                    "GRANT UPDATE (current_holder_organization_id, status, remaining_quantity) "
                     "ON lots TO {}"
                 ).format(role_ident)
             )
+        if "current_location_id" in columns:
+            cursor.execute(
+                sql.SQL("GRANT UPDATE (current_location_id) ON lots TO {}").format(
+                    role_ident
+                )
+            )
+    if "lot_relations" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT ON lot_relations TO {}").format(role_ident)
+        )
+        cursor.execute(
+            sql.SQL("REVOKE UPDATE, DELETE ON lot_relations FROM {}").format(role_ident)
+        )
     if "products" in tables:
         cursor.execute(
             sql.SQL("GRANT SELECT, INSERT, UPDATE, DELETE ON products TO {}").format(
@@ -75,6 +92,11 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
         )
         cursor.execute(
             sql.SQL("REVOKE UPDATE, DELETE ON events FROM {}").format(role_ident)
+        )
+    if "audit_logs" in tables:
+        cursor.execute(sql.SQL("REVOKE ALL ON audit_logs FROM {}").format(role_ident))
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT ON audit_logs TO {}").format(role_ident)
         )
     if "handovers" in tables:
         cursor.execute(
@@ -89,6 +111,12 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
                 "rejection_reason) ON handovers TO {}"
             ).format(role_ident)
         )
+        if "overdue_at" in _table_columns(cursor, "handovers"):
+            cursor.execute(
+                sql.SQL("GRANT UPDATE (overdue_at) ON handovers TO {}").format(
+                    role_ident
+                )
+            )
     cursor.execute(
         "SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public'"
     )
@@ -97,6 +125,7 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
         "app_current_user_id",
         "app_current_organization_id",
         "app_current_role",
+        "app_readable_lot_ids",
     ):
         if func in routines:
             cursor.execute(
@@ -104,6 +133,13 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
                     sql.Identifier(func), role_ident
                 )
             )
+
+    if "app_event_cutoff" in routines:
+        cursor.execute(
+            sql.SQL(
+                "GRANT EXECUTE ON FUNCTION public.app_event_cutoff(uuid) TO {}"
+            ).format(role_ident)
+        )
 
 
 def bootstrap_database_role() -> None:

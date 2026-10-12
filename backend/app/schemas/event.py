@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import AliasPath, BaseModel, ConfigDict, Field
+from pydantic import AliasPath, BaseModel, ConfigDict, Field, field_validator
 
 
 class EventCreate(BaseModel):
@@ -11,6 +11,25 @@ class EventCreate(BaseModel):
     lot_id: UUID
     event_type: str = Field(..., min_length=1, max_length=64)
     payload: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("event_type")
+    @classmethod
+    def disallow_system_records(cls, value: str) -> str:
+        if value.strip().lower() in {
+            "harvest_recorded",
+            "handover_pending",
+            "handover_accepted",
+            "handover_rejected",
+            "lot_split",
+            "lot_merged",
+            "lot_derived",
+            "lot_moved",
+            "lot_consumed",
+        }:
+            raise ValueError(
+                "Sự kiện này chỉ được tạo qua thao tác nghiệp vụ tương ứng."
+            )
+        return value
 
 
 class EventRead(BaseModel):
@@ -25,6 +44,7 @@ class EventRead(BaseModel):
     event_type: str
     recorded_at: datetime
     payload: dict[str, Any]
+    payload_redacted: bool = False
     prev_hash: str
     event_hash: str
     organization_name: str = Field(validation_alias=AliasPath("organization", "name"))

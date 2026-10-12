@@ -125,6 +125,7 @@ def test_grant_existing_table_permissions():
             ("current_holder_organization_id",),
             ("status",),
         ],
+        [("overdue_at",)],
         [
             ("app_current_user_id",),
             ("app_current_organization_id",),
