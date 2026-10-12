@@ -46,6 +46,7 @@ export function WorkspaceSidebar({
           <div>
             <div className="sidebar-section-label">Phân hệ Nghiệp vụ</div>
             <ul className="sidebar-nav-list">
+              <li><button type="button" onClick={() => selectTab('demo')} className={`dashboard-nav-item ${activeTab === 'demo' ? 'dashboard-nav-item-active' : ''}`}><span>Hướng dẫn trình diễn</span></button></li>
               {hasPermission(user.role, 'lots:read') && <li>
                 <button
                   type="button"
@@ -65,7 +66,7 @@ export function WorkspaceSidebar({
                     activeTab === 'products' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
-                  <span>Sản phẩm</span>
+                  <span>Nông sản</span>
                 </button>
               </li>}
               {(hasPermission(user.role, 'handovers:create') ||

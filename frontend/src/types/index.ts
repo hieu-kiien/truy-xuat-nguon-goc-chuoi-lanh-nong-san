@@ -54,7 +54,7 @@ export interface FarmPayload {
 export interface Lot {
   id: string
   organization_id: string
-  farm_id: string
+  farm_id: string | null
   name: string
   lot_code: string | null
   product_id: string | null
@@ -63,13 +63,62 @@ export interface Lot {
   remaining_quantity: string
   current_holder_organization_id: string
   current_holder_organization_name: string
-  status: 'active' | 'pending_handover' | 'closed'
+  current_location_id: string | null
+  current_location: DistributionLocation | null
+  status: 'active' | 'pending_handover' | 'closed' | 'consumed'
   product: Product | null
+}
+
+export interface DistributionLocation {
+  id: string
+  organization_id: string
+  name: string
+  address: string
+}
+
+export function canManageDistribution(user: SessionUser): boolean {
+  return user.organization_type === 'distribution' && (user.role === 'distributor' || user.role === 'organization_admin')
+}
+
+export function lotStatusLabel(status: Lot['status'] | 'transferred'): string {
+  return ({active: 'Đang lưu hành', pending_handover: 'Chờ bàn giao', closed: 'Đã đóng', consumed: 'Đã tiêu thụ', transferred: 'Đã bàn giao'})[status]
 }
 
 export interface LotPage {
   items: Lot[]
   next_cursor: string | null
+}
+
+export interface LotRelation {
+  id: string
+  parent_lot_id: string
+  child_lot_id: string
+  quantity: string
+  operation: 'split' | 'merge'
+}
+
+export interface Lineage {
+  selected_lot_id: string
+  direction: 'ancestors' | 'descendants'
+  nodes: GraphLot[]
+  edges: LotRelation[]
+  roots: string[]
+  root_farms: Farm[]
+}
+
+export interface LotDetail extends Lot {
+  parents: GraphLot[]
+  children: GraphLot[]
+  direct_farms: Farm[]
+  event_count: number
+}
+
+export interface GraphLot extends Omit<Lot, 'remaining_quantity' | 'current_holder_organization_id' | 'current_holder_organization_name' | 'status'> {
+  remaining_quantity: string | null
+  current_holder_organization_id: string | null
+  current_holder_organization_name: string | null
+  status: Lot['status'] | 'transferred'
+  historical_only: boolean
 }
 
 export type ProductUnit = 'kg' | 'tấn' | 'thùng'
@@ -103,6 +152,7 @@ export interface Handover {
   note: string | null
   rejection_reason: string | null
   created_at: string
+  overdue_at: string | null
 }
 
 export interface HandoverPayload {
@@ -133,6 +183,7 @@ export interface LotEvent {
   event_type: string
   recorded_at: string
   payload: Record<string, unknown>
+  payload_redacted?: boolean
   prev_hash: string
   event_hash: string
   organization_name: string
@@ -200,6 +251,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'handovers:resolve',
   ],
   cooperative: [
+    'lots:transform',
     'auth:session',
     'products:read',
     'lots:read',
@@ -218,6 +270,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'handovers:resolve',
   ],
   distributor: [
+    'locations:manage',
+    'lots:consume',
+    'lots:transform',
     'auth:session',
     'products:read',
     'lots:read',
@@ -234,6 +289,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'events:verify',
   ],
   organization_admin: [
+    'locations:manage',
+    'lots:consume',
+    'lots:transform',
     'auth:session',
     'farms:read',
     'farms:write',

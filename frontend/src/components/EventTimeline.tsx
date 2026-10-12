@@ -15,18 +15,42 @@ export function EventTimeline({
   integrity,
 }: EventTimelineProps) {
   const [copiedHash, setCopiedHash] = useState<string | null>(null)
+  const [copyError, setCopyError] = useState('')
+  const [page, setPage] = useState(0)
+  const pageCount = Math.max(1, Math.ceil(events.length / 10))
+  const currentPage = Math.min(page, pageCount - 1)
+  const visibleEvents = events.slice(currentPage * 10, currentPage * 10 + 10)
 
-  const handleCopyHash = (hash: string) => {
-    navigator.clipboard.writeText(hash).then(() => {
+  const handleCopyHash = async (hash: string) => {
+    setCopyError('')
+    try {
+      await navigator.clipboard.writeText(hash)
       setCopiedHash(hash)
       setTimeout(() => setCopiedHash(null), 2000)
-    })
+    } catch { setCopyError('Không thể sao chép mã kiểm chứng. Kiểm tra quyền truy cập bộ nhớ tạm của trình duyệt.') }
   }
 
   const formatEventType = (type: string): { label: string; color: string } => {
     switch (type.toLowerCase()) {
       case 'harvest':
+      case 'harvest_recorded':
         return { label: 'Thu hoạch', color: '#16a34a' }
+      case 'lot_split':
+        return { label: 'Tách lô', color: '#0284c7' }
+      case 'lot_moved':
+        return { label: 'Di chuyển nội bộ', color: '#0284c7' }
+      case 'lot_consumed':
+        return { label: 'Đã tiêu thụ', color: '#059669' }
+      case 'lot_merged':
+        return { label: 'Gộp vào lô mới', color: '#0284c7' }
+      case 'lot_derived':
+        return { label: 'Tạo lô từ các lô nguồn', color: '#16a34a' }
+      case 'handover_pending':
+        return { label: 'Đề nghị bàn giao', color: '#d97706' }
+      case 'handover_accepted':
+        return { label: 'Xác nhận nhận lô', color: '#059669' }
+      case 'handover_rejected':
+        return { label: 'Từ chối nhận lô', color: '#b91c1c' }
       case 'packaging':
         return { label: 'Sơ chế & Đóng gói', color: '#0284c7' }
       case 'storage_cold':
@@ -165,7 +189,7 @@ export function EventTimeline({
             gap: '1.25rem',
           }}
         >
-          {events.map((evt) => {
+          {visibleEvents.map((evt) => {
             const badge = formatEventType(evt.event_type)
             const isGenesis =
               evt.sequence_number === 1 ||
@@ -253,7 +277,9 @@ export function EventTimeline({
                   </span>
                 </div>
 
-                {/* Event Payload */}
+                <p className="panel-sub">Ghi nhận bởi: {evt.organization_name}</p>
+                {evt.payload_redacted && <p className="panel-sub">Chi tiết sự kiện được ẩn theo quyền truy cập. Kết quả toàn vẹn do máy chủ kiểm tra trên dữ liệu gốc; bản hiển thị này không dùng để tính lại hash.</p>}
+                <details className="event-details"><summary>Xem chi tiết hoạt động và mã kiểm chứng</summary>
                 {evt.payload && Object.keys(evt.payload).length > 0 && (
                   <div
                     style={{
@@ -276,10 +302,10 @@ export function EventTimeline({
                       {Object.entries(evt.payload).map(([k, v]) => (
                         <div key={k}>
                           <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
-                            {k}:{' '}
+                            {({location_name: 'Địa điểm', location: 'Địa điểm hoạt động', temperature_celsius: 'Nhiệt độ (°C)', parents: 'Các lô nguồn', children: 'Các lô con', operation: 'Thao tác', simulated: 'Dữ liệu demo', location_address: 'Địa chỉ', from_location_id: 'Địa điểm cũ', to_location_id: 'Địa điểm mới', location_id: 'Mã địa điểm', quantity: 'Khối lượng', note: 'Ghi chú'} as Record<string, string>)[k] ?? k}:{' '}
                           </span>
                           <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                            {typeof v === 'object'
+                            {v == null ? '—' : typeof v === 'object'
                               ? JSON.stringify(v)
                               : String(v)}
                           </span>
@@ -370,12 +396,18 @@ export function EventTimeline({
                   </div>
                 </div>
 
-                {/* ARCHITECTURAL GUARANTEE: Strictly NO Edit/Delete buttons rendered */}
+                </details>
               </div>
             )
           })}
         </div>
       )}
+      {copyError && <p role="alert">{copyError}</p>}
+      {!loading && pageCount > 1 && <div className="lot-pagination">
+        <span>Trang {currentPage + 1}/{pageCount} · tối đa 10 sự kiện mỗi trang</span>
+        <button type="button" className="ds-button ds-button-secondary" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Sự kiện trước</button>
+        <button type="button" className="ds-button ds-button-secondary" disabled={currentPage === pageCount - 1} onClick={() => setPage(currentPage + 1)}>Sự kiện tiếp</button>
+      </div>}
     </div>
   )
 }

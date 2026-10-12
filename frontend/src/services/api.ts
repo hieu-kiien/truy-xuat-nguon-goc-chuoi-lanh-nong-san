@@ -6,6 +6,8 @@ import type {
   LoginRequest,
   LotListParams,
   Lot,
+  LotDetail,
+  Lineage,
   LotPage,
   LotPayload,
   LotEvent,
@@ -17,6 +19,7 @@ import type {
   Handover,
   HandoverPayload,
   OrganizationOption,
+  DistributionLocation,
 } from '../types'
 
 
@@ -244,7 +247,31 @@ export const getLots = async (params: LotListParams = {}): Promise<LotPage> => {
 }
 
 export const getLot = (lotId: string) =>
-  request<Lot>(`/api/v1/lots/${lotId}`)
+  request<LotDetail>(`/api/v1/lots/${lotId}`)
+
+export const getLineage = (lotId: string, direction: 'ancestors' | 'descendants') =>
+  request<Lineage>(`/api/v1/lots/${lotId}/lineage?direction=${direction}`)
+
+export const splitLot = (lotId: string, children: Array<{name: string; quantity: string; location_id?: string | null}>) =>
+  request<{parent: Lot; children: Lot[]}>(`/api/v1/lots/${lotId}/split`, {
+    method: 'POST', body: JSON.stringify({children}),
+  })
+
+export const getLocations = () => request<DistributionLocation[]>('/api/v1/locations/')
+
+export const createLocation = (name: string, address: string) =>
+  request<DistributionLocation>('/api/v1/locations/', {method: 'POST', body: JSON.stringify({name, address})})
+
+export const moveLot = (id: string, location_id: string) =>
+  request<Lot>(`/api/v1/lots/${id}/move`, {method: 'POST', body: JSON.stringify({location_id})})
+
+export const consumeLot = (id: string, note?: string) =>
+  request<Lot>(`/api/v1/lots/${id}/consume`, {method: 'POST', body: JSON.stringify({note})})
+
+export const mergeLots = (name: string, parents: Array<{lot_id: string; quantity: string}>) =>
+  request<Lot>('/api/v1/lots/merge', {
+    method: 'POST', body: JSON.stringify({name, parents}),
+  })
 
 export const getProducts = () => request<Product[]>('/api/v1/products/')
 

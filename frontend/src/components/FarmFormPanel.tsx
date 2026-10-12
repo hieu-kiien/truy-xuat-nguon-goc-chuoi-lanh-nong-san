@@ -12,21 +12,21 @@ interface PresetLocation {
 const PRESET_LOCATIONS: PresetLocation[] = [
   {
     label: 'Mẫu Đà Lạt',
-    name: 'Phân khu Rau hữu cơ Trại Mát',
+    name: 'Thửa rau Trại Mát',
     area_ha: '3.2500',
     latitude: '11.924850',
     longitude: '108.497210',
   },
   {
     label: 'Mẫu Mộc Châu',
-    name: 'Đồi Dâu tây Bản Áng Khu B',
+    name: 'Vườn dâu tây Bản Áng',
     area_ha: '4.5000',
     latitude: '20.828640',
     longitude: '104.661520',
   },
   {
     label: 'Mẫu Tiền Giang',
-    name: 'Vùng trồng Xoài Cát Hòa Lộc Cái Bè',
+    name: 'Vườn xoài Cái Bè',
     area_ha: '6.1000',
     latitude: '10.334910',
     longitude: '106.028450',
@@ -34,6 +34,7 @@ const PRESET_LOCATIONS: PresetLocation[] = [
 ]
 
 interface FarmFormPanelProps {
+  showChart?: boolean
   canReadFarms: boolean
   canWriteFarms: boolean
   farms: Farm[]
@@ -56,6 +57,7 @@ interface FarmFormPanelProps {
 }
 
 export function FarmFormPanel({
+  showChart = true,
   canReadFarms,
   canWriteFarms,
   farms,
@@ -95,7 +97,7 @@ export function FarmFormPanel({
 
           {!editingFarm && (
             <div className="preset-strip">
-              <span className="preset-label">Mẫu nhanh:</span>
+              <span className="preset-label">Điền ví dụ:</span>
               {PRESET_LOCATIONS.map((preset) => (
                 <button
                   key={preset.label}
@@ -138,7 +140,7 @@ export function FarmFormPanel({
                   disabled={saving}
                   value={name}
                   onChange={(e) => onNameChange(e.target.value)}
-                  placeholder="VD: Khu nhà kính Dâu tây A1"
+                  placeholder="Ví dụ: Vườn dâu tây Trại Mát"
                 />
               </div>
 
@@ -157,7 +159,7 @@ export function FarmFormPanel({
                   disabled={saving}
                   value={areaHa}
                   onChange={(e) => onAreaChange(e.target.value)}
-                  placeholder="VD: 2.4500"
+                  placeholder="Ví dụ: 2.5"
                 />
               </div>
             </div>
@@ -209,10 +211,10 @@ export function FarmFormPanel({
                 {saving
                   ? 'Đang lưu...'
                   : editingFarm
-                    ? 'Lưu cập nhật'
+                    ? 'Lưu'
                     : 'Thêm vùng trồng'}
               </button>
-              {editingFarm && (
+              {(
                 <button
                   type="button"
                   className="ds-button ds-button-secondary ds-button-sm"
@@ -227,7 +229,7 @@ export function FarmFormPanel({
         </section>
       )}
 
-      {canReadFarms && farms.length > 0 && (
+      {showChart && canReadFarms && farms.length > 0 && !new URLSearchParams(window.location.search).has('task') && (
         <section className="panel-box panel-card" aria-labelledby="chart-title">
           <div className="panel-head">
             <h2 id="chart-title">Diện tích vùng trồng (ha)</h2>

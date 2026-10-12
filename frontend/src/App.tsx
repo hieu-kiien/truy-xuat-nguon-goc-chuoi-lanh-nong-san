@@ -12,6 +12,7 @@ const WORKSPACE_PATHS = new Set([
   '/farms',
   '/security',
   '/integrity',
+  '/demo',
 ])
 const LOT_DETAIL_PATH = /^\/lots\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i
 
@@ -44,6 +45,7 @@ function safeWorkspacePath(candidate: string | null): string | null {
 }
 
 function routeForTab(tab: WorkspaceTab): string {
+  if (tab === 'demo') return '/demo'
   if (tab === 'overview') return '/farms'
   if (tab === 'handovers') return '/handovers'
   if (tab === 'products') return '/products'
@@ -53,6 +55,7 @@ function routeForTab(tab: WorkspaceTab): string {
 }
 
 function tabForPath(pathname: string): WorkspaceTab {
+  if (pathname === '/demo') return 'demo'
   if (pathname === '/farms') return 'overview'
   if (pathname === '/handovers') return 'handovers'
   if (pathname === '/products') return 'products'
@@ -263,7 +266,7 @@ export default function App() {
         </div>
       ) : currentUser ? (
         <FarmWorkspace
-          key={currentUser.id}
+          key={`${currentUser.id}:${location.pathname}:${location.search}`}
           user={currentUser}
           activeTab={activeTab}
           isDark={isDark}
