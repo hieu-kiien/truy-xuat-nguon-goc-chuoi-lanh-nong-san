@@ -17,7 +17,6 @@ export type OrganizationType =
 
 export interface HealthResponse {
   status: string
-  message: string
 }
 
 export interface LoginRequest {
@@ -110,6 +109,7 @@ export interface LotDetail extends Lot {
   parents: GraphLot[]
   children: GraphLot[]
   direct_farms: Farm[]
+  root_farms: Farm[]
   event_count: number
 }
 
@@ -127,11 +127,17 @@ export interface Product {
   id: string
   name: string
   unit: ProductUnit
+  description: string | null
+  price: number
+  quantity: number | null
 }
 
 export interface ProductPayload {
   name: string
   unit: ProductUnit
+  description?: string | null
+  price?: number
+  quantity?: number
 }
 
 export interface OrganizationOption {
@@ -210,6 +216,8 @@ export interface IntegrityCheckRecord extends IntegrityReport {
 export interface EventHistory {
   events: LotEvent[]
   integrity: IntegrityReport
+  next_cursor?: number | null
+  total?: number
 }
 
 export interface CreateEventRequest {

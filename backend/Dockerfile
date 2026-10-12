@@ -23,6 +23,9 @@ COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
 COPY . .
+ARG COMMIT_SHA
+LABEL org.opencontainers.image.revision=$COMMIT_SHA
+ENV APP_COMMIT_SHA=$COMMIT_SHA
 
 EXPOSE 8000
 
