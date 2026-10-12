@@ -1,6 +1,23 @@
 # Kế hoạch hoàn thành Sprint 3–4
 
-Cập nhật 11/10/2026 (Asia/Saigon). Phạm vi: 16 story trên Jira, 9 ở Sprint 3 và 7 ở Sprint 4. Tài liệu tổng hợp có thể tái tạo; không thay thế bằng chứng nghiệm thu. Owner triển khai: hieu-kiien, theo xác nhận của người dùng. Không ghi tác giả hoặc đồng tác giả cho người chưa tham gia.
+Cập nhật code local 12/10/2026 (Asia/Saigon), snapshot Jira đọc lại ngày 12/10. Phạm vi: 16 story trên Jira, 9 ở Sprint 3 và 7 ở Sprint 4. Tài liệu tổng hợp có thể tái tạo; không thay thế bằng chứng nghiệm thu. Owner triển khai: hieu-kiien, theo xác nhận của người dùng. Không ghi tác giả hoặc đồng tác giả cho người chưa tham gia.
+
+Lệnh hiện hành ngày 12/10: commit và push lên fork hieu-kiien trong các nhánh
+riêng, mở PR nháp để review. Không tự merge main, triển khai hoặc sửa Jira.
+Nhánh phát hành nối tiếp: feature/sprint-3-4-backend → feature/sprint-3-4-frontend
+→ feature/sprint-3-4-delivery; nhánh cuối là bản tích hợp để review.
+Chủ dự án đã cho phép bỏ bước chờ hai người tự đếm/reviewer thành viên;
+dùng kiểm thử API và review độc lập bằng agent, ghi trung thực người/công cụ
+thực hiện. Điều chỉnh này chưa được ghi lên Jira. Nghiệm thu staging vẫn
+là bước riêng chưa thực hiện trong phiên local.
+
+Mốc local hiện tại: 228 backend test và 12 frontend test qua, lint/build,
+migration/check và API demo qua. Đã bổ sung cache tổ tiên, quyền nguồn gốc của
+lô từng giữ, chi tiết một tầng + event_count, lỗi rõ mã/lượng và seed nghiệp vụ
+18 lô kèm JSON oracle. DB test/demo được tách riêng. Cần kiểm trực quan UX mới
+và nghiệm thu môi trường triển khai; các khác biệt thiết kế với câu chữ Jira
+được ghi ở [bảng đối chiếu](SPRINT-3-4-SUBTASK-AUDIT.md).
+[Bằng chứng và hướng dẫn chạy](SPRINT-3-4-VERIFICATION.md).
 
 ## Cách làm và điều kiện hoàn tất
 
@@ -11,7 +28,7 @@ Cập nhật 11/10/2026 (Asia/Saigon). Phạm vi: 16 story trên Jira, 9 ở Spr
 - Với sự kiện: dùng chuỗi events hiện tại; timeline và integrity phải thấy toàn bộ tách/gộp. Không tạo một chuỗi thứ hai mà các API hiện tại bỏ qua.
 - Với quyền: kiểm API và RLS bằng tài khoản runtime, không chỉ session quản trị; kiểm ba tổ chức và giới hạn lịch sử sau bàn giao.
 - Với UI: giữ thiết kế main, dữ liệu API thật, trạng thái tải/rỗng/lỗi; kiểm browser desktop và mobile theo AC.
-- DoD [N3-146](https://nhom3-k23c.atlassian.net/browse/N3-146) còn yêu cầu một thành viên khác review và AC qua staging. Tự kiểm/AI review bổ sung, chưa thay thế yêu cầu thành viên khác.
+- DoD [N3-146](https://nhom3-k23c.atlassian.net/browse/N3-146) trên Jira còn ghi review thành viên và AC qua staging. Chủ dự án đã điều chỉnh bước review như trên; không ghi rằng thành viên đã review hoặc staging đã qua.
 - Chỉ chuyển Jira Done sau khi đủ bằng chứng. Hoàn tất code/CI là mốc riêng với nghiệm thu.
 
 ## Thứ tự nhánh và phạm vi
@@ -23,7 +40,7 @@ Tên nhánh theo CONTRIBUTING.md, không đặt theo tên cá nhân. Các nhánh
 | 0 | docs/sprint3-4-delivery | Toàn phạm vi | Kế hoạch, quy tắc ghi nhận đóng góp, bản đồ yêu cầu |
 | 1 | fix/n3-39-split-hardening | N3-39,40,42 (phần tách) | Rà PR #20, sửa quyền cooperative/distributor, trạng thái lô, dữ liệu mới sau lock, rollback và nối events hiện tại; form tách, hai giao dịch tách tranh cùng lô |
 | 2 | feature/n3-41-merge-lots | N3-41,42 (phần gộp),135 | Gộp toàn bộ/một phần; cùng sản phẩm/chủ giữ; khóa nhiều mẹ theo thứ tự cố định, không deadlock; event mọi mẹ/con; UI gộp |
-| 3 | feature/n3-44-lineage-fixture | N3-44,127,128 | Ít nhất 12 lô/3 tầng/3 tổ chức; seed idempotent; đáp án cố định được hai người đếm độc lập |
+| 3 | feature/n3-44-lineage-fixture | N3-44,127,128 | Ít nhất 12 lô/3 tầng/3 tổ chức; seed idempotent; đáp án cố định kiểm độc lập theo điều chỉnh của chủ dự án, xem LINEAGE-ACCEPTANCE.md |
 | 4 | feature/n3-43-lineage-traversal | N3-43,45 | Truy ngược đủ mọi gốc khi gộp; truy xuôi không bỏ sót lô pha trộn; chu trình báo lỗi; đồ thị 1000 lô dưới 2 giây |
 | 5 | feature/n3-28-35-lineage-access | N3-28,35 | Quyền xem tổ tiên/lịch sử cũ theo thời điểm bàn giao; không thấy lô không liên quan; detail cha/con, tối đa 3 query cho truy vấn chi tiết |
 | 6 | feature/n3-26-overdue-handovers | N3-26,131,132 | Job mỗi giờ, ngưỡng cấu hình 48 giờ, nhãn hai phía, accept muộn ghi event; không tự hủy |
@@ -57,7 +74,7 @@ Head rà soát: 23c220d22982c63d1460bc17c6758d22ce97ce2e. CI xanh; PR còn open.
 GitHub Contributors chỉ tính commit có nội dung trên default branch; merge/empty commits không được tính. Email author phải liên kết với đúng tài khoản. Push nhánh, gán assignee Jira, mở PR hoặc bấm approve chưa đủ để xuất hiện trong biểu đồ này. Co-authored-by ghi nhận đồng tác giả ở commit/profile khi cấu hình đúng; không bảo đảm riêng biểu đồ Contributors GitHub.com.
 
 Cách có đóng góp thật dù không viết nghiệp vụ chính:
-- Một người đếm độc lập đáp án phả hệ; commit tệp đáp án/ghi nhận kiểm tra của chính mình, sau đó đối chiếu với người thứ hai. Đây cũng là AC còn thiếu của N3-44.
+- Nếu thành viên tham gia kiểm tra đáp án, ghi đúng tên và công việc thực tế. Chủ dự án đã bỏ bước bắt buộc chờ hai người; không gán chữ ký hoặc commit giả.
 - Một người chạy kịch bản staging và commit báo cáo kết quả, ảnh đã loại dữ liệu cá nhân, bước tái hiện lỗi.
 - Một người viết hướng dẫn chạy/demo hoặc test case và tự kiểm bằng thao tác thực tế.
 - Một người review PR có nội dung; nếu có sửa/test/tài liệu thật, commit phần đó. Review đơn thuần vẫn có giá trị nhưng không đảm bảo vào biểu đồ commit.
@@ -67,7 +84,7 @@ Người thực hiện tự commit bằng tài khoản/email của họ; merge c
 ## Rủi ro tiến độ trong hai tuần
 
 - 16 story là phạm vi lớn; đường găng: tách/gộp và events → fixture → truy ngược/xuôi → quyền → UI → staging.
-- Việc two-person oracle và reviewer là yêu cầu thật của backlog/DoD: cần người khác thực sự kiểm, hoặc nhóm thống nhất sửa yêu cầu một cách minh bạch. Không ghi rằng đã đủ hai người khi chưa có.
+- Điều kiện two-person oracle/reviewer đã được chủ dự án cho phép điều chỉnh trong phiên local; khi cập nhật Jira cần nêu rõ thay đổi, không ghi nhận hai người đã kiểm.
 - Sprint 2 còn N3-148: API đã có nhưng bàn giao/role staging chưa nghiệm thu; kiểm hồi quy trước khi dựa vào luồng này.
 - Ưu tiên xong một nhánh đã chứng minh hơn nhiều nhánh đang dở. Ngày hoàn tất là dự báo sau khi baseline/test rủi ro đầu tiên có kết quả, không cam kết chỉ dựa trên SP.
 

@@ -187,3 +187,9 @@ Nếu môi trường hỗ trợ `make`:
 ## 8. Quy trình Đóng góp
 
 Vui lòng tham khảo [CONTRIBUTING.md](./CONTRIBUTING.md) để tuân thủ quy định về phân nhánh, đặt tên commit theo chuẩn Conventional Commits và tạo Pull Request.
+
+### Kiểm chứng Sprint 3–4 local
+
+Bộ mẫu nghiệp vụ: `3 lô thu hoạch → 6 lô tách → 3 lô gộp chéo → 6 lô tách cuối`.
+Xem [sơ đồ và oracle](docs/LINEAGE-ACCEPTANCE.md), [đối chiếu Jira](docs/SPRINT-3-4-SUBTASK-AUDIT.md)
+và [hướng dẫn demo](docs/UX-DEMO.md). Test local dùng DB riêng qua `backend/scripts/test-local.ps1`.
