@@ -6,10 +6,10 @@ import pytest
 from sqlalchemy import event, text
 
 from app.core.auth import Principal
-from app.core.database import SessionLocal, set_db_context
+from app.core.database import SessionLocal, engine, set_db_context
 from app.models.lot import Lot
 from app.models.lot_relation import LotRelation
-from app.services.traversal_service import get_detail
+from app.services.traversal_service import get_detail, get_lineage
 from tests import test_sprint3_lineage as fixtures
 from tests.lineage_helpers import add_lot, client, login, split_body
 
@@ -68,6 +68,12 @@ async def test_trace_merge_has_all_roots_and_descendants(lineage, admin_session)
             f"/api/v1/lots/{roots[0].id}/lineage?direction=descendants"
         )
         assert cycle.status_code == 409, cycle.text
+        cycle_codes = {
+            roots[0].lot_code,
+            first_child["lot_code"],
+            merged.json()["lot_code"],
+        }
+        assert any(code in cycle.json()["detail"] for code in cycle_codes)
 
 
 @pytest.mark.asyncio
@@ -221,16 +227,139 @@ async def test_thousand_node_chain_is_complete_and_under_two_seconds(
     async with client() as api:
         await login(api, owner)
         for target, direction in [(root, "descendants"), (children[-1], "ancestors")]:
+            queries = []
+
+            def before_query(conn, cur, sql, parameters, context, many):
+                context.lineage_started = perf_counter()
+
+            def after_query(
+                conn, cur, sql, parameters, context, many, captured=queries
+            ):
+                captured.append(
+                    (perf_counter() - context.lineage_started, sql, parameters)
+                )
+
+            event.listen(engine, "before_cursor_execute", before_query)
+            event.listen(engine, "after_cursor_execute", after_query)
             started = perf_counter()
-            result = await api.get(
-                f"/api/v1/lots/{target.id}/lineage?direction={direction}"
-            )
+            try:
+                result = await api.get(
+                    f"/api/v1/lots/{target.id}/lineage?direction={direction}"
+                )
+            finally:
+                event.remove(engine, "before_cursor_execute", before_query)
+                event.remove(engine, "after_cursor_execute", after_query)
             elapsed = perf_counter() - started
             print(f"1000 nodes {direction}: {elapsed:.3f}s")
             assert result.status_code == 200, result.text
             assert len(result.json()["nodes"]) == 1000
             assert len(result.json()["edges"]) == 999
-            assert elapsed < 5, f"{direction}: {elapsed:.3f}s"
+            if elapsed >= 2:
+                with SessionLocal() as db:
+                    set_db_context(db, session_token_hash=owner.session_token_hash)
+                    for duration, sql, parameters in queries:
+                        print(f"Query {duration:.3f}s: {sql[:100]}")
+                        if duration < 0.1 or (
+                            "lot_relations" not in sql and "FROM lots" not in sql
+                        ):
+                            continue
+                        report = (
+                            db.connection()
+                            .exec_driver_sql(
+                                "EXPLAIN (ANALYZE, FORMAT JSON) " + sql, parameters
+                            )
+                            .scalar()[0]
+                        )
+                        print(
+                            {key: report.get(key) for key in ("Execution Time", "JIT")}
+                        )
+
+                        def summarize(node):
+                            print(
+                                {
+                                    key: node.get(key)
+                                    for key in (
+                                        "Node Type",
+                                        "Relation Name",
+                                        "Actual Total Time",
+                                        "Actual Loops",
+                                    )
+                                }
+                            )
+                            for child in node.get("Plans", []):
+                                summarize(child)
+
+                        summarize(report["Plan"])
+            assert elapsed < 2, f"{direction}: {elapsed:.3f}s"
+
+    # Independently reproduce the nested-loop plan that repeats organization
+    # authorization per node. Run after the API timings to avoid warming them.
+    principal = Principal(
+        owner.user_id,
+        owner.email,
+        "Test",
+        owner.organization_id,
+        "Test",
+        "cooperative",
+        "cooperative",
+    )
+    with SessionLocal() as db:
+        set_db_context(db, session_token_hash=owner.session_token_hash)
+        connection = db.connection()
+        default_jit = connection.scalar(text("SHOW jit"))
+        # Also exercise hosts that select expensive JIT plans for nested RLS
+        # functions; set this only after constructing the graph fixture.
+        connection.execute(text("SET LOCAL jit = on"))
+        connection.execute(text("SET LOCAL jit_above_cost = 0"))
+        connection.execute(text("SET LOCAL jit_inline_above_cost = 0"))
+        connection.execute(text("SET LOCAL jit_optimize_above_cost = 0"))
+        captured = []
+
+        def capture(conn, cur, statement, parameters, context, many):
+            captured.append((statement, parameters))
+
+        event.listen(connection, "before_cursor_execute", capture)
+        probe_started = perf_counter()
+        try:
+            get_lineage(db, principal, root.id, "descendants")
+        finally:
+            event.remove(connection, "before_cursor_execute", capture)
+        probe_elapsed = perf_counter() - probe_started
+        print(f"1000 nodes, JIT host settings: {probe_elapsed:.3f}s")
+        assert probe_elapsed < 2
+        # Inspect the nested-loop plans separately from the API/JIT timings.
+        connection.execute(text("SET LOCAL enable_hashjoin = off"))
+        connection.execute(text("SET LOCAL enable_mergejoin = off"))
+        sql, parameters = captured[-1]
+        plan = connection.exec_driver_sql(
+            "EXPLAIN (ANALYZE, FORMAT JSON) " + sql, parameters
+        ).scalar()[0]["Plan"]
+
+        def plan_nodes(node):
+            yield node
+            for child in node.get("Plans", []):
+                yield from plan_nodes(child)
+
+        organization_scans = [
+            node
+            for node in plan_nodes(plan)
+            if node.get("Relation Name") == "organizations"
+        ]
+        assert organization_scans
+        assert all(node["Actual Loops"] <= 1 for node in organization_scans)
+        sql, parameters = next(item for item in captured if "WITH RECURSIVE" in item[0])
+        edge_plan = connection.exec_driver_sql(
+            "EXPLAIN (ANALYZE, FORMAT JSON) " + sql, parameters
+        ).scalar()[0]["Plan"]
+        edge_scans = [
+            node
+            for node in plan_nodes(edge_plan)
+            if node.get("Relation Name") == "lot_relations"
+        ]
+        assert edge_scans
+        assert all(node["Actual Loops"] <= 1 for node in edge_scans)
+    with SessionLocal() as next_transaction:
+        assert next_transaction.scalar(text("SHOW jit")) == default_jit
 
 
 def test_detail_uses_three_queries_with_runtime_role(lineage, admin_session):

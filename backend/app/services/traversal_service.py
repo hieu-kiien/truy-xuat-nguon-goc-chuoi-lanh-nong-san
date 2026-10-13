@@ -5,19 +5,22 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import func, select, text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased, contains_eager
 
 from app.core.auth import Principal
 from app.core.tenancy import get_tenant_record, lot_is_historical
 from app.models.event import Event
 from app.models.farm import Farm
+from app.models.identity import Organization
 from app.models.lot import Lot
 from app.models.lot_relation import LotRelation
 from app.schemas.lot import LotRead
 from app.services import ancestor_cache
 
 
-def _roots_and_check_cycle(ids: set[UUID], edges: list[LotRelation]) -> list[UUID]:
+def _roots_and_check_cycle(
+    db: Session, ids: set[UUID], edges: list[LotRelation]
+) -> list[UUID]:
     indegree = dict.fromkeys(ids, 0)
     children: dict[UUID, list[UUID]] = {id: [] for id in ids}
     for edge in edges:
@@ -34,9 +37,24 @@ def _roots_and_check_cycle(ids: set[UUID], edges: list[LotRelation]) -> list[UUI
             if indegree[child] == 0:
                 queue.append(child)
     if visited != len(ids):
+        # Kahn's remainder also includes descendants of a cycle. Follow incoming
+        # edges until a node repeats, so the notice names a node in the cycle.
+        remaining = {id for id, degree in indegree.items() if degree > 0}
+        parents: dict[UUID, list[UUID]] = {id: [] for id in remaining}
+        for edge in edges:
+            if edge.parent_lot_id in remaining and edge.child_lot_id in remaining:
+                parents[edge.child_lot_id].append(edge.parent_lot_id)
+        cycle_id = min(remaining)
+        seen: set[UUID] = set()
+        while cycle_id not in seen:
+            seen.add(cycle_id)
+            cycle_id = min(parents[cycle_id])
+        # Read through the same RLS session; never disclose an unauthorized name.
+        lot = db.get(Lot, cycle_id)
+        label = (lot.lot_code or lot.name) if lot else str(cycle_id)
         raise HTTPException(
             409,
-            f"Phát hiện chu trình trong dữ liệu phả hệ liên quan lô {min(id for id, degree in indegree.items() if degree > 0)}; cần kiểm tra dữ liệu nguồn.",
+            f"Phát hiện chu trình trong dữ liệu phả hệ liên quan lô {label}; cần kiểm tra dữ liệu nguồn.",
         )
     return sorted(roots)
 
@@ -44,16 +62,24 @@ def _roots_and_check_cycle(ids: set[UUID], edges: list[LotRelation]) -> list[UUI
 def get_lineage(
     db: Session, principal: Principal, lot_id: UUID, direction: str
 ) -> dict:
+    # This interactive read invokes short, nested RLS queries. Compiling them
+    # with JIT can dominate latency on hosts with different planner statistics.
+    # SET LOCAL applies only to this transaction and never changes DB defaults.
+    db.execute(text("SET LOCAL jit = off"))
     get_tenant_record(db, Lot, lot_id, principal, allow_historical=True)
     ancestors = direction in {"ancestors", "detail"}
     next_column = "parent_lot_id" if ancestors else "child_lot_id"
     join_column = "child_lot_id" if ancestors else "parent_lot_id"
     # Column names are chosen above; all external values are bound parameters.
     condition = " OR parent_lot_id = :lot_id" if direction == "detail" else ""
-    statement = text(f"""WITH RECURSIVE walk(id) AS (
+    # Materialize caller-visible edges once. Otherwise a long chain can scan
+    # the base table and evaluate relation RLS again at every recursive level.
+    statement = text(f"""WITH RECURSIVE visible_edges AS MATERIALIZED (
+      SELECT * FROM lot_relations
+    ), walk(id) AS (
       SELECT CAST(:lot_id AS uuid)
-      UNION SELECT r.{next_column} FROM lot_relations r JOIN walk w ON r.{join_column} = w.id
-    ) SELECT * FROM lot_relations WHERE parent_lot_id IN (SELECT id FROM walk)
+      UNION SELECT r.{next_column} FROM visible_edges r JOIN walk w ON r.{join_column} = w.id
+    ) SELECT * FROM visible_edges WHERE parent_lot_id IN (SELECT id FROM walk)
       AND child_lot_id IN (SELECT id FROM walk){condition}
     """)
     cache_key = (
@@ -87,10 +113,18 @@ def get_lineage(
     ids = {lot_id}
     for edge in edges:
         ids.update((edge.parent_lot_id, edge.child_lot_id))
-    roots = _roots_and_check_cycle(ids, edges)
+    roots = _roots_and_check_cycle(db, ids, edges)
+    # Evaluate organization RLS once, rather than once per node when the
+    # planner chooses a nested-loop join. The CTE uses the caller's RLS context.
+    visible_organizations = (
+        select(Organization).cte("lineage_organizations").prefix_with("MATERIALIZED")
+    )
+    organization = aliased(Organization, visible_organizations)
     rows = db.execute(
         select(Lot, Farm, lot_is_historical(Lot, principal))
         .outerjoin(Farm, Farm.id == Lot.farm_id)
+        .outerjoin(organization, Lot.current_holder_organization_id == organization.id)
+        .options(contains_eager(Lot.current_holder_organization, alias=organization))
         .where(Lot.id.in_(ids))
         .order_by(Lot.id)
     ).all()
@@ -141,7 +175,7 @@ def get_detail(db: Session, principal: Principal, lot_id: UUID) -> dict:
     ids = {lot_id}
     for edge in edges:
         ids.update((edge.parent_lot_id, edge.child_lot_id))
-    _roots_and_check_cycle(ids, edges)
+    _roots_and_check_cycle(db, ids, edges)
     event_count = (
         select(func.count())
         .select_from(Event)
