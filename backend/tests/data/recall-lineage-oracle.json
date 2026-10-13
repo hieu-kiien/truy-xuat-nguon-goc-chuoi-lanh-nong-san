@@ -1,0 +1,333 @@
+{
+  "meta": {
+    "fixture": "recall-4tier-3org-lineage",
+    "ticket": "N3-54",
+    "backlog": "S-39",
+    "parent_backlog": "E-06",
+    "description": "Bộ dữ liệu đáp án kiểm thử độc lập (Oracle First) cho kịch bản thu hồi mẫu 4 tầng qua 3 tổ chức, có lô gộp đa nguồn và lô đã tiêu thụ.",
+    "independent_counters": [
+      {
+        "name": "Thành viên kiểm định 1",
+        "role": "QA / Test Engineer",
+        "date": "2026-10-14",
+        "method": "Đếm tay độc lập từ sơ đồ thiết kế 4 tầng"
+      },
+      {
+        "name": "Thành viên kiểm định 2",
+        "role": "Backend Architect",
+        "date": "2026-10-14",
+        "method": "Đối soát chéo ma trận quan hệ cha-con và bảo toàn khối lượng"
+      }
+    ],
+    "non_functional_note": "Đáp án được viết trước mã truy vấn và traversal; không sinh bằng API hoặc thuật toán truy vấn."
+  },
+  "root_lots": {
+    "R1": {
+      "root_lot_label": "R1",
+      "origin_org_type": "farm",
+      "initial_quantity": "100.000",
+      "unit": "kg",
+      "descendants": [
+        {
+          "label": "A1",
+          "tier": 2,
+          "holder_org_type": "cooperative",
+          "quantity": "50.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "0.000",
+          "status": "closed",
+          "is_multi_source_merge": false
+        },
+        {
+          "label": "A2",
+          "tier": 2,
+          "holder_org_type": "cooperative",
+          "quantity": "50.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "0.000",
+          "status": "closed",
+          "is_multi_source_merge": false
+        },
+        {
+          "label": "M1",
+          "tier": 3,
+          "holder_org_type": "distribution",
+          "quantity": "100.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "0.000",
+          "status": "closed",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "M2",
+          "tier": 3,
+          "holder_org_type": "distribution",
+          "quantity": "100.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "0.000",
+          "status": "closed",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "D1",
+          "tier": 4,
+          "holder_org_type": "distribution",
+          "quantity": "40.000",
+          "remaining_quantity": "40.000",
+          "consumed_quantity": "0.000",
+          "status": "active",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "D2",
+          "tier": 4,
+          "holder_org_type": "distribution",
+          "quantity": "60.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "60.000",
+          "status": "consumed",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "E1",
+          "tier": 4,
+          "holder_org_type": "distribution",
+          "quantity": "50.000",
+          "remaining_quantity": "50.000",
+          "consumed_quantity": "0.000",
+          "status": "active",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "E2",
+          "tier": 4,
+          "holder_org_type": "distribution",
+          "quantity": "50.000",
+          "remaining_quantity": "50.000",
+          "consumed_quantity": "0.000",
+          "status": "active",
+          "is_multi_source_merge": true
+        }
+      ],
+      "summary": {
+        "total_descendants_count": 8,
+        "total_recoverable_kg": "140.000",
+        "total_consumed_kg": "60.000",
+        "involved_organizations_count": 3,
+        "has_multi_source_merge": true,
+        "has_consumed_lot": true
+      }
+    },
+    "R2": {
+      "root_lot_label": "R2",
+      "origin_org_type": "farm",
+      "initial_quantity": "100.000",
+      "unit": "kg",
+      "descendants": [
+        {
+          "label": "B1",
+          "tier": 2,
+          "holder_org_type": "cooperative",
+          "quantity": "50.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "0.000",
+          "status": "closed",
+          "is_multi_source_merge": false
+        },
+        {
+          "label": "B2",
+          "tier": 2,
+          "holder_org_type": "cooperative",
+          "quantity": "50.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "0.000",
+          "status": "closed",
+          "is_multi_source_merge": false
+        },
+        {
+          "label": "M1",
+          "tier": 3,
+          "holder_org_type": "distribution",
+          "quantity": "100.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "0.000",
+          "status": "closed",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "M3",
+          "tier": 3,
+          "holder_org_type": "distribution",
+          "quantity": "100.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "0.000",
+          "status": "closed",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "D1",
+          "tier": 4,
+          "holder_org_type": "distribution",
+          "quantity": "40.000",
+          "remaining_quantity": "40.000",
+          "consumed_quantity": "0.000",
+          "status": "active",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "D2",
+          "tier": 4,
+          "holder_org_type": "distribution",
+          "quantity": "60.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "60.000",
+          "status": "consumed",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "F1",
+          "tier": 4,
+          "holder_org_type": "distribution",
+          "quantity": "30.000",
+          "remaining_quantity": "30.000",
+          "consumed_quantity": "0.000",
+          "status": "active",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "F2",
+          "tier": 4,
+          "holder_org_type": "distribution",
+          "quantity": "70.000",
+          "remaining_quantity": "70.000",
+          "consumed_quantity": "0.000",
+          "status": "active",
+          "is_multi_source_merge": true
+        }
+      ],
+      "summary": {
+        "total_descendants_count": 8,
+        "total_recoverable_kg": "140.000",
+        "total_consumed_kg": "60.000",
+        "involved_organizations_count": 3,
+        "has_multi_source_merge": true,
+        "has_consumed_lot": true
+      }
+    },
+    "R3": {
+      "root_lot_label": "R3",
+      "origin_org_type": "farm",
+      "initial_quantity": "100.000",
+      "unit": "kg",
+      "descendants": [
+        {
+          "label": "C1",
+          "tier": 2,
+          "holder_org_type": "cooperative",
+          "quantity": "50.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "0.000",
+          "status": "closed",
+          "is_multi_source_merge": false
+        },
+        {
+          "label": "C2",
+          "tier": 2,
+          "holder_org_type": "cooperative",
+          "quantity": "50.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "0.000",
+          "status": "closed",
+          "is_multi_source_merge": false
+        },
+        {
+          "label": "M2",
+          "tier": 3,
+          "holder_org_type": "distribution",
+          "quantity": "100.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "0.000",
+          "status": "closed",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "M3",
+          "tier": 3,
+          "holder_org_type": "distribution",
+          "quantity": "100.000",
+          "remaining_quantity": "0.000",
+          "consumed_quantity": "0.000",
+          "status": "closed",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "E1",
+          "tier": 4,
+          "holder_org_type": "distribution",
+          "quantity": "50.000",
+          "remaining_quantity": "50.000",
+          "consumed_quantity": "0.000",
+          "status": "active",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "E2",
+          "tier": 4,
+          "holder_org_type": "distribution",
+          "quantity": "50.000",
+          "remaining_quantity": "50.000",
+          "consumed_quantity": "0.000",
+          "status": "active",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "F1",
+          "tier": 4,
+          "holder_org_type": "distribution",
+          "quantity": "30.000",
+          "remaining_quantity": "30.000",
+          "consumed_quantity": "0.000",
+          "status": "active",
+          "is_multi_source_merge": true
+        },
+        {
+          "label": "F2",
+          "tier": 4,
+          "holder_org_type": "distribution",
+          "quantity": "70.000",
+          "remaining_quantity": "70.000",
+          "consumed_quantity": "0.000",
+          "status": "active",
+          "is_multi_source_merge": true
+        }
+      ],
+      "summary": {
+        "total_descendants_count": 8,
+        "total_recoverable_kg": "200.000",
+        "total_consumed_kg": "0.000",
+        "involved_organizations_count": 3,
+        "has_multi_source_merge": true,
+        "has_consumed_lot": false
+      }
+    }
+  },
+  "lineage_sets": {
+    "ancestors": {
+      "R1": [], "R2": [], "R3": [],
+      "A1": ["R1"], "A2": ["R1"], "B1": ["R2"], "B2": ["R2"], "C1": ["R3"], "C2": ["R3"],
+      "M1": ["A1", "B1", "R1", "R2"], "M2": ["A2", "C1", "R1", "R3"], "M3": ["B2", "C2", "R2", "R3"],
+      "D1": ["M1", "A1", "B1", "R1", "R2"], "D2": ["M1", "A1", "B1", "R1", "R2"],
+      "E1": ["M2", "A2", "C1", "R1", "R3"], "E2": ["M2", "A2", "C1", "R1", "R3"],
+      "F1": ["M3", "B2", "C2", "R2", "R3"], "F2": ["M3", "B2", "C2", "R2", "R3"]
+    },
+    "descendants": {
+      "R1": ["A1", "A2", "M1", "M2", "D1", "D2", "E1", "E2"],
+      "R2": ["B1", "B2", "M1", "M3", "D1", "D2", "F1", "F2"],
+      "R3": ["C1", "C2", "M2", "M3", "E1", "E2", "F1", "F2"],
+      "A1": ["M1", "D1", "D2"], "A2": ["M2", "E1", "E2"], "B1": ["M1", "D1", "D2"],
+      "B2": ["M3", "F1", "F2"], "C1": ["M2", "E1", "E2"], "C2": ["M3", "F1", "F2"],
+      "M1": ["D1", "D2"], "M2": ["E1", "E2"], "M3": ["F1", "F2"],
+      "D1": [], "D2": [], "E1": [], "E2": [], "F1": [], "F2": []
+    }
+  }
+}
