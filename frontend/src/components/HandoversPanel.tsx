@@ -190,7 +190,7 @@ export function HandoversPanel({
             <label htmlFor="handover-lot">Lô hàng đang giữ</label>
             <select id="handover-lot" value={lotId} onChange={(event) => setLotId(event.target.value)} required disabled={lots.length === 0}>
               <option value="">Chọn lô</option>
-              {lots.map((lot) => <option key={lot.id} value={lot.id}>{lot.lot_code ?? lot.id.slice(0, 8)} · {lot.product?.name ?? lot.name}</option>)}
+              {lots.map((lot) => <option key={lot.id} value={lot.id}>{lot.lot_code ?? lot.id.slice(0, 8)} · {lot.name && lot.name !== lot.product?.name ? lot.name : (lot.product?.name ?? lot.name)}</option>)}
             </select>
           </div>
           <div className="form-field">

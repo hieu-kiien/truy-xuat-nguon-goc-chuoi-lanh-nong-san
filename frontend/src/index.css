@@ -1848,9 +1848,15 @@ code {
   color: #10b981;
 }
 
-.badge-admin {
+.badge-admin,
+.badge-organization_admin {
   background: rgba(59, 130, 246, 0.15);
   color: #3b82f6;
+}
+
+.badge-distributor {
+  background: rgba(6, 182, 212, 0.15);
+  color: #06b6d4;
 }
 
 .badge-system_admin {
