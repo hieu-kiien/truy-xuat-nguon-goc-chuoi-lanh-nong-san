@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
@@ -47,6 +48,7 @@ def _add_lot(db: Session, organization_id: UUID, farm_id: UUID, name: str) -> Lo
         current_holder_organization_id=organization_id,
         farm_id=farm_id,
         name=name,
+        harvested_on=date.today(),
         remaining_quantity=Decimal("0"),
         status="active",
     )

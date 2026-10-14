@@ -82,7 +82,7 @@ export function LotsPanel({ canReadLots, canCreateLots, canReadEvents = true, ca
             if (event.target.checked && selected.length === 0) { resetPage(); setProductId(lot.product_id ?? '') }
             setSelected(current => event.target.checked ? [...current, lot] : current.filter(item => item.id !== lot.id))
           }} />{reason && !selectedHere && <small className="panel-sub">{reason}</small>}</td>}
-          <th scope="row" data-label="Nông sản"><a className="lot-code-link" href={`/lots/${lot.id}`} onClick={event => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && event.button === 0) {event.preventDefault(); onOpenLot(lot.id)} }}>{lot.product?.name ?? lot.name}</a></th>
+          <th scope="row" data-label="Nông sản"><a className="lot-code-link" href={`/lots/${lot.id}`} onClick={event => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && event.button === 0) {event.preventDefault(); onOpenLot(lot.id)} }}>{lot.name && lot.name !== lot.product?.name ? lot.name : (lot.product?.name ?? lot.name)}</a></th>
           <td data-label="Mã truy xuất"><code>{code}</code></td><td data-label="Ngày thu hoạch">{lot.harvested_on ?? 'Lô dẫn xuất'}</td><td data-label="Còn lại">{lot.remaining_quantity} {lot.product?.unit}</td><td data-label="Trạng thái">{lotStatusLabel(lot.status)}</td><td data-label="Địa điểm">{lot.current_location?.name ?? 'Chưa gán địa điểm'}</td>
           {canReadEvents && <td data-label="Lịch sử"><a href={`/lots/${lot.id}?view=history`} className="ds-button ds-button-secondary">Xem lịch sử</a></td>}
         </tr>

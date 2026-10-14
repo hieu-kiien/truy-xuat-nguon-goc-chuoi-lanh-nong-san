@@ -153,7 +153,7 @@ export function LotDetailPanel({
             <div className="panel-head lot-detail-heading">
               <div>
                 <p className="panel-sub">Chi tiết lô hàng</p>
-                <h2 id="lot-detail-title">{lot.product?.name ?? lot.name}</h2>
+                <h2 id="lot-detail-title">{lot.name && lot.name !== lot.product?.name ? lot.name : (lot.product?.name ?? lot.name)}</h2>
                 <p className="panel-sub">Mã truy xuất: <code>{displayLotCode(lot)}</code></p>
                 <p className="panel-sub">Đơn vị đang giữ: <strong>{lot.current_holder_organization_name}</strong></p>
               </div>
