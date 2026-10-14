@@ -195,6 +195,11 @@ def main() -> None:
     parser.add_argument(
         "--workflow", action="store_true", help="Dựng bộ 18 lô bằng nghiệp vụ thật"
     )
+    parser.add_argument(
+        "--recall",
+        action="store_true",
+        help="Dựng bộ 18 lô mẫu thu hồi 4 tầng qua 3 tổ chức có lô tiêu thụ và lô gộp (N3-54)",
+    )
     args = parser.parse_args()
     if settings.APP_ENV not in {"development", "staging"} or not settings.DEMO_PASSWORD:
         raise RuntimeError("Seed cần development/staging và DEMO_PASSWORD rõ ràng.")
@@ -253,11 +258,15 @@ def main() -> None:
                         user.role_code,
                     )
                 )
-            ids = {} if args.workflow else seed_graph(db, principals)
+            ids = {} if (args.workflow or args.recall) else seed_graph(db, principals)
         if args.workflow:
             from app.seed_lineage_workflow import seed_workflow
 
             ids = seed_workflow(engine, principals)
+        elif args.recall:
+            from app.seed_recall_demo import seed_recall_workflow
+
+            ids = seed_recall_workflow(engine, principals)
         print("Seed ready: " + ", ".join(f"{k}={v}" for k, v in ids.items()))
     finally:
         engine.dispose()
