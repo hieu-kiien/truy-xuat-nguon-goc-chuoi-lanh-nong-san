@@ -11,6 +11,7 @@ const WORKSPACE_PATHS = new Set([
   '/products',
   '/farms',
   '/security',
+  '/audit',
   '/integrity',
   '/demo',
 ])
@@ -59,7 +60,7 @@ function tabForPath(pathname: string): WorkspaceTab {
   if (pathname === '/farms') return 'overview'
   if (pathname === '/handovers') return 'handovers'
   if (pathname === '/products') return 'products'
-  if (pathname === '/security') return 'security'
+  if (pathname === '/security' || pathname === '/audit') return 'security'
   if (pathname === '/integrity') return 'integrity'
   return 'lots'
 }
@@ -139,9 +140,36 @@ export default function App() {
       }
       setLocation(nextLocation)
     }
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return
+      }
+      const target = event.target instanceof Element ? event.target.closest('a') : null
+      if (!target || target.target || target.hasAttribute('download')) {
+        return
+      }
+      const href = target.getAttribute('href')
+      const workspaceTarget = safeWorkspacePath(href)
+      if (!workspaceTarget) {
+        return
+      }
+      event.preventDefault()
+      navigate(workspaceTarget)
+    }
     window.addEventListener('popstate', syncLocation)
-    return () => window.removeEventListener('popstate', syncLocation)
-  }, [])
+    document.addEventListener('click', handleDocumentClick)
+    return () => {
+      window.removeEventListener('popstate', syncLocation)
+      document.removeEventListener('click', handleDocumentClick)
+    }
+  }, [navigate])
 
   useEffect(() => {
     const root = document.documentElement

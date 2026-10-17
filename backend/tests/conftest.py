@@ -17,6 +17,8 @@ from app.models.identity import AuthSession, Organization, Role, User
 from app.models.integrity_check import IntegrityCheck
 from app.models.lot import Lot
 from app.models.lot_relation import LotRelation
+from app.models.recall_order import RecallOrder
+from app.models.shipment import Shipment, ShipmentLot
 
 
 def pytest_sessionstart(session):
@@ -151,11 +153,20 @@ def identity_factory(
                     delete(IntegrityCheck).where(IntegrityCheck.lot_id.in_(lot_ids))
                 )
                 admin_session.execute(delete(Event).where(Event.lot_id.in_(lot_ids)))
+                admin_session.execute(
+                    delete(RecallOrder).where(RecallOrder.root_lot_id.in_(lot_ids))
+                )
+                admin_session.execute(
+                    delete(ShipmentLot).where(ShipmentLot.lot_id.in_(lot_ids))
+                )
                 admin_session.execute(delete(Lot).where(Lot.id.in_(lot_ids)))
                 admin_session.execute(
                     text("ALTER TABLE integrity_checks ENABLE TRIGGER USER")
                 )
                 admin_session.execute(text("ALTER TABLE events ENABLE TRIGGER USER"))
+        admin_session.execute(
+            delete(Shipment).where(Shipment.organization_id.in_(created_organizations))
+        )
         admin_session.execute(
             delete(Farm).where(Farm.organization_id.in_(created_organizations))
         )
