@@ -272,6 +272,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'shipments:create',
     'shipments:read',
     'shipments:complete',
+    'telemetry:ingest',
+    'telemetry:read',
   ],
   transporter: [
     'auth:session',
@@ -285,6 +287,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'shipments:create',
     'shipments:read',
     'shipments:complete',
+    'telemetry:ingest',
+    'telemetry:read',
   ],
   distributor: [
     'locations:manage',
@@ -301,6 +305,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'shipments:create',
     'shipments:read',
     'shipments:complete',
+    'telemetry:ingest',
+    'telemetry:read',
   ],
   inspector: [
     'auth:session',
@@ -313,6 +319,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'recalls:read_all',
     'shipments:read',
     'shipments:read_all',
+    'telemetry:read',
+    'telemetry:read_all',
   ],
   organization_admin: [
     'locations:manage',
@@ -333,6 +341,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'shipments:create',
     'shipments:read',
     'shipments:complete',
+    'telemetry:ingest',
+    'telemetry:read',
   ],
   system_admin: [
     'auth:session',
@@ -355,6 +365,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'shipments:read',
     'shipments:complete',
     'shipments:read_all',
+    'telemetry:ingest',
+    'telemetry:read',
+    'telemetry:read_all',
   ],
 }
 
@@ -373,6 +386,12 @@ export function hasPermission(role: RoleCode, permission: string): boolean {
     return true
   }
   if (permission === 'products:read' && perms.includes('products:read_all')) {
+    return true
+  }
+  if (permission === 'shipments:read' && perms.includes('shipments:read_all')) {
+    return true
+  }
+  if (permission === 'telemetry:read' && perms.includes('telemetry:read_all')) {
     return true
   }
   return false

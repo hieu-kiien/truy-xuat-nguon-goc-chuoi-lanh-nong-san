@@ -19,6 +19,7 @@ from app.models.lot import Lot
 from app.models.lot_relation import LotRelation
 from app.models.recall_order import RecallOrder
 from app.models.shipment import Shipment, ShipmentLot
+from app.models.telemetry import TemperatureReading
 
 
 def pytest_sessionstart(session):
@@ -164,6 +165,21 @@ def identity_factory(
                     text("ALTER TABLE integrity_checks ENABLE TRIGGER USER")
                 )
                 admin_session.execute(text("ALTER TABLE events ENABLE TRIGGER USER"))
+        admin_session.execute(
+            text("ALTER TABLE temperature_readings DISABLE TRIGGER USER")
+        )
+        admin_session.execute(
+            delete(TemperatureReading).where(
+                TemperatureReading.shipment_id.in_(
+                    select(Shipment.id).where(
+                        Shipment.organization_id.in_(created_organizations)
+                    )
+                )
+            )
+        )
+        admin_session.execute(
+            text("ALTER TABLE temperature_readings ENABLE TRIGGER USER")
+        )
         admin_session.execute(
             delete(Shipment).where(Shipment.organization_id.in_(created_organizations))
         )

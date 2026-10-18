@@ -150,6 +150,17 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
                 role_ident
             )
         )
+    if "temperature_readings" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT ON temperature_readings TO {}").format(
+                role_ident
+            )
+        )
+        cursor.execute(
+            sql.SQL("REVOKE UPDATE, DELETE ON temperature_readings FROM {}").format(
+                role_ident
+            )
+        )
     cursor.execute(
         "SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public'"
     )
