@@ -334,7 +334,7 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
             else None
         )
         holder_org_type = (
-            lot.current_holder_organization.type
+            lot.current_holder_organization.organization_type
             if lot.current_holder_organization
             else None
         )
