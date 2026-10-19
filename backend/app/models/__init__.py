@@ -9,11 +9,12 @@ from app.models.lot_relation import LotRelation
 from app.models.product import Product
 from app.models.recall_order import RecallOrder, RecallOrderLot
 from app.models.shipment import Shipment, ShipmentLot
-from app.models.telemetry import TemperatureReading
+from app.models.telemetry import ColdChainViolation, TemperatureReading
 
 __all__ = [
     "AuditLog",
     "AuthSession",
+    "ColdChainViolation",
     "Event",
     "Farm",
     "Handover",

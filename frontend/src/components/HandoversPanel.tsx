@@ -244,10 +244,30 @@ export function HandoversPanel({
                   <span className={'handover-status handover-status-' + handover.status}>{statusText(handover.status)}</span>
                 </div>
                 {handover.note && <p className="handover-note">{handover.note}</p>}
+                {handover.has_cold_chain_violation && (
+                  <div
+                    className="alert-box alert-error"
+                    role="alert"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontWeight: 600,
+                      marginTop: '0.5rem',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    <span aria-hidden="true">⚠️</span>
+                    <span>
+                      Cảnh báo: Lô hàng này đã từng ghi nhận vi phạm nhiệt độ chuỗi lạnh trong quá trình vận chuyển! Vui lòng kiểm tra kỹ chất lượng thực tế trước khi bấm tiếp nhận.
+                    </span>
+                  </div>
+                )}
                 {handover.status === 'pending' && handover.overdue_at && <p className="alert-box alert-error" role="status">Quá hạn xác nhận bàn giao · Bên nhận vẫn có thể xác nhận nhận lô.</p>}
                 {handover.rejection_reason && <p className="handover-rejection">Lý do từ chối: {handover.rejection_reason}</p>}
                 <time className="panel-sub" dateTime={handover.created_at}>{new Date(handover.created_at).toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' })}</time>
                 {!task && <TaskLink href={`/handovers?task=review&id=${handover.id}`} secondary>{handover.status === 'pending' && canResolve && view === 'incoming' ? 'Xử lý yêu cầu' : 'Xem yêu cầu'}</TaskLink>}
+
                 {task === 'review' && canResolve && incoming.some(item => item.id === handover.id) && handover.status === 'pending' && (
                   <div className="handover-actions">
                     <button type="button" className="ds-button ds-button-brand" disabled={saving} onClick={() => void accept(handover)}>Xác nhận nhận lô</button>

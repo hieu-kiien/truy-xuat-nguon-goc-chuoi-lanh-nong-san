@@ -94,6 +94,8 @@ export function EventTimeline({
         return { label: 'Mở lệnh thu hồi', color: '#dc2626' }
       case 'recall_completed':
         return { label: 'Hoàn tất thu hồi', color: '#16a34a' }
+      case 'cold_chain_violation':
+        return { label: 'Vi phạm nhiệt độ chuỗi lạnh', color: '#dc2626' }
       default:
         return { label: type, color: '#4b5563' }
     }
@@ -310,6 +312,42 @@ export function EventTimeline({
 
                 <p className="panel-sub">Ghi nhận bởi: {evt.organization_name}</p>
                 {evt.payload_redacted && <p className="panel-sub">Chi tiết sự kiện được ẩn theo quyền truy cập. Kết quả toàn vẹn do máy chủ kiểm tra trên dữ liệu gốc; bản hiển thị này không dùng để tính lại hash.</p>}
+
+                {evt.event_type.toLowerCase() === 'cold_chain_violation' && (
+                  <div
+                    style={{
+                      backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                      border: '1px solid #dc2626',
+                      borderRadius: '0.375rem',
+                      padding: '0.625rem 0.875rem',
+                      marginBottom: '0.75rem',
+                      color: '#dc2626',
+                      fontSize: '0.8125rem',
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <span aria-hidden="true">⚠️</span>
+                      <span>CẢNH BÁO VI PHẠM NHIỆT ĐỘ CHUỖI LẠNH</span>
+                    </div>
+                    <div>
+                      {evt.payload?.duration_minutes !== undefined && (
+                        <span>Thời lượng vi phạm: <strong>{String(evt.payload.duration_minutes)} phút</strong>. </span>
+                      )}
+                      {evt.payload?.peak_temperature_celsius !== undefined && (
+                        <span>Nhiệt độ đỉnh: <strong>{String(evt.payload.peak_temperature_celsius)}°C</strong>. </span>
+                      )}
+                      {Boolean(evt.payload?.shipment_code) && (
+                        <span>Chuyến: <strong>{String(evt.payload?.shipment_code)}</strong>. </span>
+                      )}
+                      {Boolean(evt.payload?.reefer_container_code) && (
+                        <span>Thùng lạnh: <strong>{String(evt.payload?.reefer_container_code)}</strong>.</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+
                 <details className="event-details"><summary>Xem chi tiết hoạt động và mã kiểm chứng</summary>
                 {evt.payload && Object.keys(evt.payload).length > 0 && (
                   <div
@@ -333,7 +371,7 @@ export function EventTimeline({
                       {Object.entries(evt.payload).map(([k, v]) => (
                         <div key={k}>
                           <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
-                            {({location_name: 'Địa điểm', location: 'Địa điểm hoạt động', temperature_celsius: 'Nhiệt độ (°C)', parents: 'Các lô nguồn', children: 'Các lô con', operation: 'Thao tác', simulated: 'Dữ liệu demo', location_address: 'Địa chỉ', from_location_id: 'Địa điểm cũ', to_location_id: 'Địa điểm mới', location_id: 'Mã địa điểm', quantity: 'Khối lượng', note: 'Ghi chú'} as Record<string, string>)[k] ?? k}:{' '}
+                            {({location_name: 'Địa điểm', location: 'Địa điểm hoạt động', temperature_celsius: 'Nhiệt độ (°C)', parents: 'Các lô nguồn', children: 'Các lô con', operation: 'Thao tác', simulated: 'Dữ liệu demo', location_address: 'Địa chỉ', from_location_id: 'Địa điểm cũ', to_location_id: 'Địa điểm mới', location_id: 'Mã địa điểm', quantity: 'Khối lượng', note: 'Ghi chú', shipment_id: 'Mã ID chuyến', shipment_code: 'Mã chuyến', reefer_container_code: 'Thùng lạnh', container_code: 'Thùng lạnh', started_at: 'Bắt đầu vượt', ended_at: 'Kết thúc vượt', duration_minutes: 'Thời lượng (phút)', peak_temperature_celsius: 'Nhiệt độ đỉnh (°C)', violation_type: 'Loại vi phạm'} as Record<string, string>)[k] ?? k}:{' '}
                           </span>
                           <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
                             {v == null ? '—' : typeof v === 'object'
@@ -345,6 +383,7 @@ export function EventTimeline({
                     </div>
                   </div>
                 )}
+
 
                 {/* Hash Chain Info */}
                 <div

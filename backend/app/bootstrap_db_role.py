@@ -147,7 +147,7 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
         cursor.execute(sql.SQL("REVOKE DELETE ON shipments FROM {}").format(role_ident))
         cursor.execute(
             sql.SQL(
-                "GRANT UPDATE (status, completed_at, notes) ON shipments TO {}"
+                "GRANT UPDATE (status, completed_at, notes, last_reading_at) ON shipments TO {}"
             ).format(role_ident)
         )
     if "shipment_lots" in tables:
@@ -172,6 +172,16 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
                 role_ident
             )
         )
+    if "cold_chain_violations" in tables:
+        cursor.execute(
+            sql.SQL(
+                "GRANT SELECT, INSERT, UPDATE ON cold_chain_violations TO {}"
+            ).format(role_ident)
+        )
+        cursor.execute(
+            sql.SQL("REVOKE DELETE ON cold_chain_violations FROM {}").format(role_ident)
+        )
+
     cursor.execute(
         "SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public'"
     )

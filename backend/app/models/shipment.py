@@ -1,6 +1,7 @@
 """Models for cold chain shipments and lot containment (N3-58)."""
 
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -8,6 +9,8 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -75,6 +78,33 @@ class Shipment(Base):
         server_default=text("'in_transit'"),
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    effective_min_temp: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("2.00"),
+        server_default=text("2.00"),
+    )
+    effective_max_temp: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("8.00"),
+        server_default=text("8.00"),
+    )
+    effective_delay_minutes: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=30,
+        server_default=text("30"),
+    )
+    effective_merge_gap_minutes: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=5,
+        server_default=text("5"),
+    )
+    last_reading_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
@@ -90,6 +120,18 @@ class Shipment(Base):
         back_populates="shipment",
         cascade="all, delete-orphan",
         order_by="ShipmentLot.loaded_at",
+    )
+    readings = relationship(
+        "TemperatureReading",
+        back_populates="shipment",
+        cascade="all, delete-orphan",
+        order_by="TemperatureReading.recorded_at",
+    )
+    violations = relationship(
+        "ColdChainViolation",
+        back_populates="shipment",
+        cascade="all, delete-orphan",
+        order_by="ColdChainViolation.started_at",
     )
 
 

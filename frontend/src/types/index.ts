@@ -205,7 +205,20 @@ export interface Handover {
   rejection_reason: string | null
   created_at: string
   overdue_at: string | null
+  has_cold_chain_violation?: boolean
 }
+
+export interface ColdChainViolation {
+  id?: string
+  shipment_id?: string
+  violation_type: 'high_temp' | 'low_temp' | string
+  started_at: string
+  ended_at?: string | null
+  duration_minutes?: number | null
+  peak_temperature_celsius: number
+  is_settled?: boolean
+}
+
 
 export interface HandoverPayload {
   lot_id: string

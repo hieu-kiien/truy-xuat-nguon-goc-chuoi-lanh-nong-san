@@ -29,6 +29,7 @@ class EventCreate(BaseModel):
             "recall_completed",
             "shipment_loaded",
             "shipment_unloaded",
+            "cold_chain_violation",
         }:
             raise ValueError(
                 "Sự kiện này chỉ được tạo qua thao tác nghiệp vụ tương ứng."

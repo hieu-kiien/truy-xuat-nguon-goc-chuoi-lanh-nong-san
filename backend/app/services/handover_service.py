@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, aliased
 
 from app.core.auth import Principal
 from app.core.config import settings
+from app.models.event import Event
 from app.models.handover import Handover
 from app.models.identity import Organization
 from app.models.lot import Lot
@@ -47,6 +48,21 @@ def list_handovers(db: Session, principal: Principal, *, incoming: bool) -> list
         .where(party_column == principal.organization_id)
         .order_by(Handover.created_at.asc(), Handover.id.asc())
     ).all()
+
+    lot_ids = [lot.id for _, lot, _, _ in rows]
+    violated_lot_ids: set[UUID] = set()
+    if lot_ids:
+        violated_lot_ids = set(
+            db.scalars(
+                select(Event.lot_id)
+                .where(
+                    Event.lot_id.in_(lot_ids),
+                    Event.event_type == "cold_chain_violation",
+                )
+                .distinct()
+            ).all()
+        )
+
     return [
         {
             "id": handover.id,
@@ -62,6 +78,7 @@ def list_handovers(db: Session, principal: Principal, *, incoming: bool) -> list
             "rejection_reason": handover.rejection_reason,
             "created_at": handover.created_at,
             "overdue_at": handover.overdue_at,
+            "has_cold_chain_violation": lot.id in violated_lot_ids,
         }
         for handover, lot, sender_name, recipient_name in rows
     ]
