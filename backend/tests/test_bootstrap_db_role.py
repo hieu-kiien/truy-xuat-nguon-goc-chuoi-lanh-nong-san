@@ -120,12 +120,20 @@ def test_grant_existing_table_permissions():
             ("products",),
             ("events",),
             ("handovers",),
+            ("shipments",),
+            ("product_cold_chain_configs",),
         ],
         [
             ("current_holder_organization_id",),
             ("status",),
         ],
         [("overdue_at",)],
+        [
+            ("cold_chain_min_temp_celsius",),
+            ("cold_chain_max_temp_celsius",),
+            ("cold_chain_delay_minutes",),
+            ("cold_chain_config_resolved_at",),
+        ],
         [
             ("app_current_user_id",),
             ("app_current_organization_id",),
@@ -135,3 +143,12 @@ def test_grant_existing_table_permissions():
 
     _grant_existing_table_permissions(mock_cursor, "ttcs_app")
     assert mock_cursor.execute.call_count >= 20
+    executed_queries = [str(call[0][0]) for call in mock_cursor.execute.call_args_list]
+    assert any(
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON product_cold_chain_configs" in query
+        for query in executed_queries
+    ), "N3-62 config table must be readable and writable by the app role"
+    assert any(
+        "GRANT UPDATE (cold_chain_min_temp_celsius" in query
+        for query in executed_queries
+    ), "N3-62 shipment snapshot columns must be updatable by the app role"

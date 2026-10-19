@@ -17,6 +17,7 @@ from app.schemas.telemetry import (
     TelemetryIngestResponse,
     TelemetryViolationRead,
 )
+from app.services import cold_chain_config_service
 from app.services.cold_chain_detector import detect_temperature_violations
 
 logger = logging.getLogger(__name__)
@@ -118,7 +119,12 @@ def ingest_telemetry_readings(
         db.execute(stmt)
         db.commit()
 
-    # 5. Fetch all readings for shipment to evaluate sliding-window violations
+    # 5. Freeze (or reuse) the shipment's strictest per-product limits (N3-62)
+    limits, _from_snapshot = cold_chain_config_service.get_or_snapshot_shipment_limits(
+        db, shipment
+    )
+
+    # 6. Fetch all readings for shipment to evaluate sliding-window violations
     all_readings = list(
         db.scalars(
             select(TemperatureReading)
@@ -127,7 +133,12 @@ def ingest_telemetry_readings(
         ).all()
     )
 
-    raw_violations = detect_temperature_violations(all_readings)
+    raw_violations = detect_temperature_violations(
+        all_readings,
+        min_temp_celsius=float(limits.min_temp_celsius),
+        max_temp_celsius=float(limits.max_temp_celsius),
+        delay_minutes=limits.delay_minutes,
+    )
     violations_summary = [
         TelemetryViolationRead(
             violation_type=v.violation_type,
@@ -148,6 +159,7 @@ def ingest_telemetry_readings(
         total_readings=len(all_readings),
         violations_detected=len(violations_summary),
         violations=violations_summary,
+        applied_limits=limits.to_applied_read(from_snapshot=True),
     )
 
 
@@ -186,7 +198,17 @@ def get_shipment_violations(
 ) -> list[TelemetryViolationRead]:
     """Detect and return confirmed temperature violations for a given shipment."""
     readings = list_shipment_readings(db, principal, shipment_id)
-    raw = detect_temperature_violations(readings)
+    shipment = db.get(Shipment, shipment_id)
+    assert shipment is not None  # list_shipment_readings already validated existence
+    limits, _from_snapshot = cold_chain_config_service.effective_shipment_limits(
+        db, shipment
+    )
+    raw = detect_temperature_violations(
+        readings,
+        min_temp_celsius=float(limits.min_temp_celsius),
+        max_temp_celsius=float(limits.max_temp_celsius),
+        delay_minutes=limits.delay_minutes,
+    )
     return [
         TelemetryViolationRead(
             violation_type=v.violation_type,

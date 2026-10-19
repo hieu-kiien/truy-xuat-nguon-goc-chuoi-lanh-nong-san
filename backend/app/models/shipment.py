@@ -1,6 +1,7 @@
 """Models for cold chain shipments and lot containment (N3-58)."""
 
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -8,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -39,6 +41,10 @@ class Shipment(Base):
         CheckConstraint(
             "(status = 'in_transit' AND completed_at IS NULL) OR (status = 'completed' AND completed_at IS NOT NULL)",
             name="ck_shipments_completion_status",
+        ),
+        CheckConstraint(
+            "cold_chain_delay_minutes IS NULL OR (cold_chain_delay_minutes >= 1 AND cold_chain_delay_minutes <= 1440)",
+            name="ck_shipments_cold_chain_delay_range",
         ),
         Index("ix_shipments_organization_id", "organization_id"),
         Index("ix_shipments_status", "status"),
@@ -75,6 +81,19 @@ class Shipment(Base):
         server_default=text("'in_transit'"),
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Snapshot of the strictest per-product cold chain limits applied to this
+    # shipment (N3-62). Frozen when the trip opens so later configuration
+    # changes never recompute already-recorded violations.
+    cold_chain_min_temp_celsius: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )
+    cold_chain_max_temp_celsius: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )
+    cold_chain_delay_minutes: Mapped[int | None] = mapped_column(nullable=True)
+    cold_chain_config_resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )

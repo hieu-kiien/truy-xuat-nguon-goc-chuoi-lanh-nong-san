@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.cold_chain_config import AppliedColdChainLimitsRead
+
 
 class TelemetryReadingItem(BaseModel):
     """Single temperature reading captured by a reefer sensor."""
@@ -64,3 +66,4 @@ class TelemetryIngestResponse(BaseModel):
     total_readings: int
     violations_detected: int
     violations: list[TelemetryViolationRead] = Field(default_factory=list)
+    applied_limits: AppliedColdChainLimitsRead

@@ -9,13 +9,14 @@ from sqlalchemy.orm import Session
 from app.core.auth import Principal, get_current_principal
 from app.core.authorization import require_permission
 from app.core.database import get_db
+from app.schemas.cold_chain_config import ShipmentColdChainLimitsRead
 from app.schemas.telemetry import (
     TelemetryIngestRequest,
     TelemetryIngestResponse,
     TelemetryReadingRead,
     TelemetryViolationRead,
 )
-from app.services import telemetry_service
+from app.services import cold_chain_config_service, telemetry_service
 
 router = APIRouter()
 
@@ -47,6 +48,20 @@ def get_shipment_readings(
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> list[TelemetryReadingRead]:
     return telemetry_service.list_shipment_readings(db, principal, shipment_id)
+
+
+@router.get(
+    "/shipments/{shipment_id}/cold-chain-limits",
+    response_model=ShipmentColdChainLimitsRead,
+    summary="Get the effective strictest cold chain limits of a cold shipment (N3-62)",
+)
+@require_permission("telemetry:read")
+def get_shipment_cold_chain_limits(
+    shipment_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> ShipmentColdChainLimitsRead:
+    return cold_chain_config_service.read_shipment_limits(db, principal, shipment_id)
 
 
 @router.get(
