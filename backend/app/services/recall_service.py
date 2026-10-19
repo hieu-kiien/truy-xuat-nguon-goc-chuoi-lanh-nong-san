@@ -245,7 +245,7 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
         select(Organization).cte("recall_organizations").prefix_with("MATERIALIZED")
     )
     organization = aliased(Organization, visible_organizations)
-    origin_organization = aliased(Organization, visible_organizations)
+    origin_organization = aliased(Organization, name="origin_organizations")
 
     rows = db.execute(
         select(
