@@ -212,25 +212,31 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
     db.execute(text("SET LOCAL jit = off"))
     get_tenant_record(db, Lot, lot_id, principal, allow_historical=True)
 
-    # Recursive forward walk to find all descendants starting from lot_id
+    # Recursive forward walk to find all descendants starting from lot_id,
+    # returning all incoming edges to nodes in walk (including external merge parents).
     statement = text("""WITH RECURSIVE visible_edges AS MATERIALIZED (
       SELECT * FROM lot_relations
     ), walk(id) AS (
       SELECT CAST(:lot_id AS uuid)
       UNION SELECT r.child_lot_id FROM visible_edges r JOIN walk w ON r.parent_lot_id = w.id
-    ) SELECT * FROM visible_edges WHERE parent_lot_id IN (SELECT id FROM walk)
-      AND child_lot_id IN (SELECT id FROM walk)
+    ) SELECT * FROM visible_edges WHERE child_lot_id IN (SELECT id FROM walk)
     """)
 
-    edges = list(
+    all_edges = list(
         db.scalars(
             select(LotRelation).from_statement(statement), {"lot_id": lot_id}
         ).all()
     )
 
     ids = {lot_id}
-    for edge in edges:
-        ids.update((edge.parent_lot_id, edge.child_lot_id))
+    for edge in all_edges:
+        ids.add(edge.child_lot_id)
+
+    edges = [
+        edge
+        for edge in all_edges
+        if edge.parent_lot_id in ids and edge.child_lot_id in ids
+    ]
 
     _roots_and_check_cycle(db, ids, edges)
 
@@ -255,16 +261,19 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
             403, "Không đủ quyền truy cập toàn bộ phả hệ thu hồi của lô."
         )
 
-    # Build adjacency maps within the descendant subgraph
+    # Build adjacency maps within the descendant subgraph and full parent list
     parents: dict[UUID, list[UUID]] = defaultdict(list)
     children: dict[UUID, list[UUID]] = defaultdict(list)
+    all_parents: dict[UUID, list[UUID]] = defaultdict(list)
+    for edge in all_edges:
+        all_parents[edge.child_lot_id].append(edge.parent_lot_id)
     for edge in edges:
         parents[edge.child_lot_id].append(edge.parent_lot_id)
         children[edge.parent_lot_id].append(edge.child_lot_id)
 
     # Topological traversal from root_lot to compute tier and multi-source merge status
     tiers: dict[UUID, int] = {lot_id: 1}
-    multi_source_merge: dict[UUID, bool] = {lot_id: len(parents[lot_id]) > 1}
+    multi_source_merge: dict[UUID, bool] = {lot_id: len(all_parents[lot_id]) > 1}
 
     indegree = {node_id: len(parents[node_id]) for node_id in ids}
     queue: deque[UUID] = deque([lot_id])
@@ -285,13 +294,13 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
         node_parents = parents[node_id]
         if node_parents:
             tiers[node_id] = max(tiers.get(p, 1) for p in node_parents) + 1
-            is_multi = len(node_parents) > 1 or any(
+            is_multi = len(all_parents[node_id]) > 1 or any(
                 multi_source_merge.get(p, False) for p in node_parents
             )
             multi_source_merge[node_id] = is_multi
         else:
             tiers[node_id] = 2
-            multi_source_merge[node_id] = False
+            multi_source_merge[node_id] = len(all_parents[node_id]) > 1
 
     lot_items: dict[UUID, RecallLotItem] = {}
     involved_org_names: set[str] = set()
@@ -354,7 +363,7 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
             unit=unit,
             harvested_on=lot.harvested_on,
             historical_only=historical,
-            parent_lot_ids=parents[lot.id],
+            parent_lot_ids=all_parents[lot.id],
         )
 
         if historical:

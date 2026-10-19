@@ -5,7 +5,12 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import uuid4
 
+import pytest
+
 from app.schemas.recall import RecallLotItem, RecallReport, RecallSummary
+from tests import test_lineage_seed as seed_fixtures
+
+seed_namespace = seed_fixtures.seed_namespace
 
 
 def load_recall_oracle() -> dict:
@@ -132,3 +137,93 @@ def test_recall_schemas_validation():
     assert len(dumped["descendants"]) == 1
     assert dumped["summary"]["total_recoverable_kg"] == Decimal("40.000")
     assert dumped["summary"]["has_multi_source_merge"] is True
+
+
+@pytest.mark.asyncio
+async def test_recall_report_api_matches_oracle_for_all_root_lots(
+    request, admin_engine
+):
+    """Verify GET /api/v1/lots/{lot_id}/recall matches independent oracle for R1, R2, R3."""
+    from app.core.auth import Principal
+    from app.seed_recall_demo import seed_recall_workflow
+    from tests.lineage_helpers import client, login
+
+    namespace = request.getfixturevalue("seed_namespace")
+    identities = request.getfixturevalue("identity_factory")
+    actors = [
+        identities(role=role, organization_type=kind)
+        for role, kind in [
+            ("grower", "farm"),
+            ("cooperative", "cooperative"),
+            ("distributor", "distribution"),
+        ]
+    ]
+    inspector = identities(role="inspector", organization_type="inspection")
+    principals = [
+        Principal(
+            actor.user_id,
+            actor.email,
+            "Seed",
+            actor.organization_id,
+            "Seed",
+            kind,
+            role,
+        )
+        for actor, (role, kind) in zip(
+            actors,
+            [
+                ("grower", "farm"),
+                ("cooperative", "cooperative"),
+                ("distributor", "distribution"),
+            ],
+            strict=True,
+        )
+    ]
+
+    ids = seed_recall_workflow(admin_engine, principals, namespace)
+    oracle = load_recall_oracle()
+
+    async with client() as api:
+        await login(api, inspector)
+        for root_label, expected in oracle["root_lots"].items():
+            res = await api.get(f"/api/v1/lots/{ids[root_label]}/recall")
+            assert res.status_code == 200, res.text
+            data = res.json()
+
+            summary = data["summary"]
+            exp_sum = expected["summary"]
+            assert (
+                summary["total_descendants_count"] == exp_sum["total_descendants_count"]
+            )
+            assert Decimal(str(summary["total_recoverable_kg"])) == Decimal(
+                exp_sum["total_recoverable_kg"]
+            )
+            assert Decimal(str(summary["total_consumed_kg"])) == Decimal(
+                exp_sum["total_consumed_kg"]
+            )
+            assert (
+                summary["involved_organizations_count"]
+                == exp_sum["involved_organizations_count"]
+            )
+            assert (
+                summary["has_multi_source_merge"] == exp_sum["has_multi_source_merge"]
+            )
+            assert summary["has_consumed_lot"] == exp_sum["has_consumed_lot"]
+
+            actual_by_label = {
+                item["name"].rsplit(" — ", 1)[-1]: item for item in data["descendants"]
+            }
+            assert set(actual_by_label.keys()) == {
+                d["label"] for d in expected["descendants"]
+            }
+            for exp_desc in expected["descendants"]:
+                act = actual_by_label[exp_desc["label"]]
+                assert act["tier"] == exp_desc["tier"]
+                assert act["status"] == exp_desc["status"]
+                assert act["is_multi_source_merge"] == exp_desc["is_multi_source_merge"]
+                assert Decimal(str(act["remaining_quantity"])) == Decimal(
+                    exp_desc["remaining_quantity"]
+                )
+                assert Decimal(str(act["consumed_quantity"])) == Decimal(
+                    exp_desc["consumed_quantity"]
+                )
