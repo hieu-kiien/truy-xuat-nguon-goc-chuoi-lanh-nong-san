@@ -248,15 +248,18 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
     origin_organization = aliased(Organization, visible_organizations)
 
     rows = db.execute(
-        select(Lot, Product, Location, lot_is_historical(Lot, principal))
+        select(
+            Lot,
+            Product,
+            Location,
+            lot_is_historical(Lot, principal),
+            origin_organization.name,
+        )
         .outerjoin(Product, Product.id == Lot.product_id)
         .outerjoin(Location, Location.id == Lot.current_location_id)
         .outerjoin(organization, Lot.current_holder_organization_id == organization.id)
         .outerjoin(origin_organization, Lot.organization_id == origin_organization.id)
-        .options(
-            contains_eager(Lot.current_holder_organization, alias=organization),
-            contains_eager(Lot.organization, alias=origin_organization),
-        )
+        .options(contains_eager(Lot.current_holder_organization, alias=organization))
         .where(Lot.id.in_(ids))
         .order_by(Lot.id)
     ).all()
@@ -310,7 +313,7 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
     lot_items: dict[UUID, RecallLotItem] = {}
     involved_org_names: set[str] = set()
 
-    for lot, product, location, historical in rows:
+    for lot, product, location, historical, origin_org_name in rows:
         unit = product.unit if product else "kg"
         status = lot.status
         tier = tiers.get(lot.id, 1)
@@ -345,8 +348,8 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
         )
         if holder_org_name:
             involved_org_names.add(holder_org_name)
-        if lot.organization and lot.organization.name:
-            involved_org_names.add(lot.organization.name)
+        if origin_org_name:
+            involved_org_names.add(origin_org_name)
 
         loc_read = LocationRead.model_validate(location) if location else None
 
