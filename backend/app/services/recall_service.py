@@ -1,18 +1,35 @@
-"""Service layer for managing product recalls and blocking affected lots."""
+"""Service layer for managing product recalls, lineage reporting, and blocking affected lots."""
 
+from collections import defaultdict, deque
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased, contains_eager
 
 from app.core.auth import Principal
 from app.core.lot_codes import generate_lot_code
+from app.core.tenancy import get_tenant_record, lot_is_historical
+from app.models.identity import Organization
+from app.models.location import Location
 from app.models.lot import Lot
+from app.models.lot_relation import LotRelation
+from app.models.product import Product
 from app.models.recall_order import DEFAULT_RECALL_REASON, RecallOrder, RecallOrderLot
-from app.schemas.recall import RecallCreate, RecallOrderCreate
+from app.schemas.location import LocationRead
+from app.schemas.recall import (
+    RecallCreate,
+    RecallLotItem,
+    RecallOrderCreate,
+    RecallReport,
+    RecallSummary,
+)
 from app.services import event_service
+from app.services.traversal_service import _roots_and_check_cycle
+
+ZERO_QUANTITY = Decimal("0.000")
 
 
 def _generate_recall_code(db: Session) -> str:
@@ -29,15 +46,7 @@ def _generate_recall_code(db: Session) -> str:
 
 
 def get_blocking_recall(db: Session, lot_id: UUID) -> RecallOrder | None:
-    """Return the recall order currently blocking this lot, or None.
-
-    A lot is blocked when:
-    1. It is explicitly listed in recall_order_lots of an open recall order, OR
-       a completed recall order where incident_flag is still True.
-    2. Or the lot itself (or one of its ancestors in lot_relations) is the
-       root_lot_id of an open recall order (when no explicit incident_flag=False
-       override exists).
-    """
+    """Return the recall order currently blocking this lot, or None."""
     explicit_entry = db.execute(
         select(RecallOrder, RecallOrderLot)
         .join(RecallOrderLot, RecallOrderLot.recall_order_id == RecallOrder.id)
@@ -53,7 +62,6 @@ def get_blocking_recall(db: Session, lot_id: UUID) -> RecallOrder | None:
             return order
         return None
 
-    # Check if lot_id or any ancestor in lot_relations has an open RecallOrder
     ancestor_stmt = text("""
         WITH RECURSIVE ancestors(id) AS (
             SELECT CAST(:lot_id AS uuid)
@@ -370,3 +378,223 @@ def update_incident_flag(
 
     entry.incident_flag = incident_flag
     db.commit()
+
+
+# --- N3-51: Recall Lineage Reporting ---
+
+
+def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
+    """Traverse all descendant lots to generate a comprehensive recall report."""
+    db.execute(text("SET LOCAL jit = off"))
+    get_tenant_record(db, Lot, lot_id, principal, allow_historical=True)
+
+    statement = text("""WITH RECURSIVE visible_edges AS MATERIALIZED (
+      SELECT * FROM lot_relations
+    ), walk(id) AS (
+      SELECT CAST(:lot_id AS uuid)
+      UNION SELECT r.child_lot_id FROM visible_edges r JOIN walk w ON r.parent_lot_id = w.id
+    ) SELECT * FROM visible_edges WHERE child_lot_id IN (SELECT id FROM walk)
+    """)
+
+    all_edges = list(
+        db.scalars(
+            select(LotRelation).from_statement(statement), {"lot_id": lot_id}
+        ).all()
+    )
+
+    ids = {lot_id}
+    for edge in all_edges:
+        ids.add(edge.child_lot_id)
+
+    edges = [
+        edge
+        for edge in all_edges
+        if edge.parent_lot_id in ids and edge.child_lot_id in ids
+    ]
+
+    _roots_and_check_cycle(db, ids, edges)
+
+    visible_organizations = (
+        select(Organization).cte("recall_organizations").prefix_with("MATERIALIZED")
+    )
+    organization = aliased(Organization, visible_organizations)
+    origin_organization = aliased(Organization, name="origin_organizations")
+
+    rows = db.execute(
+        select(
+            Lot,
+            Product,
+            Location,
+            lot_is_historical(Lot, principal),
+            origin_organization.name,
+        )
+        .outerjoin(Product, Product.id == Lot.product_id)
+        .outerjoin(Location, Location.id == Lot.current_location_id)
+        .outerjoin(organization, Lot.current_holder_organization_id == organization.id)
+        .outerjoin(origin_organization, Lot.organization_id == origin_organization.id)
+        .options(contains_eager(Lot.current_holder_organization, alias=organization))
+        .where(Lot.id.in_(ids))
+        .order_by(Lot.id)
+    ).all()
+
+    if len(rows) != len(ids):
+        raise HTTPException(
+            403, "Không đủ quyền truy cập toàn bộ phả hệ thu hồi của lô."
+        )
+
+    parents: dict[UUID, list[UUID]] = defaultdict(list)
+    children: dict[UUID, list[UUID]] = defaultdict(list)
+    all_parents: dict[UUID, list[UUID]] = defaultdict(list)
+    for edge in all_edges:
+        all_parents[edge.child_lot_id].append(edge.parent_lot_id)
+    for edge in edges:
+        parents[edge.child_lot_id].append(edge.parent_lot_id)
+        children[edge.parent_lot_id].append(edge.child_lot_id)
+
+    tiers: dict[UUID, int] = {lot_id: 1}
+    multi_source_merge: dict[UUID, bool] = {lot_id: len(all_parents[lot_id]) > 1}
+
+    indegree = {node_id: len(parents[node_id]) for node_id in ids}
+    queue: deque[UUID] = deque([lot_id])
+    topo_order: list[UUID] = []
+
+    while queue:
+        current = queue.popleft()
+        topo_order.append(current)
+        for child_id in children[current]:
+            indegree[child_id] -= 1
+            if indegree[child_id] == 0:
+                queue.append(child_id)
+
+    for node_id in topo_order:
+        if node_id == lot_id:
+            continue
+        node_parents = parents[node_id]
+        if node_parents:
+            tiers[node_id] = max(tiers.get(p, 1) for p in node_parents) + 1
+            is_multi = len(all_parents[node_id]) > 1 or any(
+                multi_source_merge.get(p, False) for p in node_parents
+            )
+            multi_source_merge[node_id] = is_multi
+        else:
+            tiers[node_id] = 2
+            multi_source_merge[node_id] = len(all_parents[node_id]) > 1
+
+    lot_items: dict[UUID, RecallLotItem] = {}
+    involved_org_names: set[str] = set()
+
+    for lot, product, location, historical, origin_org_name in rows:
+        unit = product.unit if product else "kg"
+        status_val = lot.status
+        tier = tiers.get(lot.id, 1)
+        is_multi = multi_source_merge.get(lot.id, False)
+
+        if status_val == "consumed":
+            rem_qty = ZERO_QUANTITY
+            cons_qty = (
+                Decimal(str(lot.quantity))
+                if lot.quantity is not None
+                else ZERO_QUANTITY
+            )
+            rec_qty = ZERO_QUANTITY
+        elif status_val == "closed":
+            rem_qty = ZERO_QUANTITY
+            cons_qty = ZERO_QUANTITY
+            rec_qty = ZERO_QUANTITY
+        else:
+            rem_qty = Decimal(str(lot.remaining_quantity))
+            cons_qty = ZERO_QUANTITY
+            rec_qty = rem_qty
+
+        holder_org_name = (
+            lot.current_holder_organization.name
+            if lot.current_holder_organization
+            else None
+        )
+        holder_org_type = (
+            lot.current_holder_organization.organization_type
+            if lot.current_holder_organization
+            else None
+        )
+        if holder_org_name:
+            involved_org_names.add(holder_org_name)
+        if origin_org_name:
+            involved_org_names.add(origin_org_name)
+
+        loc_read = LocationRead.model_validate(location) if location else None
+
+        item = RecallLotItem(
+            id=lot.id,
+            lot_code=lot.lot_code,
+            name=lot.name,
+            tier=tier,
+            status=status_val,
+            is_multi_source_merge=is_multi,
+            organization_id=lot.organization_id,
+            current_holder_organization_id=lot.current_holder_organization_id,
+            current_holder_organization_name=holder_org_name,
+            holder_org_type=holder_org_type,
+            current_location_id=lot.current_location_id,
+            current_location=loc_read,
+            quantity=Decimal(str(lot.quantity)) if lot.quantity is not None else None,
+            remaining_quantity=rem_qty,
+            consumed_quantity=cons_qty,
+            recoverable_quantity=rec_qty,
+            unit=unit,
+            harvested_on=lot.harvested_on,
+            historical_only=historical,
+            parent_lot_ids=all_parents[lot.id],
+        )
+
+        if historical:
+            item.remaining_quantity = ZERO_QUANTITY
+            item.recoverable_quantity = ZERO_QUANTITY
+            item.current_holder_organization_id = None
+            item.current_holder_organization_name = None
+            item.holder_org_type = None
+            item.current_location_id = None
+            item.current_location = None
+            item.status = "transferred"
+
+        lot_items[lot.id] = item
+
+    root_item = lot_items[lot_id]
+    descendants = [
+        lot_items[nid] for nid in topo_order if nid != lot_id and nid in lot_items
+    ]
+
+    total_recoverable = sum(d.recoverable_quantity for d in descendants)
+    if root_item.status == "active":
+        total_recoverable += root_item.recoverable_quantity
+
+    total_consumed = sum(d.consumed_quantity for d in descendants)
+    if root_item.status == "consumed":
+        total_consumed += root_item.consumed_quantity
+
+    has_multi = any(d.is_multi_source_merge for d in descendants)
+    has_consumed = any(d.status == "consumed" for d in descendants)
+
+    summary = RecallSummary(
+        root_lot_id=root_item.id,
+        root_lot_code=root_item.lot_code,
+        root_lot_name=root_item.name,
+        initial_quantity=root_item.quantity,
+        unit=root_item.unit,
+        total_affected_lots=len(ids),
+        total_descendants_count=len(descendants),
+        total_recoverable_kg=total_recoverable,
+        total_consumed_kg=total_consumed,
+        involved_organizations_count=len(involved_org_names),
+        involved_organizations=sorted(involved_org_names),
+        has_multi_source_merge=has_multi,
+        has_consumed_lot=has_consumed,
+    )
+
+    report = RecallReport(
+        root_lot=root_item,
+        summary=summary,
+        descendants=descendants,
+        affected_lots=[root_item, *descendants],
+    )
+
+    return report.model_dump()
