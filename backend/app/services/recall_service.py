@@ -1,4 +1,4 @@
-"""Service layer for managing product recalls (N3-49) and lineage recall reporting (N3-51)."""
+"""Service layer for managing product recalls, lineage reporting, and blocking affected lots."""
 
 from collections import defaultdict, deque
 from datetime import UTC, datetime
@@ -17,11 +17,12 @@ from app.models.location import Location
 from app.models.lot import Lot
 from app.models.lot_relation import LotRelation
 from app.models.product import Product
-from app.models.recall_order import RecallOrder
+from app.models.recall_order import DEFAULT_RECALL_REASON, RecallOrder, RecallOrderLot
 from app.schemas.location import LocationRead
 from app.schemas.recall import (
     RecallCreate,
     RecallLotItem,
+    RecallOrderCreate,
     RecallReport,
     RecallSummary,
 )
@@ -29,9 +30,6 @@ from app.services import event_service
 from app.services.traversal_service import _roots_and_check_cycle
 
 ZERO_QUANTITY = Decimal("0.000")
-
-
-# --- N3-49: Recall Orders Management ---
 
 
 def _generate_recall_code(db: Session) -> str:
@@ -47,25 +45,69 @@ def _generate_recall_code(db: Session) -> str:
     raise RuntimeError("Không thể tạo mã thu hồi duy nhất, vui lòng thử lại.")
 
 
+def get_blocking_recall(db: Session, lot_id: UUID) -> RecallOrder | None:
+    """Return the recall order currently blocking this lot, or None."""
+    explicit_entry = db.execute(
+        select(RecallOrder, RecallOrderLot)
+        .join(RecallOrderLot, RecallOrderLot.recall_order_id == RecallOrder.id)
+        .where(RecallOrderLot.lot_id == lot_id)
+        .order_by(RecallOrder.created_at.desc())
+    ).first()
+
+    if explicit_entry is not None:
+        order, lot_entry = explicit_entry
+        if order.status == "open" or (
+            order.status == "completed" and lot_entry.incident_flag
+        ):
+            return order
+        return None
+
+    ancestor_stmt = text("""
+        WITH RECURSIVE ancestors(id) AS (
+            SELECT CAST(:lot_id AS uuid)
+            UNION
+            SELECT r.parent_lot_id
+            FROM lot_relations r
+            JOIN ancestors a ON r.child_lot_id = a.id
+        )
+        SELECT ro.id
+        FROM recall_orders ro
+        WHERE ro.status = 'open'
+          AND ro.root_lot_id IN (SELECT id FROM ancestors)
+        ORDER BY ro.created_at DESC
+        LIMIT 1
+    """)
+    blocking_id = db.execute(ancestor_stmt, {"lot_id": lot_id}).scalar()
+    if blocking_id is not None:
+        return db.get(RecallOrder, blocking_id)
+    return None
+
+
+def raise_if_recall_blocked(db: Session, lot_id: UUID) -> None:
+    """Raise 409 with the recall order code if the lot is blocked."""
+    blocking = get_blocking_recall(db, lot_id)
+    if blocking is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Lô đang bị thu hồi. Mã lệnh thu hồi: {blocking.recall_code}. "
+                "Vui lòng liên hệ quản trị viên."
+            ),
+        )
+
+
 def open_recall(
     db: Session,
     principal: Principal,
     payload: RecallCreate,
 ) -> RecallOrder:
-    """Open a new recall order for a compromised lot.
-
-    - AC1: Inspector or holder org-admin opens recall with reason (min 20 chars),
-           generates unique code, appends immutable event to lot.
-    - AC2: Other roles get 403 Forbidden.
-    - AC3: If lot already has an open recall, block with 409 and point to open recall.
-    """
+    """Open a new recall order for a compromised lot (N3-49)."""
     if principal.role not in {"inspector", "system_admin", "organization_admin"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Chỉ cán bộ kiểm tra hoặc quản trị tổ chức đang giữ lô được mở lệnh thu hồi.",
         )
 
-    # Fetch lot using standard select (inspector has global read, org admin has tenant read)
     lot = db.get(Lot, payload.lot_id)
     if lot is None:
         raise HTTPException(
@@ -73,7 +115,6 @@ def open_recall(
             detail="Không tìm thấy lô hàng yêu cầu thu hồi.",
         )
 
-    # Organization admin can only recall lots currently held by their organization
     if principal.role == "organization_admin":
         if lot.current_holder_organization_id != principal.organization_id:
             raise HTTPException(
@@ -81,14 +122,12 @@ def open_recall(
                 detail="Quản trị viên chỉ được mở lệnh thu hồi cho lô do tổ chức mình đang giữ.",
             )
 
-    # Terminal lots cannot receive events
     if lot.status == "consumed":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Không thể mở lệnh thu hồi trực tiếp trên lô đã tiêu thụ hết.",
         )
 
-    # AC3: Check if lot already has an open recall order
     existing_open = db.scalar(
         select(RecallOrder).where(
             RecallOrder.root_lot_id == lot.id,
@@ -118,7 +157,16 @@ def open_recall(
     db.add(order)
     db.flush()
 
-    # AC1: Record immutable recall_opened event in the lot's event history
+    db.add(
+        RecallOrderLot(
+            recall_order_id=order.id,
+            organization_id=principal.organization_id,
+            lot_id=lot.id,
+            incident_flag=True,
+        )
+    )
+    db.flush()
+
     event_service.append_event(
         db,
         principal,
@@ -159,7 +207,81 @@ def open_recall(
     return order
 
 
-def list_recalls(db: Session, principal: Principal) -> list[RecallOrder]:
+def create_recall_order(
+    db: Session, principal: Principal, payload: RecallOrderCreate
+) -> RecallOrder:
+    """Create a recall order with explicit code and lot list (N3-53)."""
+    existing = db.scalar(
+        select(RecallOrder).where(RecallOrder.recall_code == payload.code)
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Mã lệnh thu hồi {payload.code} đã tồn tại.",
+        )
+
+    lots = list(
+        db.scalars(
+            select(Lot).where(
+                Lot.id.in_(payload.lot_ids),
+                Lot.current_holder_organization_id == principal.organization_id,
+            )
+        ).all()
+    )
+    if len(lots) != len(payload.lot_ids):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Một hoặc nhiều lô không thuộc tổ chức đang giữ.",
+        )
+
+    reason_text = (payload.note or "").strip()
+    if len(reason_text) < 20:
+        reason_text = DEFAULT_RECALL_REASON
+
+    order = RecallOrder(
+        recall_code=payload.code,
+        root_lot_id=lots[0].id,
+        opened_by_user_id=principal.user_id,
+        opened_by_organization_id=principal.organization_id,
+        reason=reason_text,
+        status="open",
+    )
+    db.add(order)
+    db.flush()
+
+    for lot in lots:
+        db.add(
+            RecallOrderLot(
+                recall_order_id=order.id,
+                organization_id=principal.organization_id,
+                lot_id=lot.id,
+                incident_flag=True,
+            )
+        )
+
+    db.flush()
+    for lot in lots:
+        event_service.append_event(
+            db,
+            principal,
+            lot.id,
+            event_type="recall_opened",
+            payload={
+                "recall_id": str(order.id),
+                "recall_code": order.recall_code,
+                "reason": order.reason,
+                "opened_by_role": principal.role,
+                "opened_by_organization_id": str(principal.organization_id),
+            },
+        )
+    db.commit()
+    db.refresh(order)
+    return order
+
+
+def list_recalls(
+    db: Session, principal: Principal, *, status_filter: str | None = None
+) -> list[RecallOrder]:
     """List recall orders visible to the principal."""
     stmt = select(RecallOrder).order_by(RecallOrder.created_at.desc())
 
@@ -168,8 +290,17 @@ def list_recalls(db: Session, principal: Principal) -> list[RecallOrder]:
             (RecallOrder.opened_by_organization_id == principal.organization_id)
             | (Lot.current_holder_organization_id == principal.organization_id)
         )
+    if status_filter:
+        stmt = stmt.where(RecallOrder.status == status_filter)
 
     return list(db.scalars(stmt).all())
+
+
+def list_recall_orders(
+    db: Session, principal: Principal, *, status_filter: str | None = None
+) -> list[RecallOrder]:
+    """Alias for list_recalls supporting status_filter."""
+    return list_recalls(db, principal, status_filter=status_filter)
 
 
 def get_recall(db: Session, principal: Principal, recall_id: UUID) -> RecallOrder:
@@ -197,23 +328,66 @@ def get_recall(db: Session, principal: Principal, recall_id: UUID) -> RecallOrde
     return order
 
 
+def complete_recall_order(
+    db: Session, principal: Principal, recall_order_id: UUID
+) -> RecallOrder:
+    """Mark a recall order as completed."""
+    order = get_recall(db, principal, recall_order_id)
+    if order.status == "completed":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Lệnh thu hồi đã hoàn tất từ trước.",
+        )
+
+    order.status = "completed"
+    order.completed_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(order)
+    return order
+
+
+def update_incident_flag(
+    db: Session,
+    principal: Principal,
+    recall_order_id: UUID,
+    lot_id: UUID,
+    incident_flag: bool,
+) -> None:
+    """Update the incident flag for a lot within a recall order."""
+    entry = db.scalar(
+        select(RecallOrderLot).where(
+            RecallOrderLot.recall_order_id == recall_order_id,
+            RecallOrderLot.lot_id == lot_id,
+        )
+    )
+    if entry is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy lô trong lệnh thu hồi.",
+        )
+
+    order = db.get(RecallOrder, recall_order_id)
+    if order is None or (
+        principal.role not in {"inspector", "system_admin"}
+        and order.opened_by_organization_id != principal.organization_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy lệnh thu hồi.",
+        )
+
+    entry.incident_flag = incident_flag
+    db.commit()
+
+
 # --- N3-51: Recall Lineage Reporting ---
 
 
 def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
-    """Traverse all descendant lots to generate a comprehensive recall report.
-
-    Indicates for each lot in the lineage tree:
-    - Where it is located (organization and facility/warehouse address)
-    - How much remains in custody (recoverable inventory)
-    - How much has been consumed / sold to the market
-    - Whether cross-contamination from multi-source merges is present
-    """
+    """Traverse all descendant lots to generate a comprehensive recall report."""
     db.execute(text("SET LOCAL jit = off"))
     get_tenant_record(db, Lot, lot_id, principal, allow_historical=True)
 
-    # Recursive forward walk to find all descendants starting from lot_id,
-    # returning all incoming edges to nodes in walk (including external merge parents).
     statement = text("""WITH RECURSIVE visible_edges AS MATERIALIZED (
       SELECT * FROM lot_relations
     ), walk(id) AS (
@@ -240,7 +414,6 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
 
     _roots_and_check_cycle(db, ids, edges)
 
-    # Materialize organizations visible to caller under RLS
     visible_organizations = (
         select(Organization).cte("recall_organizations").prefix_with("MATERIALIZED")
     )
@@ -269,7 +442,6 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
             403, "Không đủ quyền truy cập toàn bộ phả hệ thu hồi của lô."
         )
 
-    # Build adjacency maps within the descendant subgraph and full parent list
     parents: dict[UUID, list[UUID]] = defaultdict(list)
     children: dict[UUID, list[UUID]] = defaultdict(list)
     all_parents: dict[UUID, list[UUID]] = defaultdict(list)
@@ -279,7 +451,6 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
         parents[edge.child_lot_id].append(edge.parent_lot_id)
         children[edge.parent_lot_id].append(edge.child_lot_id)
 
-    # Topological traversal from root_lot to compute tier and multi-source merge status
     tiers: dict[UUID, int] = {lot_id: 1}
     multi_source_merge: dict[UUID, bool] = {lot_id: len(all_parents[lot_id]) > 1}
 
@@ -295,7 +466,6 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
             if indegree[child_id] == 0:
                 queue.append(child_id)
 
-    # Calculate tier and is_multi_source_merge in topological order
     for node_id in topo_order:
         if node_id == lot_id:
             continue
@@ -315,11 +485,11 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
 
     for lot, product, location, historical, origin_org_name in rows:
         unit = product.unit if product else "kg"
-        status = lot.status
+        status_val = lot.status
         tier = tiers.get(lot.id, 1)
         is_multi = multi_source_merge.get(lot.id, False)
 
-        if status == "consumed":
+        if status_val == "consumed":
             rem_qty = ZERO_QUANTITY
             cons_qty = (
                 Decimal(str(lot.quantity))
@@ -327,7 +497,7 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
                 else ZERO_QUANTITY
             )
             rec_qty = ZERO_QUANTITY
-        elif status == "closed":
+        elif status_val == "closed":
             rem_qty = ZERO_QUANTITY
             cons_qty = ZERO_QUANTITY
             rec_qty = ZERO_QUANTITY
@@ -358,7 +528,7 @@ def get_recall_report(db: Session, principal: Principal, lot_id: UUID) -> dict:
             lot_code=lot.lot_code,
             name=lot.name,
             tier=tier,
-            status=status,
+            status=status_val,
             is_multi_source_merge=is_multi,
             organization_id=lot.organization_id,
             current_holder_organization_id=lot.current_holder_organization_id,

@@ -129,6 +129,17 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
                 "GRANT UPDATE (status, completed_at) ON recall_orders TO {}"
             ).format(role_ident)
         )
+    if "recall_order_lots" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT, DELETE ON recall_order_lots TO {}").format(
+                role_ident
+            )
+        )
+        cursor.execute(
+            sql.SQL("GRANT UPDATE (incident_flag) ON recall_order_lots TO {}").format(
+                role_ident
+            )
+        )
     if "shipments" in tables:
         cursor.execute(
             sql.SQL("GRANT SELECT, INSERT ON shipments TO {}").format(role_ident)

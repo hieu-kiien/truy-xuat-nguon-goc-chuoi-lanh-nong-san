@@ -23,4 +23,6 @@ def test_legacy_revision_08_precedes_harvest_schema_and_handover_migrations():
     assert shipments.down_revision == "20261015_25"
     telemetry = script.get_revision("20261018_27")
     assert telemetry.down_revision == "20261016_26"
-    assert script.get_current_head() == "20261018_27"
+    recall_order_lots = script.get_revision("20261019_28")
+    assert recall_order_lots.down_revision == "20261018_27"
+    assert script.get_current_head() == "20261019_28"

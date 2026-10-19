@@ -7,7 +7,7 @@ from app.models.location import Location
 from app.models.lot import Lot
 from app.models.lot_relation import LotRelation
 from app.models.product import Product
-from app.models.recall_order import RecallOrder
+from app.models.recall_order import RecallOrder, RecallOrderLot
 from app.models.shipment import Shipment, ShipmentLot
 from app.models.telemetry import TemperatureReading
 
@@ -24,6 +24,7 @@ __all__ = [
     "Organization",
     "Product",
     "RecallOrder",
+    "RecallOrderLot",
     "Role",
     "Shipment",
     "ShipmentLot",
