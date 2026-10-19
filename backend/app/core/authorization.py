@@ -38,6 +38,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "shipments:create",
             "shipments:read",
             "shipments:complete",
+            "telemetry:ingest",
+            "telemetry:read",
         }
     ),
     "transporter": frozenset(
@@ -53,6 +55,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "shipments:create",
             "shipments:read",
             "shipments:complete",
+            "telemetry:ingest",
+            "telemetry:read",
         }
     ),
     "distributor": frozenset(
@@ -71,6 +75,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "shipments:create",
             "shipments:read",
             "shipments:complete",
+            "telemetry:ingest",
+            "telemetry:read",
         }
     ),
     "inspector": frozenset(
@@ -85,6 +91,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "recalls:read_all",
             "shipments:read",
             "shipments:read_all",
+            "telemetry:read",
+            "telemetry:read_all",
         }
     ),
     "organization_admin": frozenset(
@@ -107,6 +115,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "shipments:create",
             "shipments:read",
             "shipments:complete",
+            "telemetry:ingest",
+            "telemetry:read",
         }
     ),
     "system_admin": frozenset(
@@ -131,6 +141,9 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "shipments:read",
             "shipments:complete",
             "shipments:read_all",
+            "telemetry:ingest",
+            "telemetry:read",
+            "telemetry:read_all",
         }
     ),
 }
@@ -151,6 +164,8 @@ def has_permission(role: str, permission: str) -> bool:
     if permission == "recalls:read" and "recalls:read_all" in permissions:
         return True
     if permission == "shipments:read" and "shipments:read_all" in permissions:
+        return True
+    if permission == "telemetry:read" and "telemetry:read_all" in permissions:
         return True
     return False
 

@@ -228,3 +228,23 @@ def test_inspector_can_read_all_shipments():
     assert has_permission("inspector", "shipments:read") is True
     assert has_permission("inspector", "shipments:read_all") is True
     assert has_permission("inspector", "shipments:complete") is False
+
+
+@pytest.mark.parametrize(
+    "role",
+    ["transporter", "cooperative", "distributor", "organization_admin", "system_admin"],
+)
+def test_roles_authorized_to_ingest_telemetry(role):
+    assert has_permission(role, "telemetry:ingest") is True
+    assert has_permission(role, "telemetry:read") is True
+
+
+@pytest.mark.parametrize("role", ["grower", "inspector"])
+def test_roles_unauthorized_to_ingest_telemetry(role):
+    assert has_permission(role, "telemetry:ingest") is False
+
+
+def test_inspector_can_read_all_telemetry():
+    assert has_permission("inspector", "telemetry:read") is True
+    assert has_permission("inspector", "telemetry:read_all") is True
+    assert has_permission("inspector", "telemetry:ingest") is False
