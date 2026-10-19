@@ -74,6 +74,8 @@ def create_handover(db: Session, principal: Principal, payload: HandoverCreate) 
             detail="Không thể bàn giao cho chính tổ chức của bạn.",
         )
 
+    recall_service.raise_if_recall_blocked(db, payload.lot_id)
+
     recipient = db.scalar(
         select(Organization).where(
             Organization.id == payload.to_organization_id,

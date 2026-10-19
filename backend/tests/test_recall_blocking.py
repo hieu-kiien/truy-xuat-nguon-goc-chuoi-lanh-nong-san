@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import Principal
 from app.models.identity import Organization, User
 from app.models.lot import Lot
-from app.models.product import Product
+from app.models.product import Product, ProductUnit
 from app.models.recall import RecallOrder, RecallOrderLot
 from app.schemas.handover import HandoverCreate
 from app.schemas.lineage import LotMerge, LotSplit, MergeParent, SplitChild
@@ -41,7 +41,7 @@ def _make_principal(org_id: UUID, user_id: UUID) -> Principal:
 def _make_lot(
     db: Session, org_id: UUID, *, name: str = "Test Lot", quantity: str = "100"
 ) -> Lot:
-    product = Product(name=f"Product-{uuid4().hex[:6]}", unit="kg", is_active=True)
+    product = Product(name=f"Product-{uuid4().hex[:6]}", unit=ProductUnit.KG)
     db.add(product)
     db.flush()
     lot = Lot(
