@@ -257,6 +257,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'events:create',
     'handovers:create',
     'handovers:resolve',
+    'recalls:read',
   ],
   cooperative: [
     'lots:transform',
@@ -267,6 +268,12 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'events:create',
     'handovers:create',
     'handovers:resolve',
+    'recalls:read',
+    'shipments:create',
+    'shipments:read',
+    'shipments:complete',
+    'telemetry:ingest',
+    'telemetry:read',
   ],
   transporter: [
     'auth:session',
@@ -276,6 +283,12 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'events:create',
     'handovers:create',
     'handovers:resolve',
+    'recalls:read',
+    'shipments:create',
+    'shipments:read',
+    'shipments:complete',
+    'telemetry:ingest',
+    'telemetry:read',
   ],
   distributor: [
     'locations:manage',
@@ -288,6 +301,12 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'events:create',
     'handovers:create',
     'handovers:resolve',
+    'recalls:read',
+    'shipments:create',
+    'shipments:read',
+    'shipments:complete',
+    'telemetry:ingest',
+    'telemetry:read',
   ],
   inspector: [
     'auth:session',
@@ -295,6 +314,13 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'lots:read_all',
     'events:read_all',
     'events:verify',
+    'recalls:open',
+    'recalls:read',
+    'recalls:read_all',
+    'shipments:read',
+    'shipments:read_all',
+    'telemetry:read',
+    'telemetry:read_all',
   ],
   organization_admin: [
     'locations:manage',
@@ -310,6 +336,13 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'events:create',
     'handovers:create',
     'handovers:resolve',
+    'recalls:open',
+    'recalls:read',
+    'shipments:create',
+    'shipments:read',
+    'shipments:complete',
+    'telemetry:ingest',
+    'telemetry:read',
   ],
   system_admin: [
     'auth:session',
@@ -325,6 +358,16 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'products:write',
     'products:read_all',
     'security:read',
+    'recalls:open',
+    'recalls:read',
+    'recalls:read_all',
+    'shipments:create',
+    'shipments:read',
+    'shipments:complete',
+    'shipments:read_all',
+    'telemetry:ingest',
+    'telemetry:read',
+    'telemetry:read_all',
   ],
 }
 
@@ -343,6 +386,12 @@ export function hasPermission(role: RoleCode, permission: string): boolean {
     return true
   }
   if (permission === 'products:read' && perms.includes('products:read_all')) {
+    return true
+  }
+  if (permission === 'shipments:read' && perms.includes('shipments:read_all')) {
+    return true
+  }
+  if (permission === 'telemetry:read' && perms.includes('telemetry:read_all')) {
     return true
   }
   return false

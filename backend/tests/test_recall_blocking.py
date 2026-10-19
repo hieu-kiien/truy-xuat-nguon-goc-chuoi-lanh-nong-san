@@ -13,11 +13,9 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal
-from app.models.handover import Handover
 from app.models.identity import Organization, User
 from app.models.lot import Lot
 from app.models.product import Product
@@ -73,6 +71,7 @@ def _make_recall(
     incident_flag: bool = True,
 ) -> RecallOrder:
     order = RecallOrder(
+        root_lot_id=lot.id,
         organization_id=org_id,
         code=code,
         status=status,
@@ -140,9 +139,7 @@ def test_open_recall_blocks_split(
     admin_session.commit()
 
     principal = _make_principal(org.id, user.id)
-    payload = LotSplit(
-        children=[SplitChild(name="Child A", quantity=Decimal("30"))]
-    )
+    payload = LotSplit(children=[SplitChild(name="Child A", quantity=Decimal("30"))])
     with pytest.raises(HTTPException) as exc_info:
         lineage_service.split_lot(admin_session, principal, lot.id, payload)
     assert exc_info.value.status_code == 409

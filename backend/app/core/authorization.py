@@ -21,6 +21,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "events:create",
             "handovers:create",
             "handovers:resolve",
+            "recalls:read",
         }
     ),
     "cooperative": frozenset(
@@ -33,6 +34,12 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "events:create",
             "handovers:create",
             "handovers:resolve",
+            "recalls:read",
+            "shipments:create",
+            "shipments:read",
+            "shipments:complete",
+            "telemetry:ingest",
+            "telemetry:read",
         }
     ),
     "transporter": frozenset(
@@ -44,6 +51,12 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "events:create",
             "handovers:create",
             "handovers:resolve",
+            "recalls:read",
+            "shipments:create",
+            "shipments:read",
+            "shipments:complete",
+            "telemetry:ingest",
+            "telemetry:read",
         }
     ),
     "distributor": frozenset(
@@ -58,6 +71,12 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "events:create",
             "handovers:create",
             "handovers:resolve",
+            "recalls:read",
+            "shipments:create",
+            "shipments:read",
+            "shipments:complete",
+            "telemetry:ingest",
+            "telemetry:read",
         }
     ),
     "inspector": frozenset(
@@ -67,6 +86,14 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "lots:read_all",
             "events:read_all",
             "events:verify",
+            "recalls:open",
+            "recalls:manage",
+            "recalls:read",
+            "recalls:read_all",
+            "shipments:read",
+            "shipments:read_all",
+            "telemetry:read",
+            "telemetry:read_all",
         }
     ),
     "organization_admin": frozenset(
@@ -84,6 +111,14 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "events:create",
             "handovers:create",
             "handovers:resolve",
+            "recalls:open",
+            "recalls:manage",
+            "recalls:read",
+            "shipments:create",
+            "shipments:read",
+            "shipments:complete",
+            "telemetry:ingest",
+            "telemetry:read",
         }
     ),
     "system_admin": frozenset(
@@ -101,7 +136,17 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "products:write",
             "products:read_all",
             "security:read",
+            "recalls:open",
             "recalls:manage",
+            "recalls:read",
+            "recalls:read_all",
+            "shipments:create",
+            "shipments:read",
+            "shipments:complete",
+            "shipments:read_all",
+            "telemetry:ingest",
+            "telemetry:read",
+            "telemetry:read_all",
         }
     ),
 }
@@ -118,6 +163,12 @@ def has_permission(role: str, permission: str) -> bool:
     if permission == "events:read" and "events:read_all" in permissions:
         return True
     if permission == "products:read" and "products:read_all" in permissions:
+        return True
+    if permission == "recalls:read" and "recalls:read_all" in permissions:
+        return True
+    if permission == "shipments:read" and "shipments:read_all" in permissions:
+        return True
+    if permission == "telemetry:read" and "telemetry:read_all" in permissions:
         return True
     return False
 

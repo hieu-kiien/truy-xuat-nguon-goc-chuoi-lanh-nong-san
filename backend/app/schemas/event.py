@@ -25,6 +25,10 @@ class EventCreate(BaseModel):
             "lot_derived",
             "lot_moved",
             "lot_consumed",
+            "recall_opened",
+            "recall_completed",
+            "shipment_loaded",
+            "shipment_unloaded",
         }:
             raise ValueError(
                 "Sự kiện này chỉ được tạo qua thao tác nghiệp vụ tương ứng."

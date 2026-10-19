@@ -1,0 +1,205 @@
+{
+  "version": "1.0",
+  "description": "Bộ kịch bản cảm biến nhiệt độ chuỗi lạnh TDD phục vụ N3-60 (S-42)",
+  "scenarios": [
+    {
+      "id": "scenario_1_normal",
+      "name": "Kịch bản 1: Không vượt ngưỡng (Bình thường)",
+      "description": "Nhiệt độ ổn định trong ngưỡng an toàn [2.0°C, 8.0°C] suốt 120 phút. Đáp án: 0 vi phạm.",
+      "container_code": "RF-NORMAL-01",
+      "parameters": {
+        "min_temp_celsius": 2.0,
+        "max_temp_celsius": 8.0,
+        "delay_minutes": 30,
+        "merge_gap_minutes": 5
+      },
+      "expected": {
+        "violation_count": 0,
+        "violations": []
+      },
+      "readings": [
+        {"recorded_at": "2026-10-18T08:00:00Z", "temperature_celsius": 4.1},
+        {"recorded_at": "2026-10-18T08:05:00Z", "temperature_celsius": 4.3},
+        {"recorded_at": "2026-10-18T08:10:00Z", "temperature_celsius": 4.2},
+        {"recorded_at": "2026-10-18T08:15:00Z", "temperature_celsius": 4.5},
+        {"recorded_at": "2026-10-18T08:20:00Z", "temperature_celsius": 4.6},
+        {"recorded_at": "2026-10-18T08:25:00Z", "temperature_celsius": 4.4},
+        {"recorded_at": "2026-10-18T08:30:00Z", "temperature_celsius": 4.8},
+        {"recorded_at": "2026-10-18T08:35:00Z", "temperature_celsius": 5.0},
+        {"recorded_at": "2026-10-18T08:40:00Z", "temperature_celsius": 4.7},
+        {"recorded_at": "2026-10-18T08:45:00Z", "temperature_celsius": 4.5},
+        {"recorded_at": "2026-10-18T08:50:00Z", "temperature_celsius": 4.3},
+        {"recorded_at": "2026-10-18T08:55:00Z", "temperature_celsius": 4.4},
+        {"recorded_at": "2026-10-18T09:00:00Z", "temperature_celsius": 4.2},
+        {"recorded_at": "2026-10-18T09:05:00Z", "temperature_celsius": 4.6},
+        {"recorded_at": "2026-10-18T09:10:00Z", "temperature_celsius": 4.8},
+        {"recorded_at": "2026-10-18T09:15:00Z", "temperature_celsius": 4.5},
+        {"recorded_at": "2026-10-18T09:20:00Z", "temperature_celsius": 4.3},
+        {"recorded_at": "2026-10-18T09:25:00Z", "temperature_celsius": 4.1},
+        {"recorded_at": "2026-10-18T09:30:00Z", "temperature_celsius": 4.4},
+        {"recorded_at": "2026-10-18T09:35:00Z", "temperature_celsius": 4.7},
+        {"recorded_at": "2026-10-18T09:40:00Z", "temperature_celsius": 4.9},
+        {"recorded_at": "2026-10-18T09:45:00Z", "temperature_celsius": 4.5},
+        {"recorded_at": "2026-10-18T09:50:00Z", "temperature_celsius": 4.2},
+        {"recorded_at": "2026-10-18T09:55:00Z", "temperature_celsius": 4.4},
+        {"recorded_at": "2026-10-18T10:00:00Z", "temperature_celsius": 4.3}
+      ]
+    },
+    {
+      "id": "scenario_2_short_spike",
+      "name": "Kịch bản 2: Vượt ngưỡng ngắn hạn 10 phút (Nhiễu mở cửa xe)",
+      "description": "Nhiệt độ tăng vọt lên 12.0°C trong 10 phút (từ 08:20 đến 08:30) rồi trở lại 4.0°C. Vì 10 phút < 30 phút nên được lọc bỏ như nhiễu mở cửa. Đáp án: 0 vi phạm.",
+      "container_code": "RF-SPIKE-02",
+      "parameters": {
+        "min_temp_celsius": 2.0,
+        "max_temp_celsius": 8.0,
+        "delay_minutes": 30,
+        "merge_gap_minutes": 5
+      },
+      "expected": {
+        "violation_count": 0,
+        "violations": []
+      },
+      "readings": [
+        {"recorded_at": "2026-10-18T08:00:00Z", "temperature_celsius": 4.0},
+        {"recorded_at": "2026-10-18T08:05:00Z", "temperature_celsius": 4.2},
+        {"recorded_at": "2026-10-18T08:10:00Z", "temperature_celsius": 4.1},
+        {"recorded_at": "2026-10-18T08:15:00Z", "temperature_celsius": 4.3},
+        {"recorded_at": "2026-10-18T08:20:00Z", "temperature_celsius": 11.8},
+        {"recorded_at": "2026-10-18T08:25:00Z", "temperature_celsius": 12.0},
+        {"recorded_at": "2026-10-18T08:30:00Z", "temperature_celsius": 11.5},
+        {"recorded_at": "2026-10-18T08:35:00Z", "temperature_celsius": 4.5},
+        {"recorded_at": "2026-10-18T08:40:00Z", "temperature_celsius": 4.2},
+        {"recorded_at": "2026-10-18T08:45:00Z", "temperature_celsius": 4.0},
+        {"recorded_at": "2026-10-18T08:50:00Z", "temperature_celsius": 4.1},
+        {"recorded_at": "2026-10-18T08:55:00Z", "temperature_celsius": 4.3},
+        {"recorded_at": "2026-10-18T09:00:00Z", "temperature_celsius": 4.0}
+      ]
+    },
+    {
+      "id": "scenario_3_sustained_violation",
+      "name": "Kịch bản 3: Vượt ngưỡng kéo dài 45 phút liên tục",
+      "description": "Nhiệt độ vượt 8.0°C từ 08:15 đến 09:00 (kéo dài 45 phút liên tục, đỉnh điểm 14.8°C). Vì 45 phút >= 30 phút nên tạo thành 1 vi phạm. Đáp án: 1 vi phạm.",
+      "container_code": "RF-SUSTAINED-03",
+      "parameters": {
+        "min_temp_celsius": 2.0,
+        "max_temp_celsius": 8.0,
+        "delay_minutes": 30,
+        "merge_gap_minutes": 5
+      },
+      "expected": {
+        "violation_count": 1,
+        "violations": [
+          {
+            "violation_type": "high_temp",
+            "started_at": "2026-10-18T08:15:00Z",
+            "ended_at": "2026-10-18T09:00:00Z",
+            "duration_minutes": 45.0,
+            "peak_temperature_celsius": 14.8
+          }
+        ]
+      },
+      "readings": [
+        {"recorded_at": "2026-10-18T08:00:00Z", "temperature_celsius": 4.0},
+        {"recorded_at": "2026-10-18T08:05:00Z", "temperature_celsius": 4.2},
+        {"recorded_at": "2026-10-18T08:10:00Z", "temperature_celsius": 4.1},
+        {"recorded_at": "2026-10-18T08:15:00Z", "temperature_celsius": 9.5},
+        {"recorded_at": "2026-10-18T08:20:00Z", "temperature_celsius": 11.2},
+        {"recorded_at": "2026-10-18T08:25:00Z", "temperature_celsius": 12.8},
+        {"recorded_at": "2026-10-18T08:30:00Z", "temperature_celsius": 13.9},
+        {"recorded_at": "2026-10-18T08:35:00Z", "temperature_celsius": 14.8},
+        {"recorded_at": "2026-10-18T08:40:00Z", "temperature_celsius": 14.2},
+        {"recorded_at": "2026-10-18T08:45:00Z", "temperature_celsius": 13.5},
+        {"recorded_at": "2026-10-18T08:50:00Z", "temperature_celsius": 11.7},
+        {"recorded_at": "2026-10-18T08:55:00Z", "temperature_celsius": 10.1},
+        {"recorded_at": "2026-10-18T09:00:00Z", "temperature_celsius": 9.0},
+        {"recorded_at": "2026-10-18T09:05:00Z", "temperature_celsius": 4.5},
+        {"recorded_at": "2026-10-18T09:10:00Z", "temperature_celsius": 4.2},
+        {"recorded_at": "2026-10-18T09:15:00Z", "temperature_celsius": 4.0}
+      ]
+    },
+    {
+      "id": "scenario_4_gap_merged",
+      "name": "Kịch bản 4: Hai lần vượt cách nhau 5 phút (Tự động gộp)",
+      "description": "Lần 1 vượt từ 08:10 đến 08:30 (20p). Sau đó về bình thường từ 08:31 đến 08:34 (4p, <= 5p gap). Lần 2 vượt tiếp từ 08:35 đến 08:50 (15p). Tự động gộp thành 1 vi phạm kéo dài 40 phút (từ 08:10 đến 08:50). Đáp án: 1 vi phạm.",
+      "container_code": "RF-MERGED-04",
+      "parameters": {
+        "min_temp_celsius": 2.0,
+        "max_temp_celsius": 8.0,
+        "delay_minutes": 30,
+        "merge_gap_minutes": 5
+      },
+      "expected": {
+        "violation_count": 1,
+        "violations": [
+          {
+            "violation_type": "high_temp",
+            "started_at": "2026-10-18T08:10:00Z",
+            "ended_at": "2026-10-18T08:50:00Z",
+            "duration_minutes": 40.0,
+            "peak_temperature_celsius": 13.6
+          }
+        ]
+      },
+      "readings": [
+        {"recorded_at": "2026-10-18T08:00:00Z", "temperature_celsius": 4.0},
+        {"recorded_at": "2026-10-18T08:05:00Z", "temperature_celsius": 4.2},
+        {"recorded_at": "2026-10-18T08:10:00Z", "temperature_celsius": 11.0},
+        {"recorded_at": "2026-10-18T08:15:00Z", "temperature_celsius": 12.3},
+        {"recorded_at": "2026-10-18T08:20:00Z", "temperature_celsius": 12.8},
+        {"recorded_at": "2026-10-18T08:25:00Z", "temperature_celsius": 12.5},
+        {"recorded_at": "2026-10-18T08:30:00Z", "temperature_celsius": 11.2},
+        {"recorded_at": "2026-10-18T08:33:00Z", "temperature_celsius": 5.2},
+        {"recorded_at": "2026-10-18T08:35:00Z", "temperature_celsius": 11.5},
+        {"recorded_at": "2026-10-18T08:40:00Z", "temperature_celsius": 13.6},
+        {"recorded_at": "2026-10-18T08:45:00Z", "temperature_celsius": 13.1},
+        {"recorded_at": "2026-10-18T08:50:00Z", "temperature_celsius": 10.4},
+        {"recorded_at": "2026-10-18T08:55:00Z", "temperature_celsius": 4.6},
+        {"recorded_at": "2026-10-18T09:00:00Z", "temperature_celsius": 4.1}
+      ]
+    },
+    {
+      "id": "scenario_5_midnight_excursion",
+      "name": "Kịch bản 5: Vượt qua nửa đêm",
+      "description": "Chuyến xe chạy qua đêm: nhiệt độ vượt ngưỡng từ 23:30 ngày 18 đến 00:20 ngày 19 (50 phút liên tục vắt qua nửa đêm, đỉnh điểm 15.1°C). Đáp án: 1 vi phạm.",
+      "container_code": "RF-MIDNIGHT-05",
+      "parameters": {
+        "min_temp_celsius": 2.0,
+        "max_temp_celsius": 8.0,
+        "delay_minutes": 30,
+        "merge_gap_minutes": 5
+      },
+      "expected": {
+        "violation_count": 1,
+        "violations": [
+          {
+            "violation_type": "high_temp",
+            "started_at": "2026-10-18T23:30:00Z",
+            "ended_at": "2026-10-19T00:20:00Z",
+            "duration_minutes": 50.0,
+            "peak_temperature_celsius": 15.1
+          }
+        ]
+      },
+      "readings": [
+        {"recorded_at": "2026-10-18T23:15:00Z", "temperature_celsius": 4.0},
+        {"recorded_at": "2026-10-18T23:20:00Z", "temperature_celsius": 4.1},
+        {"recorded_at": "2026-10-18T23:25:00Z", "temperature_celsius": 4.3},
+        {"recorded_at": "2026-10-18T23:30:00Z", "temperature_celsius": 11.2},
+        {"recorded_at": "2026-10-18T23:35:00Z", "temperature_celsius": 12.4},
+        {"recorded_at": "2026-10-18T23:40:00Z", "temperature_celsius": 13.5},
+        {"recorded_at": "2026-10-18T23:45:00Z", "temperature_celsius": 14.2},
+        {"recorded_at": "2026-10-18T23:50:00Z", "temperature_celsius": 14.8},
+        {"recorded_at": "2026-10-18T23:55:00Z", "temperature_celsius": 15.0},
+        {"recorded_at": "2026-10-19T00:00:00Z", "temperature_celsius": 15.1},
+        {"recorded_at": "2026-10-19T00:05:00Z", "temperature_celsius": 14.9},
+        {"recorded_at": "2026-10-19T00:10:00Z", "temperature_celsius": 14.0},
+        {"recorded_at": "2026-10-19T00:15:00Z", "temperature_celsius": 12.5},
+        {"recorded_at": "2026-10-19T00:20:00Z", "temperature_celsius": 10.8},
+        {"recorded_at": "2026-10-19T00:25:00Z", "temperature_celsius": 4.8},
+        {"recorded_at": "2026-10-19T00:30:00Z", "temperature_celsius": 4.3},
+        {"recorded_at": "2026-10-19T00:35:00Z", "temperature_celsius": 4.0}
+      ]
+    }
+  ]
+}
