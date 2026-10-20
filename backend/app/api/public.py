@@ -12,6 +12,7 @@ from app.schemas.organization import (
     InvitationAccepted,
     InvitationPreview,
 )
+from app.schemas.public_route import PublicRouteRead
 from app.services import invitation_service, public_trace_limiter, public_trace_service
 
 router = APIRouter()
@@ -71,3 +72,29 @@ def accept_public_invitation(
         password=payload.password,
         full_name=payload.full_name,
     )
+
+
+@router.get(
+    "/trace/{lot_code}/route",
+    response_model=PublicRouteRead,
+    summary="Bản đồ hành trình của lô trên trang công khai (N3-70)",
+)
+def get_public_lot_route(
+    lot_code: str,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    """The growing area and the main stops of the journey, in order.
+
+    The coordinates are rounded to the district level, so the exact plot never
+    leaves the system.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    normalized = (lot_code or "").strip().upper()
+    if public_trace_limiter.is_over_limit(client_ip, normalized):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=_RATE_LIMIT_DETAIL,
+            headers={"Retry-After": str(settings.PUBLIC_TRACE_RATE_WINDOW_SECONDS)},
+        )
+    return public_trace_service.trace_lot_route(db, normalized)

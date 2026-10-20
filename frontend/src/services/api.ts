@@ -30,6 +30,9 @@ import type {
   LotInputLotPayload,
   NotificationList,
   NotificationItem,
+  PublicRoute,
+  ProcessingStep,
+  ProcessingStepRecord,
 } from '../types'
 
 
@@ -117,6 +120,28 @@ async function parseApiError(response: Response): Promise<ApiError> {
     `Lỗi HTTP ${response.status}: ${response.statusText || 'Yêu cầu thất bại'}`,
   )
 }
+
+export const getPublicRoute = (code: string): Promise<PublicRoute> => {
+  const normalized = code.trim().toUpperCase()
+  return request<PublicRoute>(
+    `/api/v1/public/trace/${encodeURIComponent(normalized)}/route`
+  )
+}
+
+export const getProcessingStepCatalogue = () =>
+  request<ProcessingStep[]>('/api/v1/processing-steps/')
+
+export const getLotProcessingSteps = (lotId: string) =>
+  request<ProcessingStepRecord[]>(`/api/v1/lots/${lotId}/processing-steps`)
+
+export const recordLotProcessingStep = (
+  lotId: string,
+  payload: { processing_step_id: string; parameters: Record<string, unknown> },
+) =>
+  request<ProcessingStepRecord>(`/api/v1/lots/${lotId}/processing-steps`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 
 export async function getPublicTrace(code: string): Promise<PublicTraceResponse> {
   const normalized = code.trim().toUpperCase()

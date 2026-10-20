@@ -23,12 +23,17 @@ from app.schemas.lot import (
     LotListRead,
     LotRead,
 )
+from app.schemas.processing import (
+    ProcessingStepRecordCreate,
+    ProcessingStepRecordRead,
+)
 from app.schemas.recall import RecallReport
 from app.services import (
     input_lot_service,
     lineage_service,
     lot_lifecycle_service,
     lot_service,
+    processing_step_service,
     recall_service,
     traversal_service,
 )
@@ -147,6 +152,35 @@ def create_input_lots(
 ) -> list[InputLotRead]:
     """Record the input materials used for a lot (N3-38)."""
     return input_lot_service.declare_input_lots(db, principal, lot_id, payload)
+
+
+@router.get("/{lot_id}/processing-steps", response_model=list[ProcessingStepRecordRead])
+@require_permission("processing_steps:read")
+def list_processing_steps(
+    lot_id: UUID,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[ProcessingStepRecordRead]:
+    """List the processing steps recorded for a lot (N3-27)."""
+    return processing_step_service.list_processing_steps(db, principal, lot_id)
+
+
+@router.post(
+    "/{lot_id}/processing-steps",
+    response_model=ProcessingStepRecordRead,
+    status_code=status.HTTP_201_CREATED,
+)
+@require_permission("processing_steps:create")
+def record_processing_step(
+    lot_id: UUID,
+    payload: ProcessingStepRecordCreate,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    db: Annotated[Session, Depends(get_db)],
+) -> ProcessingStepRecordRead:
+    """Record a processing step; it becomes one event on the lot chain (N3-27)."""
+    return processing_step_service.record_processing_step(
+        db, principal, lot_id, payload
+    )
 
 
 @router.get("/{lot_id}", response_model=LotDetailRead)

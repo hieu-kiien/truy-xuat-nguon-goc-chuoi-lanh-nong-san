@@ -375,6 +375,7 @@ export const ORG_TYPE_LABELS: Record<OrganizationType, string> = {
 export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   grower: [
     'auth:session',
+    'processing_steps:read',
     'input_lots:create',
     'input_lots:read',
     'notifications:read',
@@ -393,6 +394,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   cooperative: [
     'lots:transform',
     'auth:session',
+    'processing_steps:read',
+    'processing_steps:create',
     'input_lots:create',
     'input_lots:read',
     'notifications:read',
@@ -412,6 +415,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   ],
   transporter: [
     'auth:session',
+    'processing_steps:read',
     'notifications:read',
     'products:read',
     'lots:read',
@@ -432,6 +436,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'lots:consume',
     'lots:transform',
     'auth:session',
+    'processing_steps:read',
+    'processing_steps:create',
     'notifications:read',
     'products:read',
     'lots:read',
@@ -449,6 +455,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   ],
   inspector: [
     'auth:session',
+    'processing_steps:read',
     'input_lots:read',
     'notifications:read',
     'products:read',
@@ -469,6 +476,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'lots:consume',
     'lots:transform',
     'auth:session',
+    'processing_steps:read',
+    'processing_steps:create',
     'input_lots:create',
     'input_lots:read',
     'notifications:read',
@@ -493,6 +502,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   ],
   system_admin: [
     'auth:session',
+    'processing_steps:read',
+    'processing_steps:create',
+    'processing_steps:manage',
     'input_lots:read',
     'notifications:read',
     'farms:read',
@@ -552,6 +564,7 @@ export function hasPermission(role: RoleCode, permission: string): boolean {
 }
 
 export interface PublicTrace {
+  processing_summary?: string | null
   lot_code: string | null
   product_name: string | null
   product_unit: string | null
@@ -572,6 +585,38 @@ export interface PublicTraceWarning {
 export interface PublicTraceResponse {
   trace: PublicTrace
   warnings: PublicTraceWarning[]
+}
+
+export interface RoutePoint {
+  order: number
+  name: string
+  kind: 'origin' | 'stop'
+  latitude: number
+  longitude: number
+}
+
+export interface PublicRoute {
+  points: RoutePoint[]
+  precision_note: string
+}
+
+export interface ProcessingStep {
+  id: string
+  code: string
+  name: string
+  parameter_schema: Record<string, { type?: string; label?: string }>
+}
+
+export interface ProcessingStepRecord {
+  id: string
+  lot_id: string
+  processing_step_id: string
+  processing_step_code: string
+  processing_step_name: string
+  parameters: Record<string, unknown>
+  occurred_at: string
+  organization_id: string
+  created_at: string
 }
 
 export interface CarrierViolationStats {

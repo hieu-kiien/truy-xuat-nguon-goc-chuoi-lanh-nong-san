@@ -18,6 +18,8 @@ AUTH_ROUTE_ALLOWLIST = {
     # Lời mời tham gia tổ chức: người nhận chưa có tài khoản (N3-30).
     ("/api/v1/public/invitations/{token}", "GET"),
     ("/api/v1/public/invitations/{token}/accept", "POST"),
+    # Ban do hanh trinh cong khai: khong can dang nhap (N3-70).
+    ("/api/v1/public/trace/{lot_code}/route", "GET"),
 }
 AUTH_QUERY_FILE_ALLOWLIST = {"auth.py"}
 DIRECT_QUERY_METHODS = {"execute", "get", "scalar", "scalars"}

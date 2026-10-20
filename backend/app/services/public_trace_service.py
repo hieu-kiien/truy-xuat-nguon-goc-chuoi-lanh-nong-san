@@ -21,6 +21,44 @@ COLD_CHAIN_NOTE_MESSAGE = (
 )
 
 
+def trace_lot_route(db: Session, lot_code: str) -> dict:
+    """Trả về bản đồ hành trình công khai của một lô (N3-70).
+
+    Toạ độ được làm tròn về cấp xã hoặc huyện, nên toạ độ chính xác của thửa
+    không bao giờ ra ngoài hệ thống.
+    """
+    normalized = (lot_code or "").strip().upper()
+    rows = (
+        db.execute(
+            text(
+                "SELECT point_order, point_name, point_kind, "
+                "point_latitude, point_longitude "
+                "FROM public.app_public_lot_route(:lot_code)"
+            ),
+            {"lot_code": normalized},
+        )
+        .mappings()
+        .all()
+    )
+    if not rows:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy lô hàng với mã đã cung cấp.",
+        )
+    return {
+        "points": [
+            {
+                "order": int(row["point_order"]),
+                "name": row["point_name"] or "",
+                "kind": row["point_kind"] or "stop",
+                "latitude": float(row["point_latitude"] or 0),
+                "longitude": float(row["point_longitude"] or 0),
+            }
+            for row in rows
+        ]
+    }
+
+
 def trace_lot_code(db: Session, lot_code: str) -> dict:
     """Trả về dữ liệu công khai của một lô theo mã lô."""
     normalized = (lot_code or "").strip().upper()

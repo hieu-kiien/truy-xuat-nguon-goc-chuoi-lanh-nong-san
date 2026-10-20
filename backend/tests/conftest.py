@@ -22,6 +22,7 @@ from app.models.lot import Lot
 from app.models.lot_input import LotInputLot
 from app.models.lot_relation import LotRelation
 from app.models.organization_invitation import OrganizationInvitation
+from app.models.processing_step import LotProcessingStep
 from app.models.recall_order import RecallConfirmation, RecallOrder
 from app.models.shipment import Shipment, ShipmentLot
 from app.models.telemetry import ColdChainViolation, TemperatureReading
@@ -168,6 +169,11 @@ def identity_factory(
                 )
                 admin_session.execute(
                     delete(LotInputLot).where(LotInputLot.lot_id.in_(lot_ids))
+                )
+                admin_session.execute(
+                    delete(LotProcessingStep).where(
+                        LotProcessingStep.lot_id.in_(lot_ids)
+                    )
                 )
                 admin_session.execute(
                     delete(IntegrityAlert).where(IntegrityAlert.lot_id.in_(lot_ids))

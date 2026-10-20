@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     lots,
     notifications,
     organizations,
+    processing_steps,
     products,
     recalls,
     shipments,
@@ -36,4 +37,7 @@ api_router.include_router(
 )
 api_router.include_router(
     organizations.router, prefix="/organizations", tags=["organizations"]
+)
+api_router.include_router(
+    processing_steps.router, prefix="/processing-steps", tags=["processing-steps"]
 )

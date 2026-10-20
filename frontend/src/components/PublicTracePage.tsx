@@ -1,6 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { ApiError, getPublicTrace } from '../services/api'
-import type { PublicTraceResponse, PublicTraceWarning } from '../types'
+import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react'
+import { ApiError, getPublicRoute, getPublicTrace } from '../services/api'
+
+const RouteMap = lazy(() => import('./RouteMap').then((module) => ({ default: module.RouteMap })))
+import type { PublicRoute, PublicTraceResponse, PublicTraceWarning } from '../types'
 
 const LOT_CODE_PATTERN = /^[A-Za-z0-9-]{4,32}$/
 
@@ -45,6 +47,7 @@ export function PublicTracePage() {
   })
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [result, setResult] = useState<PublicTraceResponse | null>(null)
+  const [route, setRoute] = useState<PublicRoute | null>(null)
 
   useEffect(() => {
     const initial = readInitialLotCode().toUpperCase()
@@ -53,6 +56,16 @@ export function PublicTracePage() {
     getPublicTrace(initial)
       .then((payload) => {
         if (active) setResult(payload)
+      })
+      .then(() => {
+        if (!active) return
+        return getPublicRoute(initial)
+          .then((payload) => {
+            if (active) setRoute(payload)
+          })
+          .catch(() => {
+            if (active) setRoute(null)
+          })
       })
       .catch((err: unknown) => {
         if (!active) return
@@ -318,6 +331,20 @@ export function PublicTracePage() {
                   </div>
                 </div>
               </div>
+
+              {trace.processing_summary ? (
+                <div className="trace-field-tile">
+                  <span className="trace-field-icon" aria-hidden="true">&#9881;</span>
+                  <div>
+                    <span className="trace-field-lbl">Công đoạn chế biến</span>
+                    <span className="trace-field-val">{trace.processing_summary}</span>
+                  </div>
+                </div>
+              ) : null}
+
+              <Suspense fallback={<div className="route-map" aria-busy="true" />}>
+                <RouteMap route={route} lotCode={trace.lot_code ?? ''} />
+              </Suspense>
 
               <p className="public-trace-note">
                 🔒 Trang chỉ hiển thị các trường công khai nhằm bảo vệ thông tin kinh doanh

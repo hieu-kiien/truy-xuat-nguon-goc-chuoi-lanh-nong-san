@@ -380,6 +380,8 @@ export function FarmWorkspace({
                   canResolveHandover={canResolveHandovers}
                   canReadInputLots={hasPermission(user.role, 'input_lots:read')}
                   canDeclareInputLots={hasPermission(user.role, 'input_lots:create')}
+                  canReadProcessingSteps={hasPermission(user.role, 'processing_steps:read')}
+                  canRecordProcessingSteps={hasPermission(user.role, 'processing_steps:create')}
                   onBack={onBackToLots}
                 />
               ) : (

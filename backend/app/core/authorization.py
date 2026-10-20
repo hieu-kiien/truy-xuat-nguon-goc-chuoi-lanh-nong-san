@@ -12,6 +12,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "grower": frozenset(
         {
             "auth:session",
+            "processing_steps:read",
             "input_lots:create",
             "input_lots:read",
             "notifications:read",
@@ -33,6 +34,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         {
             "lots:transform",
             "auth:session",
+            "processing_steps:read",
+            "processing_steps:create",
             "input_lots:create",
             "input_lots:read",
             "notifications:read",
@@ -55,6 +58,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "transporter": frozenset(
         {
             "auth:session",
+            "processing_steps:read",
             "notifications:read",
             "organizations:read",
             "products:read",
@@ -78,6 +82,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "lots:consume",
             "lots:transform",
             "auth:session",
+            "processing_steps:read",
+            "processing_steps:create",
             "notifications:read",
             "organizations:read",
             "products:read",
@@ -98,6 +104,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "inspector": frozenset(
         {
             "auth:session",
+            "processing_steps:read",
             "input_lots:read",
             "notifications:read",
             "organizations:read",
@@ -121,6 +128,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "lots:consume",
             "lots:transform",
             "auth:session",
+            "processing_steps:read",
+            "processing_steps:create",
             "input_lots:create",
             "input_lots:read",
             "notifications:read",
@@ -149,6 +158,9 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "system_admin": frozenset(
         {
             "auth:session",
+            "processing_steps:read",
+            "processing_steps:create",
+            "processing_steps:manage",
             "input_lots:read",
             "notifications:read",
             "organizations:read",
