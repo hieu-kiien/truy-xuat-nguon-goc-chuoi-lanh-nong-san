@@ -15,6 +15,7 @@ from app.models.event import Event
 from app.models.farm import Farm
 from app.models.handover import Handover
 from app.models.identity import AuthSession, Organization, Role, User
+from app.models.integrity_alert import IntegrityAlert
 from app.models.integrity_check import IntegrityCheck
 from app.models.lot import Lot
 from app.models.lot_relation import LotRelation
@@ -157,7 +158,13 @@ def identity_factory(
                     text("ALTER TABLE integrity_checks DISABLE TRIGGER USER")
                 )
                 admin_session.execute(
+                    text("ALTER TABLE integrity_alerts DISABLE TRIGGER USER")
+                )
+                admin_session.execute(
                     delete(Handover).where(Handover.lot_id.in_(lot_ids))
+                )
+                admin_session.execute(
+                    delete(IntegrityAlert).where(IntegrityAlert.lot_id.in_(lot_ids))
                 )
                 admin_session.execute(
                     delete(IntegrityCheck).where(IntegrityCheck.lot_id.in_(lot_ids))
@@ -179,6 +186,9 @@ def identity_factory(
                     delete(ShipmentLot).where(ShipmentLot.lot_id.in_(lot_ids))
                 )
                 admin_session.execute(delete(Lot).where(Lot.id.in_(lot_ids)))
+                admin_session.execute(
+                    text("ALTER TABLE integrity_alerts ENABLE TRIGGER USER")
+                )
                 admin_session.execute(
                     text("ALTER TABLE integrity_checks ENABLE TRIGGER USER")
                 )

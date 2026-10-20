@@ -558,3 +558,47 @@ export interface PublicTraceResponse {
   trace: PublicTrace
   warnings: PublicTraceWarning[]
 }
+
+export interface CarrierViolationStats {
+  carrier_organization_id: string
+  carrier_organization_name: string
+  carrier_organization_type: string
+  shipment_count: number
+  shipment_with_violation_count: number
+  violation_count: number
+  high_temp_violation_count: number
+  low_temp_violation_count: number
+  total_violation_minutes: number
+  violation_shipment_rate: number
+}
+
+export interface ColdChainViolationStats {
+  period_start: string | null
+  period_end: string
+  carriers: CarrierViolationStats[]
+  total_shipment_count: number
+  total_shipment_with_violation_count: number
+  total_violation_count: number
+  total_violation_minutes: number
+  violation_shipment_rate: number
+}
+
+export interface IntegrityAlert {
+  id: string
+  lot_id: string
+  lot_code: string | null
+  organization_id: string
+  detected_at: string
+  first_invalid_sequence: number | null
+  issue_count: number
+  checked_events: number
+}
+
+export interface IntegrityScanSummary {
+  generated_at: string
+  last_checked_at: string | null
+  checked_lot_count: number
+  broken_lot_count: number
+  broken_lots: IntegrityAlert[]
+  recent_alerts: IntegrityAlert[]
+}

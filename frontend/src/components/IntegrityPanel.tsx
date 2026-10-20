@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { getIntegrityCheckHistory, getLots, verifyLotIntegrity } from '../services/api'
-import type { IntegrityCheckRecord, Lot } from '../types'
+import {
+  getIntegrityCheckHistory,
+  getIntegrityScanSummary,
+  getLots,
+  verifyLotIntegrity,
+} from '../services/api'
+import type { IntegrityCheckRecord, IntegrityScanSummary, Lot } from '../types'
 
 const ISSUE_LABELS: Record<string, string> = {
   missing_event: 'Thiếu sự kiện trong chuỗi',
@@ -23,7 +28,34 @@ export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) 
   const [error, setError] = useState<string | null>(null)
   const [report, setReport] = useState<IntegrityCheckRecord | null>(null)
   const [checkHistory, setCheckHistory] = useState<IntegrityCheckRecord[]>([])
+  const [scanSummary, setScanSummary] = useState<IntegrityScanSummary | null>(null)
+  const [scanError, setScanError] = useState<string | null>(null)
   const checkRequestRef = useRef(0)
+
+  useEffect(() => {
+    if (!canVerify) return
+    let active = true
+    getIntegrityScanSummary()
+      .then((summary) => {
+        if (active) {
+          setScanSummary(summary)
+          setScanError(null)
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setScanSummary(null)
+          setScanError(
+            err instanceof Error
+              ? err.message
+              : 'Không thể tải tổng quan kiểm tra định kỳ.',
+          )
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [canVerify])
 
   useEffect(() => {
     if (!canReadLots || !canVerify) return
@@ -158,6 +190,117 @@ export function IntegrityPanel({ canReadLots, canVerify }: IntegrityPanelProps) 
       </div>
 
       {error && <div className="alert-box alert-error" role="alert">{error}</div>}
+
+      {canVerify && (
+        <div className="integrity-scan-summary">
+          <h3>Kiểm tra định kỳ toàn hệ thống</h3>
+          {scanError && (
+            <div className="alert-box alert-error" role="alert">{scanError}</div>
+          )}
+          {scanSummary && (
+            <>
+              <div className="integrity-scan-metrics">
+                <div className="integrity-scan-metric">
+                  <span className="integrity-scan-metric-label">Lần kiểm tra gần nhất</span>
+                  <span className="integrity-scan-metric-value">
+                    {scanSummary.last_checked_at
+                      ? new Date(scanSummary.last_checked_at).toLocaleString('vi-VN', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })
+                      : 'Chưa có'}
+                  </span>
+                </div>
+                <div className="integrity-scan-metric">
+                  <span className="integrity-scan-metric-label">Số lô đã kiểm tra</span>
+                  <span className="integrity-scan-metric-value">
+                    {scanSummary.checked_lot_count}
+                  </span>
+                </div>
+                <div className="integrity-scan-metric">
+                  <span className="integrity-scan-metric-label">Số lô đứt mạch</span>
+                  <span className="integrity-scan-metric-value">
+                    <span
+                      className={`status-badge ${
+                        scanSummary.broken_lot_count > 0 ? 'status-danger' : 'status-done'
+                      }`}
+                    >
+                      {scanSummary.broken_lot_count}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              {scanSummary.broken_lots.length > 0 && (
+                <div className="table-scroll">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Mã lô</th>
+                        <th scope="col">Sự kiện đứt mạch</th>
+                        <th scope="col">Số sự kiện</th>
+                        <th scope="col">Thời điểm kiểm tra</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {scanSummary.broken_lots.map((broken) => (
+                        <tr key={`broken-${broken.lot_id}`}>
+                          <td>{broken.lot_code ?? broken.lot_id.slice(0, 8)}</td>
+                          <td>{broken.first_invalid_sequence ?? '—'}</td>
+                          <td>{broken.checked_events}</td>
+                          <td>
+                            <time dateTime={broken.detected_at}>
+                              {new Date(broken.detected_at).toLocaleString('vi-VN', {
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                              })}
+                            </time>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {scanSummary.recent_alerts.length > 0 && (
+                <div>
+                  <h3>Cảnh báo gần đây</h3>
+                  <div className="table-scroll">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">Mã lô</th>
+                          <th scope="col">Sự kiện đứt mạch</th>
+                          <th scope="col">Số lỗi</th>
+                          <th scope="col">Thời điểm phát hiện</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {scanSummary.recent_alerts.map((alert) => (
+                          <tr key={alert.id}>
+                            <td>{alert.lot_code ?? alert.lot_id.slice(0, 8)}</td>
+                            <td>{alert.first_invalid_sequence ?? '—'}</td>
+                            <td>{alert.issue_count}</td>
+                            <td>
+                              <time dateTime={alert.detected_at}>
+                                {new Date(alert.detected_at).toLocaleString('vi-VN', {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short',
+                                })}
+                              </time>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
       {report && (
         <div className={`integrity-result ${report.valid ? 'integrity-result-valid' : 'integrity-result-invalid'}`} role="status">
           <strong>{report.valid ? 'Chuỗi sự kiện hợp lệ' : `Phát hiện sai lệch tại sự kiện ${report.first_invalid_sequence ?? 'không xác định'}`}</strong>

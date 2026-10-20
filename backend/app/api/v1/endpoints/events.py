@@ -14,6 +14,7 @@ from app.schemas.event import (
     EventRead,
     IntegrityCheckRead,
     IntegrityRead,
+    IntegrityScanSummaryRead,
 )
 from app.services import event_service
 
@@ -66,6 +67,17 @@ def get_lot_integrity_check_history(
     db: Annotated[Session, Depends(get_db)],
 ) -> list:
     return event_service.get_integrity_check_history(db, principal, lot_id)
+
+
+@router.get("/integrity/summary", response_model=IntegrityScanSummaryRead)
+@require_permission("events:verify")
+def get_integrity_scan_summary(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> dict:
+    """Overview of the scheduled integrity scans for the administrator view."""
+    return event_service.summarize_integrity_scans(db, principal, limit=limit)
 
 
 @router.get("/", response_model=list[EventRead])

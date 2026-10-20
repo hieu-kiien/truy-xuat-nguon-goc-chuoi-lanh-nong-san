@@ -76,6 +76,30 @@ class IntegrityCheckRead(IntegrityRead):
     checked_at: datetime
 
 
+class IntegrityAlertRead(BaseModel):
+    """One alert raised when a lot's event chain was found broken."""
+
+    id: UUID
+    lot_id: UUID
+    lot_code: str | None = None
+    organization_id: UUID
+    detected_at: datetime
+    first_invalid_sequence: int | None = None
+    issue_count: int
+    checked_events: int
+
+
+class IntegrityScanSummaryRead(BaseModel):
+    """Overview of the scheduled integrity scans for the administrator view."""
+
+    generated_at: datetime
+    last_checked_at: datetime | None = None
+    checked_lot_count: int = Field(default=0, ge=0)
+    broken_lot_count: int = Field(default=0, ge=0)
+    broken_lots: list[IntegrityAlertRead] = Field(default_factory=list)
+    recent_alerts: list[IntegrityAlertRead] = Field(default_factory=list)
+
+
 class EventHistoryRead(BaseModel):
     events: list[EventRead]
     integrity: IntegrityRead

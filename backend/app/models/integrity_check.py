@@ -2,7 +2,15 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -16,6 +24,10 @@ class IntegrityCheck(Base):
     __tablename__ = "integrity_checks"
     __table_args__ = (
         CheckConstraint("checked_events >= 0", name="ck_integrity_checks_event_count"),
+        CheckConstraint(
+            "checked_by_source IN ('user', 'system')",
+            name="ck_integrity_checks_source",
+        ),
         Index("ix_integrity_checks_lot_checked", "lot_id", "checked_at"),
         Index(
             "ix_integrity_checks_organization_checked", "organization_id", "checked_at"
@@ -35,10 +47,15 @@ class IntegrityCheck(Base):
         ForeignKey("lots.id", ondelete="RESTRICT"),
         nullable=False,
     )
-    checked_by_user_id: Mapped[UUID] = mapped_column(
+    # NULL when the check was produced by the scheduled scanner instead of a
+    # person pressing the button (N3-74).
+    checked_by_user_id: Mapped[UUID | None] = mapped_column(
         PostgreSQLUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
+    )
+    checked_by_source: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="user", server_default=text("'user'")
     )
     checked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -15,6 +15,7 @@ import type {
   ProductPayload,
   SessionUser,
   IntegrityCheckRecord,
+  IntegrityScanSummary,
   EventHistory,
   Handover,
   HandoverPayload,
@@ -24,6 +25,7 @@ import type {
   RecallOrder,
   RecallNotification,
   PublicTraceResponse,
+  ColdChainViolationStats,
 } from '../types'
 
 
@@ -367,6 +369,21 @@ export const verifyLotIntegrity = (lotId: string) =>
 
 export const getIntegrityCheckHistory = (lotId: string) =>
   request<IntegrityCheckRecord[]>(`/api/v1/events/lots/${lotId}/integrity-checks`)
+
+export const getIntegrityScanSummary = () =>
+  request<IntegrityScanSummary>('/api/v1/events/integrity/summary')
+
+export const getColdChainViolationStats = (
+  params: { from?: string; to?: string } = {},
+): Promise<ColdChainViolationStats> => {
+  const query = new URLSearchParams()
+  if (params.from) query.set('from', params.from)
+  if (params.to) query.set('to', params.to)
+  const suffix = query.toString() ? `?${query.toString()}` : ''
+  return request<ColdChainViolationStats>(
+    `/api/v1/telemetry/violations/stats${suffix}`,
+  )
+}
 
 export const getLotHistory = (lotId: string, after = 0) =>
   request<EventHistory>(`/api/v1/events/lots/${lotId}/history?page_size=10&after=${after}`)

@@ -4,6 +4,7 @@ from app.models.event import Event
 from app.models.farm import Farm
 from app.models.handover import Handover
 from app.models.identity import AuthSession, Organization, Role, User
+from app.models.integrity_alert import IntegrityAlert
 from app.models.integrity_check import IntegrityCheck
 from app.models.location import Location
 from app.models.lot import Lot
@@ -24,6 +25,7 @@ __all__ = [
     "Event",
     "Farm",
     "Handover",
+    "IntegrityAlert",
     "IntegrityCheck",
     "Location",
     "Lot",

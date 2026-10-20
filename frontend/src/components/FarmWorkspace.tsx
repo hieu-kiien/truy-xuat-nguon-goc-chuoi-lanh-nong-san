@@ -14,6 +14,7 @@ import {
   type SessionUser,
 } from '../types'
 import { FarmFormPanel } from './FarmFormPanel'
+import { ColdChainStatsPanel } from './ColdChainStatsPanel'
 import { IntegrityPanel } from './IntegrityPanel'
 import { HandoversPanel } from './HandoversPanel'
 import { LotsPanel } from './LotsPanel'
@@ -35,6 +36,7 @@ export type WorkspaceTab =
   | 'overview'
   | 'security'
   | 'integrity'
+  | 'cold-chain-stats'
   | 'demo'
 
 interface FarmWorkspaceProps {
@@ -641,6 +643,12 @@ export function FarmWorkspace({
 
               <IntegrityPanel canReadLots={canReadLots} canVerify={canVerifyEvents} />
 
+            )}
+
+            {activeTab === 'cold-chain-stats' && (
+              <ErrorBoundary fallbackTitle="Không thể tải thống kê vi phạm chuỗi lạnh">
+                <ColdChainStatsPanel />
+              </ErrorBoundary>
             )}
           </main>
         </div>

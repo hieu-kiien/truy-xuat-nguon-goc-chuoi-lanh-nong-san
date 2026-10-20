@@ -119,6 +119,17 @@ export function WorkspaceSidebar({
                   <span>Tính toàn vẹn</span>
                 </button>
               </li>}
+              {hasPermission(user.role, 'telemetry:read') && <li>
+                <button
+                  type="button"
+                  onClick={() => selectTab('cold-chain-stats')}
+                  className={`dashboard-nav-item ${
+                    activeTab === 'cold-chain-stats' ? 'dashboard-nav-item-active' : ''
+                  }`}
+                >
+                  <span>Thống kê chuỗi lạnh</span>
+                </button>
+              </li>}
             </ul>
           </div>
 

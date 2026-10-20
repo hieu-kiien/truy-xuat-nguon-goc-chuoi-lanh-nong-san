@@ -20,6 +20,7 @@ const TAB_TITLES: Record<WorkspaceTab, string> = {
   overview: 'Vùng trồng',
   security: 'Phân quyền & bảo mật',
   integrity: 'Kiểm tra tính toàn vẹn',
+  'cold-chain-stats': 'Thống kê chuỗi lạnh',
   demo: 'Hướng dẫn trình diễn',
 }
 

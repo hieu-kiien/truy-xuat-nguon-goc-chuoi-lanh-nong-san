@@ -1,10 +1,11 @@
 """Event service implementing append-only event logging with SHA-256 hash chaining."""
 
 from collections.abc import Iterable
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, aliased, contains_eager
 
 from app.core.auth import Principal
@@ -12,6 +13,7 @@ from app.core.crypto import GENESIS_PREV_HASH, compute_event_hash
 from app.core.tenancy import get_tenant_record, tenant_select
 from app.models.event import Event
 from app.models.identity import Organization
+from app.models.integrity_alert import IntegrityAlert
 from app.models.integrity_check import IntegrityCheck
 from app.models.lot import Lot
 from app.schemas.event import EventCreate, EventRead, IntegrityIssue
@@ -369,6 +371,102 @@ def get_integrity_check_history(
             statement.order_by(IntegrityCheck.checked_at.desc()).limit(limit)
         ).all()
     )
+
+
+def summarize_integrity_scans(
+    db: Session, principal: Principal, *, limit: int = 20
+) -> dict:
+    """Summarize the scheduled integrity scans for the administrator view.
+
+    Reports the most recent scan time, how many lots carry a recorded check
+    and how many of them are currently broken. Row level security decides
+    which checks and alerts the caller may see.
+    """
+    latest = select(
+        IntegrityCheck.lot_id.label("lot_id"),
+        IntegrityCheck.organization_id.label("organization_id"),
+        IntegrityCheck.valid.label("valid"),
+        IntegrityCheck.checked_at.label("checked_at"),
+        IntegrityCheck.checked_events.label("checked_events"),
+        IntegrityCheck.first_invalid_sequence.label("first_invalid_sequence"),
+        func.row_number()
+        .over(
+            partition_by=IntegrityCheck.lot_id,
+            order_by=IntegrityCheck.checked_at.desc(),
+        )
+        .label("row_number"),
+    ).subquery()
+    rows = db.execute(
+        select(
+            latest.c.lot_id,
+            latest.c.organization_id,
+            latest.c.valid,
+            latest.c.checked_at,
+            latest.c.checked_events,
+            latest.c.first_invalid_sequence,
+        )
+        .where(latest.c.row_number == 1)
+        .order_by(latest.c.checked_at.desc())
+    ).all()
+
+    broken_rows = [row for row in rows if not row.valid]
+    last_checked_at = rows[0].checked_at if rows else None
+
+    lot_codes = _lot_codes(db, [row.lot_id for row in broken_rows])
+
+    broken_lots = [
+        {
+            "id": row.lot_id,
+            "lot_id": row.lot_id,
+            "lot_code": lot_codes.get(row.lot_id),
+            "organization_id": row.organization_id,
+            "detected_at": row.checked_at,
+            "first_invalid_sequence": row.first_invalid_sequence,
+            "issue_count": 1,
+            "checked_events": row.checked_events,
+        }
+        for row in broken_rows
+    ]
+
+    alerts = list(
+        db.scalars(
+            select(IntegrityAlert)
+            .order_by(IntegrityAlert.detected_at.desc())
+            .limit(limit)
+        ).all()
+    )
+    alert_lot_codes = _lot_codes(db, [alert.lot_id for alert in alerts])
+
+    recent_alerts = [
+        {
+            "id": alert.id,
+            "lot_id": alert.lot_id,
+            "lot_code": alert_lot_codes.get(alert.lot_id),
+            "organization_id": alert.organization_id,
+            "detected_at": alert.detected_at,
+            "first_invalid_sequence": alert.first_invalid_sequence,
+            "issue_count": alert.issue_count,
+            "checked_events": alert.checked_events,
+        }
+        for alert in alerts
+    ]
+
+    return {
+        "generated_at": datetime.now(UTC),
+        "last_checked_at": last_checked_at,
+        "checked_lot_count": len(rows),
+        "broken_lot_count": len(broken_rows),
+        "broken_lots": broken_lots,
+        "recent_alerts": recent_alerts,
+    }
+
+
+def _lot_codes(db: Session, lot_ids: list[UUID]) -> dict[UUID, str | None]:
+    """Resolve the human readable lot codes for a set of lots."""
+    if not lot_ids:
+        return {}
+    rows = db.execute(select(Lot.id, Lot.lot_code).where(Lot.id.in_(lot_ids))).all()
+    return {row.id: row.lot_code for row in rows}
 
 
 def get_event_by_id(
