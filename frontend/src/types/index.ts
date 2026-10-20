@@ -813,3 +813,33 @@ export interface ProductColdChainConfig {
   created_at: string
   updated_at: string
 }
+
+export interface ShipmentViolation {
+  id: string | null
+  shipment_id: string | null
+  violation_type: string
+  started_at: string
+  ended_at: string
+  duration_minutes: number
+  peak_temperature_celsius: number
+  is_settled: boolean
+}
+
+export interface TelemetryIngestResult {
+  container_code: string
+  shipment_id: string
+  shipment_code: string
+  ingested_count: number
+  duplicate_count: number
+  total_readings: number
+  violations_detected: number
+  violations: ShipmentViolation[]
+  applied_limits: AppliedColdChainLimits
+}
+
+export interface AppliedColdChainLimits {
+  min_temp_celsius: string
+  max_temp_celsius: string
+  delay_minutes: number
+  from_snapshot: boolean
+}

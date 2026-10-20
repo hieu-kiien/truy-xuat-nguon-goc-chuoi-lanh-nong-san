@@ -160,6 +160,51 @@ test('sidebar hides the temperature series entry from a grower', async () => {
   assert.doesNotMatch(await sidebar('grower'), /Chuỗi nhiệt độ/)
 })
 
+test('sidebar shows the cold chain actions for a carrier', async () => {
+  assert.match(await sidebar('transporter'), /Thao tác chuỗi lạnh/)
+})
+
+test('sidebar hides the cold chain actions from a grower', async () => {
+  assert.doesNotMatch(await sidebar('grower'), /Thao tác chuỗi lạnh/)
+})
+
+test('cold chain configuration panel offers the three thresholds', async () => {
+  const output = html(await load('ColdChainConfigPanel'), {canWrite: true})
+  assert.match(output, /Ngưỡng chuỗi lạnh theo nông sản/)
+  assert.match(output, /Ngưỡng dưới/)
+  assert.match(output, /Ngưỡng trên/)
+  assert.match(output, /Độ trễ/)
+  assert.match(output, /Lưu ngưỡng/)
+})
+
+test('cold chain configuration panel locks the fields without the permission', async () => {
+  const output = html(await load('ColdChainConfigPanel'), {canWrite: false})
+  assert.match(output, /Ngưỡng chuỗi lạnh theo nông sản/)
+  assert.doesNotMatch(output, /Lưu ngưỡng/)
+  assert.match(output, /chỉ xem được cấu hình/)
+})
+
+test('shipment reading form asks for a temperature and a moment', async () => {
+  const output = html(await load('ShipmentReadingForm'))
+  assert.match(output, /Ghi nhận số đo nhiệt độ/)
+  assert.match(output, /Nhiệt độ/)
+  assert.match(output, /Thời điểm ghi nhận/)
+  assert.match(output, /Ghi số đo/)
+})
+
+test('shipment create form asks for a container and lists the lots', async () => {
+  const output = html(await load('ShipmentCreateForm'))
+  assert.match(output, /Khai báo chuyến vận chuyển/)
+  assert.match(output, /Mã thùng lạnh/)
+  assert.match(output, /Mở chuyến vận chuyển/)
+  assert.match(output, /Lô hàng/)
+})
+
+test('shipment violation list announces the loading state', async () => {
+  const output = html(await load('ShipmentViolationList'), {shipmentId: 'ship-1'})
+  assert.match(output, /Đang tải vi phạm chuỗi lạnh/)
+})
+
 test('sidebar shows the organization entry for every member', async () => {
   assert.match(await sidebar('grower'), /Quản trị tổ chức/)
   assert.match(await sidebar('organization_admin'), /Quản trị tổ chức/)

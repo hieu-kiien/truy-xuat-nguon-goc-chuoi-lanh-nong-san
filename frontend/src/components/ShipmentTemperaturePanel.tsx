@@ -10,6 +10,7 @@ import type {
   ShipmentTemperatureReading,
 } from '../types'
 import { HourlyAggregateList } from './HourlyAggregateList'
+import { ShipmentViolationList } from './ShipmentViolationList'
 
 const EMPTY_READINGS: ShipmentTemperatureReading[] = []
 
@@ -194,6 +195,9 @@ export function ShipmentTemperaturePanel() {
 
       {shipmentId && (
         <>
+          <h3>Vi phạm chuỗi lạnh</h3>
+          <ShipmentViolationList shipmentId={shipmentId} />
+
           <h3>Đã tổng hợp theo giờ</h3>
           <HourlyAggregateList shipmentId={shipmentId} />
 

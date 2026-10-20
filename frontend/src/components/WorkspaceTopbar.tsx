@@ -23,6 +23,7 @@ const TAB_TITLES: Record<WorkspaceTab, string> = {
   integrity: 'Kiểm tra tính toàn vẹn',
   'cold-chain-stats': 'Thống kê chuỗi lạnh',
   'cold-chain': 'Chuỗi nhiệt độ',
+  'cold-chain-ops': 'Thao tác chuỗi lạnh',
   organization: 'Quản trị tổ chức',
 }
 

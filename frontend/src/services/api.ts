@@ -42,6 +42,8 @@ import type {
   OrganizationMember,
   ShipmentColdChainLimits,
   ProductColdChainConfig,
+  ShipmentViolation,
+  TelemetryIngestResult,
 } from '../types'
 
 
@@ -516,6 +518,31 @@ export const getShipmentColdChainLimits = (shipmentId: string) =>
   request<ShipmentColdChainLimits>(
     `/api/v1/telemetry/shipments/${shipmentId}/cold-chain-limits`,
   )
+
+export const getShipmentViolations = (shipmentId: string) =>
+  request<ShipmentViolation[]>(
+    `/api/v1/telemetry/shipments/${shipmentId}/violations`,
+  )
+
+export const createShipment = (payload: {
+  container_code: string
+  lot_ids: string[]
+  notes?: string | null
+  shipment_code?: string | null
+}) =>
+  request<Shipment>('/api/v1/shipments', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const ingestTelemetryReadings = (payload: {
+  container_code: string
+  readings: { recorded_at: string; temperature_celsius: string }[]
+}) =>
+  request<TelemetryIngestResult>('/api/v1/telemetry/readings', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 
 export const getShipmentHourlyAggregates = (shipmentId: string) =>
   request<ShipmentHourlyAggregate[]>(
