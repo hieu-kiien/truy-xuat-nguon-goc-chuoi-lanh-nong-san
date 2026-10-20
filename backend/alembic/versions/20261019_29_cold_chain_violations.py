@@ -195,12 +195,14 @@ def upgrade() -> None:
         op.execute(
             f"GRANT SELECT, INSERT, UPDATE ON cold_chain_violations TO {app_role};"
         )
+        op.execute(f"GRANT UPDATE (last_reading_at) ON shipments TO {app_role};")
 
 
 def downgrade() -> None:
     app_role = _application_role()
     if app_role:
         op.execute(f"REVOKE ALL ON cold_chain_violations FROM {app_role};")
+        op.execute(f"REVOKE UPDATE (last_reading_at) ON shipments FROM {app_role};")
 
     op.execute(
         "DROP POLICY IF EXISTS cold_chain_violations_tenant_update ON cold_chain_violations;"

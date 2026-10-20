@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.bootstrap_db_role import bootstrap_database_role
 from app.core.config import settings
 from app.core.security import hash_password, hash_session_token
+from app.models.cold_chain_config import ProductColdChainConfig
 from app.models.event import Event
 from app.models.farm import Farm
 from app.models.handover import Handover
@@ -231,6 +232,11 @@ def identity_factory(
             delete(Farm).where(Farm.organization_id.in_(created_organizations))
         )
     if created_users:
+        admin_session.execute(
+            delete(ProductColdChainConfig).where(
+                ProductColdChainConfig.updated_by_user_id.in_(created_users)
+            )
+        )
         admin_session.execute(
             delete(AuthSession).where(AuthSession.user_id.in_(created_users))
         )

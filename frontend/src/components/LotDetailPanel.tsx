@@ -239,7 +239,7 @@ export function LotDetailPanel({
           </>}
 
           {task && <a className="ds-button ds-button-secondary" href={`/lots/${lot.id}`}>← Quay lại chi tiết lô</a>}
-{task === 'recall' && (
+          {task === 'recall' && (
             <RecallPanel
               key={lot.id}
               lotId={lot.id}

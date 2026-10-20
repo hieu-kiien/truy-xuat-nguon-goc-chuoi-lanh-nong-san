@@ -2,15 +2,27 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { ApiError, getPublicTrace } from '../services/api'
 import type { PublicTraceResponse, PublicTraceWarning } from '../types'
 
-const LOT_CODE_PATTERN = /^[A-Za-z0-9]{4,12}$/
+const LOT_CODE_PATTERN = /^[A-Za-z0-9-]{4,32}$/
 
 const normalizeCode = (raw: string): string => raw.trim().toUpperCase()
 
-/** Mã lô truyền qua `?code=` khi người tiêu dùng quét tem QR. */
-function readRequestedCode(): string | null {
-  if (typeof window === 'undefined') return null
-  const requested = normalizeCode(new URLSearchParams(window.location.search).get('code') ?? '')
-  return LOT_CODE_PATTERN.test(requested) ? requested : null
+/** Mã lô lấy từ URL khi quét tem QR: `/trace/<mã>`, `/truy-xuat/<mã>` hoặc `?code=<mã>` (N3-65). */
+function readInitialLotCode(): string {
+  if (typeof window === 'undefined') return ''
+  const match = /^\/(?:trace|truy-xuat)\/([^/?#]+)\/?$/i.exec(window.location?.pathname ?? '')
+  let raw = ''
+  if (match?.[1]) {
+    try {
+      raw = decodeURIComponent(match[1])
+    } catch {
+      raw = match[1]
+    }
+  } else {
+    raw = new URLSearchParams(window.location?.search ?? '').get('code') ?? ''
+  }
+  const normalized = normalizeCode(raw)
+  // Mã không hợp lệ trên URL không được đẩy vào ô nhập.
+  return LOT_CODE_PATTERN.test(normalized) ? normalized : ''
 }
 
 function WarningIcon({ level }: { level: PublicTraceWarning['level'] }) {
@@ -33,8 +45,7 @@ function WarningIcon({ level }: { level: PublicTraceWarning['level'] }) {
 }
 
 export function PublicTracePage() {
-  const [requestedCode] = useState(readRequestedCode)
-  const [code, setCode] = useState(requestedCode ?? '')
+  const [code, setCode] = useState(readInitialLotCode)
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [result, setResult] = useState<PublicTraceResponse | null>(null)
@@ -70,12 +81,14 @@ export function PublicTracePage() {
     }
   }, [])
 
-  // Quét tem QR sẽ mở /truy-xuat?code=<mã lô>: tra cứu ngay, không bắt người dùng nhập lại.
+  // Tem QR trỏ tới /truy-xuat?code=<mã lô> (hoặc /trace/<mã lô>): tra cứu ngay, không bắt nhập lại.
   useEffect(() => {
-    if (!requestedCode || autoLookupDone.current) return
+    if (autoLookupDone.current) return
+    const initial = readInitialLotCode()
+    if (!initial) return
     autoLookupDone.current = true
-    void lookup(requestedCode)
-  }, [lookup, requestedCode])
+    void lookup(initial)
+  }, [lookup])
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

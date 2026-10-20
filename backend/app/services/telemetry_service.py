@@ -1,4 +1,4 @@
-"""Business service for cold chain telemetry ingestion and violation inspection (N3-59, N3-60, N3-61, N3-63)."""
+"""Business service for cold chain telemetry ingestion and violation inspection (N3-59, N3-60, N3-61, N3-62, N3-63)."""
 
 import logging
 from datetime import UTC
@@ -18,7 +18,7 @@ from app.schemas.telemetry import (
     TelemetryIngestResponse,
     TelemetryViolationRead,
 )
-from app.services import event_service
+from app.services import cold_chain_config_service, event_service
 from app.services.cold_chain_detector import detect_temperature_violations
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ def sync_shipment_violations_and_events(
 ) -> list[ColdChainViolation]:
     """Recompute sliding-window cold chain violations, persist records, settle closed excursions,
 
-    and append immutable cold_chain_violation events to all active lots on the shipment (N3-61, N3-63).
+    and append immutable cold_chain_violation events to all active lots on the shipment (N3-61, N3-62, N3-63).
     """
     all_readings = list(
         db.scalars(
@@ -64,16 +64,23 @@ def sync_shipment_violations_and_events(
         ).all()
     )
 
+    limits, _from_snapshot = cold_chain_config_service.effective_shipment_limits(
+        db, shipment
+    )
     min_temp = float(
-        shipment.effective_min_temp if shipment.effective_min_temp is not None else 2.0
+        shipment.cold_chain_min_temp_celsius
+        if shipment.cold_chain_min_temp_celsius is not None
+        else limits.min_temp_celsius
     )
     max_temp = float(
-        shipment.effective_max_temp if shipment.effective_max_temp is not None else 8.0
+        shipment.cold_chain_max_temp_celsius
+        if shipment.cold_chain_max_temp_celsius is not None
+        else limits.max_temp_celsius
     )
     delay_min = int(
-        shipment.effective_delay_minutes
-        if shipment.effective_delay_minutes is not None
-        else 30
+        shipment.cold_chain_delay_minutes
+        if shipment.cold_chain_delay_minutes is not None
+        else limits.delay_minutes
     )
     merge_gap = int(
         shipment.effective_merge_gap_minutes
@@ -196,7 +203,7 @@ def ingest_telemetry_readings(
     principal: Principal,
     payload: TelemetryIngestRequest,
 ) -> TelemetryIngestResponse:
-    """Ingest a batch of container temperature readings (S-41, N3-59, N3-61, N3-63)."""
+    """Ingest a batch of container temperature readings (S-41, N3-59, N3-61, N3-62, N3-63)."""
     # 1. Find active in_transit shipment for the container
     container_code = payload.container_code.strip()
     shipment = db.scalar(
@@ -212,7 +219,7 @@ def ingest_telemetry_readings(
         )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy chuyến xe đang vận chuyển (in_transit) gắn với thùng lạnh '{container_code}'.",
+            detail=f"Kh?ng t?m th?y chuy?n xe ?ang v?n chuy?n (in_transit) g?n v?i th?ng l?nh '{container_code}'.",
         )
 
     # 2. Authorization: carrier organization or system_admin
@@ -222,7 +229,7 @@ def ingest_telemetry_readings(
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Chỉ đơn vị vận chuyển của chuyến xe mới được nạp dữ liệu cảm biến.",
+            detail="Ch? ??n v? v?n chuy?n c?a chuy?n xe m?i ???c n?p d? li?u c?m bi?n.",
         )
 
     # 3. Sort readings chronologically
@@ -267,6 +274,11 @@ def ingest_telemetry_readings(
         db.execute(stmt)
         db.flush()
 
+    # 5. Freeze (or reuse) the shipment's strictest per-product limits (N3-62)
+    limits, _from_snapshot = cold_chain_config_service.get_or_snapshot_shipment_limits(
+        db, shipment
+    )
+
     # Update shipment last_reading_at = MAX(recorded_at)
     max_reading_at = db.scalar(
         select(func.max(TemperatureReading.recorded_at)).where(
@@ -277,7 +289,7 @@ def ingest_telemetry_readings(
         shipment.last_reading_at = max_reading_at
         db.flush()
 
-    # 5. Synchronize violations and log events
+    # 6. Synchronize violations and log events
     persisted_violations = sync_shipment_violations_and_events(
         db, principal, shipment, is_completing=False
     )
@@ -315,6 +327,7 @@ def ingest_telemetry_readings(
         total_readings=all_readings_count,
         violations_detected=len(violations_summary),
         violations=violations_summary,
+        applied_limits=limits.to_applied_read(from_snapshot=True),
     )
 
 
@@ -328,13 +341,13 @@ def list_shipment_readings(
     if not shipment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Không tìm thấy chuyến vận chuyển.",
+            detail="Kh?ng t?m th?y chuy?n v?n chuy?n.",
         )
 
     if not _can_access_shipment(db, principal, shipment):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn không có quyền xem dữ liệu đo của chuyến xe này.",
+            detail="B?n kh?ng c? quy?n xem d? li?u ?o c?a chuy?n xe n?y.",
         )
 
     return list(
@@ -356,13 +369,13 @@ def get_shipment_violations(
     if not shipment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Không tìm thấy chuyến vận chuyển.",
+            detail="Kh?ng t?m th?y chuy?n v?n chuy?n.",
         )
 
     if not _can_access_shipment(db, principal, shipment):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn không có quyền xem dữ liệu đo của chuyến xe này.",
+            detail="B?n kh?ng c? quy?n xem d? li?u ?o c?a chuy?n xe n?y.",
         )
 
     records = list(

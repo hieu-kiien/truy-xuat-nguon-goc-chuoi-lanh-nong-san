@@ -5,11 +5,17 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.auth import Principal, get_current_principal
 from app.core.authorization import require_permission
 from app.core.database import get_db
 from app.core.tenancy import shared_select
 from app.models.product import Product
+from app.schemas.cold_chain_config import (
+    ProductColdChainConfigRead,
+    ProductColdChainConfigUpsert,
+)
 from app.schemas.product import ProductCreate, ProductRead, ProductUpdate
+from app.services import cold_chain_config_service
 
 router = APIRouter(tags=["products"])
 PRODUCT_NAME_CONFLICT = "Tên sản phẩm đã tồn tại. Vui lòng chọn tên khác."
@@ -98,3 +104,33 @@ def delete_product(product_id: UUID, db: Annotated[Session, Depends(get_db)]) ->
         )
     db.delete(product)
     db.commit()
+
+
+@router.get(
+    "/{product_id}/cold-chain-config",
+    response_model=ProductColdChainConfigRead,
+    summary="Read the cold chain thresholds and delay of one product type (N3-62)",
+)
+@require_permission("products:read")
+def get_product_cold_chain_config(
+    product_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+) -> ProductColdChainConfigRead:
+    return cold_chain_config_service.get_product_config_read(db, product_id)
+
+
+@router.put(
+    "/{product_id}/cold-chain-config",
+    response_model=ProductColdChainConfigRead,
+    summary="Configure cold chain thresholds and delay for one product type (N3-62)",
+)
+@require_permission("products:write")
+def upsert_product_cold_chain_config(
+    product_id: UUID,
+    payload: ProductColdChainConfigUpsert,
+    db: Annotated[Session, Depends(get_db)],
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> ProductColdChainConfigRead:
+    return cold_chain_config_service.upsert_product_config(
+        db, principal, product_id, payload
+    )

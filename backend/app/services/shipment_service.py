@@ -17,7 +17,7 @@ from app.schemas.shipment import (
     ShipmentLotItemRead,
     ShipmentRead,
 )
-from app.services import event_service
+from app.services import cold_chain_config_service, event_service
 
 
 def _generate_shipment_code(db: Session) -> str:
@@ -193,6 +193,11 @@ def create_shipment(
                 "notes": shipment.notes,
             },
         )
+
+    # Freeze the strictest per-product limits across carried lots (N3-62) so
+    # later configuration changes never recompute this trip's violations.
+    limits = cold_chain_config_service.resolve_limits_for_lots(db, validated_lots)
+    cold_chain_config_service.apply_snapshot_limits(shipment, limits)
 
     try:
         db.commit()
