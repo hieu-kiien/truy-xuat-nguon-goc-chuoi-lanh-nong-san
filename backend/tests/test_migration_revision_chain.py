@@ -37,4 +37,6 @@ def test_legacy_revision_08_precedes_harvest_schema_and_handover_migrations():
     assert integrity_scanner.down_revision == "20261020_32"
     notifications = script.get_revision("20261021_34")
     assert notifications.down_revision == "20261021_33"
-    assert script.get_current_head() == "20261021_34"
+    invitations = script.get_revision("20261021_36")
+    assert invitations.down_revision == "20261021_35"
+    assert script.get_current_head() == "20261021_36"

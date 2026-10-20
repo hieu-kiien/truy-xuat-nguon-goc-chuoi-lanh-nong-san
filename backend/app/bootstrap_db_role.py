@@ -30,6 +30,12 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
         cursor.execute(
             sql.SQL("GRANT SELECT ON organizations TO {}").format(role_ident)
         )
+        if "contact_email" in _table_columns(cursor, "organizations"):
+            cursor.execute(
+                sql.SQL("GRANT UPDATE (contact_email) ON organizations TO {}").format(
+                    role_ident
+                )
+            )
     if "roles" in tables:
         cursor.execute(sql.SQL("GRANT SELECT ON roles TO {}").format(role_ident))
     if "users" in tables:

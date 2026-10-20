@@ -7,7 +7,12 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.services import public_trace_limiter, public_trace_service
+from app.schemas.organization import (
+    InvitationAccept,
+    InvitationAccepted,
+    InvitationPreview,
+)
+from app.services import invitation_service, public_trace_limiter, public_trace_service
 
 router = APIRouter()
 
@@ -34,3 +39,35 @@ def get_public_trace(
         )
 
     return public_trace_service.trace_lot_code(db, normalized)
+
+
+@router.get(
+    "/invitations/{token}",
+    response_model=InvitationPreview,
+    summary="Xem lời mời tham gia tổ chức (N3-30)",
+)
+def get_public_invitation(
+    token: str,
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    """Public details of one invitation, so the invited person can accept it."""
+    return invitation_service.read_invitation_by_token(db, token)
+
+
+@router.post(
+    "/invitations/{token}/accept",
+    response_model=InvitationAccepted,
+    summary="Chấp nhận lời mời và đặt mật khẩu (N3-30)",
+)
+def accept_public_invitation(
+    token: str,
+    payload: InvitationAccept,
+    db: Annotated[Session, Depends(get_db)],
+) -> dict:
+    """Set the password and join the organization that sent the invitation."""
+    return invitation_service.accept_invitation(
+        db,
+        token=token,
+        password=payload.password,
+        full_name=payload.full_name,
+    )

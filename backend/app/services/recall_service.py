@@ -1,5 +1,6 @@
 """Service layer for managing product recalls, lineage reporting, confirmations, and blocking affected lots."""
 
+import logging
 from collections import defaultdict, deque
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -38,8 +39,10 @@ from app.schemas.recall import (
     RecallReport,
     RecallSummary,
 )
-from app.services import event_service, public_trace_cache
+from app.services import email_service, event_service, public_trace_cache
 from app.services.traversal_service import _roots_and_check_cycle
+
+logger = logging.getLogger(__name__)
 
 ZERO_QUANTITY = Decimal("0.000")
 
@@ -437,6 +440,49 @@ def _compute_involved_organizations(
     return progress_list, confirmation_reads, org_lots
 
 
+def send_recall_notices(
+    db: Session,
+    order: RecallOrder,
+    progress_list: list[RecallOrganizationProgress],
+    *,
+    sender_organization_id: UUID,
+) -> int:
+    """Send the recall notice to every organization involved (N3-57).
+
+    The notice names the recall code and the path to the order only. It never
+    lists the affected lots, because the recipient opens the order to see
+    them. Organizations without a contact address are skipped.
+    """
+    delivered = 0
+    for progress in progress_list:
+        organization = db.get(Organization, progress.organization_id)
+        if organization is None or not organization.contact_email:
+            continue
+        delivery = email_service.deliver_email(
+            db,
+            recipient_email=organization.contact_email,
+            subject=f"[{order.recall_code}] Lệnh thu hồi lô hàng liên quan",
+            body=email_service.recall_notice_body(
+                order.recall_code,
+                order.root_lot_id,
+                organization_name=organization.name,
+            ),
+            kind=email_service.RECALL_NOTICE_KIND,
+            organization_id=sender_organization_id,
+            related_id=str(order.id),
+        )
+        if delivery.delivered:
+            delivered += 1
+        else:
+            logger.warning(
+                "Recall notice for %s could not be delivered to organization %s: %s",
+                order.recall_code,
+                progress.organization_id,
+                delivery.error,
+            )
+    return delivered
+
+
 def enrich_recall_order(
     db: Session, principal: Principal, order: RecallOrder
 ) -> RecallOrder:
@@ -625,7 +671,15 @@ def open_recall(
     db.refresh(order)
     # Trang công khai phải phản ánh thu hồi ngay, không chờ cache hết hạn (S-50).
     public_trace_cache.invalidate_all()
-    return enrich_recall_order(db, principal, order)
+    enriched = enrich_recall_order(db, principal, order)
+    # N3-57: gửi thông báo tới mọi tổ chức liên quan qua dịch vụ gửi thư.
+    send_recall_notices(
+        db,
+        order,
+        list(getattr(enriched, "organizations_progress", []) or []),
+        sender_organization_id=principal.organization_id,
+    )
+    return enriched
 
 
 def create_recall_order(
@@ -698,7 +752,15 @@ def create_recall_order(
     db.commit()
     db.refresh(order)
     public_trace_cache.invalidate_all()
-    return enrich_recall_order(db, principal, order)
+    enriched = enrich_recall_order(db, principal, order)
+    # N3-57: gửi thông báo tới mọi tổ chức liên quan qua dịch vụ gửi thư.
+    send_recall_notices(
+        db,
+        order,
+        list(getattr(enriched, "organizations_progress", []) or []),
+        sender_organization_id=principal.organization_id,
+    )
+    return enriched
 
 
 def _is_org_involved_in_order(

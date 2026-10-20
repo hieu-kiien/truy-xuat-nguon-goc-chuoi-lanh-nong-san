@@ -24,6 +24,10 @@ class Organization(Base):
             "'distribution', 'inspection', 'administration')",
             name="ck_organizations_type",
         ),
+        CheckConstraint(
+            "contact_email IS NULL OR contact_email = lower(btrim(contact_email))",
+            name="ck_organizations_contact_email",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -32,6 +36,8 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     organization_type: Mapped[str] = mapped_column(String(32), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # One official address for recall notices and invitations (N3-57, N3-30).
+    contact_email: Mapped[str | None] = mapped_column(String(320))
 
 
 class Role(Base):

@@ -40,6 +40,18 @@ class Settings(BaseSettings):
     SESSION_COOKIE_NAME: str = "__Host-session"
     SESSION_COOKIE_SAMESITE: str = "none"
     SESSION_COOKIE_SECURE: bool = True
+    # Outbound e-mail (N3-57, N3-30). When SMTP_HOST is empty the messages are
+    # only written to the outbox, which keeps the evidence without a server.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "no-reply@agrochain.local"
+    SMTP_USE_TLS: bool = True
+    SMTP_TIMEOUT_SECONDS: int = 15
+    EMAIL_MAX_ATTEMPTS: int = Field(default=3, ge=1, le=5)
+    EMAIL_RETRY_DELAY_SECONDS: float = Field(default=1.0, ge=0.0, le=30.0)
+    PUBLIC_APP_URL: str = "http://localhost:5173"
     ALLOWED_ORIGINS: list[str] | str = [
         "http://localhost:5173",
         "http://localhost:3000",

@@ -15,6 +15,9 @@ AUTH_ROUTE_ALLOWLIST = {
     ("/api/v1/auth/login", "POST"),
     # Trang công khai truy xuất theo mã lô: cố ý không đăng nhập (S-48).
     ("/api/v1/public/trace/{lot_code}", "GET"),
+    # Lời mời tham gia tổ chức: người nhận chưa có tài khoản (N3-30).
+    ("/api/v1/public/invitations/{token}", "GET"),
+    ("/api/v1/public/invitations/{token}/accept", "POST"),
 }
 AUTH_QUERY_FILE_ALLOWLIST = {"auth.py"}
 DIRECT_QUERY_METHODS = {"execute", "get", "scalar", "scalars"}
