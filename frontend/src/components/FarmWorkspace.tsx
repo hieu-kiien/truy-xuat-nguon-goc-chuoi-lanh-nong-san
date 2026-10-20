@@ -20,6 +20,7 @@ import { LotsPanel } from './LotsPanel'
 import { LotDetailPanel } from './LotDetailPanel'
 import { LocationsPanel } from './LocationsPanel'
 import { ProductManager } from './ProductManager'
+import { RecallAlertBanner } from './RecallAlertBanner'
 import { SecurityPanel } from './SecurityPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
@@ -314,6 +315,12 @@ export function FarmWorkspace({
           />
 
           <main id="main-content" tabIndex={-1} ref={contentRef} className="dashboard-content">
+            {hasPermission(user.role, 'recalls:read') && (
+              <RecallAlertBanner
+                onOpenLot={onOpenLot}
+                onNotify={onNotify}
+              />
+            )}
             {activeTab === 'demo' && <DemoGuide />}
             {activeTab === 'overview' && canReadFarms && (
               <section aria-label="Tóm tắt vùng trồng">
@@ -360,6 +367,8 @@ export function FarmWorkspace({
                 <LotDetailPanel
                     canManageDistribution={canManageDistribution(user)}
                     canTransform={hasPermission(user.role, 'lots:transform')}
+                    canOpenRecall={hasPermission(user.role, 'recalls:open')}
+                    canConfirmRecall={hasPermission(user.role, 'recalls:confirm')}
                     organizationId={user.organization_id}
                     onOpenLot={onOpenLot}
                   lotId={selectedLotId}

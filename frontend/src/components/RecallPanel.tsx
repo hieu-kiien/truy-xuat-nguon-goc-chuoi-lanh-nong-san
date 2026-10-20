@@ -1,26 +1,64 @@
-import { useEffect, useState, useMemo } from 'react'
-import { getLotRecall } from '../services/api'
-import type { RecallReport, RecallLotItem } from '../types'
+import { useEffect, useState, useMemo, useCallback, type FormEvent } from 'react'
+import {
+  confirmRecallHandling,
+  getLotRecall,
+  getRecallOrder,
+  getRecalls,
+  openRecallOrder,
+} from '../services/api'
+import type { RecallReport, RecallLotItem, RecallOrder } from '../types'
 import { lotStatusLabel } from '../types'
 
 interface RecallPanelProps {
   lotId: string
   onOpenLot: (lotId: string) => void
+  canOpenRecall?: boolean
+  canConfirmRecall?: boolean
+  organizationId?: string
 }
 
-export function RecallPanel({ lotId, onOpenLot }: RecallPanelProps) {
+export function RecallPanel({
+  lotId,
+  onOpenLot,
+  canOpenRecall = false,
+  canConfirmRecall = false,
+  organizationId,
+}: RecallPanelProps) {
   const [reportLotId, setReportLotId] = useState<string | null>(null)
   const [report, setReport] = useState<RecallReport | null>(null)
+  const [recallOrder, setRecallOrder] = useState<RecallOrder | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'consumed' | 'closed'>('all')
+
+  const [reasonInput, setReasonInput] = useState('')
+  const [openingOrder, setOpeningOrder] = useState(false)
+  const [confirmNote, setConfirmNote] = useState('')
+  const [confirming, setConfirming] = useState(false)
+
+  const loadData = useCallback(async (targetLotId: string) => {
+    const [reportData, orders] = await Promise.all([
+      getLotRecall(targetLotId),
+      getRecalls().catch(() => [] as RecallOrder[]),
+    ])
+    const matchedOrder =
+      orders.find(
+        (o) =>
+          o.root_lot_id === targetLotId ||
+          o.affected_lots?.some((item) => item.id === targetLotId),
+      ) ?? null
+    return { reportData, matchedOrder }
+  }, [])
 
   useEffect(() => {
     let active = true
-    getLotRecall(lotId)
-      .then((data) => {
+    loadData(lotId)
+      .then(({ reportData, matchedOrder }) => {
         if (!active) return
-        setReport(data)
+        setReport(reportData)
+        setRecallOrder(matchedOrder)
         setReportLotId(lotId)
         setError(null)
       })
@@ -35,19 +73,105 @@ export function RecallPanel({ lotId, onOpenLot }: RecallPanelProps) {
     return () => {
       active = false
     }
-  }, [lotId])
+  }, [loadData, lotId])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    setError(null)
+    try {
+      if (recallOrder) {
+        const refreshedOrder = await getRecallOrder(recallOrder.id)
+        setRecallOrder(refreshedOrder)
+        if (refreshedOrder.root_lot && refreshedOrder.summary) {
+          setReport({
+            root_lot: refreshedOrder.root_lot,
+            summary: refreshedOrder.summary,
+            descendants: refreshedOrder.descendants,
+            affected_lots: refreshedOrder.affected_lots,
+          })
+        } else {
+          const freshReport = await getLotRecall(lotId)
+          setReport(freshReport)
+        }
+      } else {
+        const { reportData, matchedOrder } = await loadData(lotId)
+        setReport(reportData)
+        setRecallOrder(matchedOrder)
+      }
+      setNotice('Đã tính toán lại danh sách hậu duệ và tiến độ thu hồi trực tiếp từ đồ thị phả hệ.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể làm mới danh sách thu hồi.')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const handleOpenRecall = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (openingOrder || reasonInput.trim().length < 20) return
+    setOpeningOrder(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const created = await openRecallOrder(lotId, reasonInput.trim())
+      setRecallOrder(created)
+      if (created.root_lot && created.summary) {
+        setReport({
+          root_lot: created.root_lot,
+          summary: created.summary,
+          descendants: created.descendants,
+          affected_lots: created.affected_lots,
+        })
+      }
+      setReasonInput('')
+      setNotice(`Đã phát lệnh thu hồi ${created.recall_code}. Mọi tổ chức liên quan đã nhận thông báo.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể mở lệnh thu hồi.')
+    } finally {
+      setOpeningOrder(false)
+    }
+  }
+
+  const handleConfirmHandling = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!recallOrder || confirming) return
+    const noteText =
+      confirmNote.trim() || 'Đã gom hàng khỏi kệ và cách ly phần lô ảnh hưởng tại đơn vị.'
+    setConfirming(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const updated = await confirmRecallHandling(recallOrder.id, noteText)
+      setRecallOrder(updated)
+      setConfirmNote('')
+      setNotice(
+        updated.status === 'completed'
+          ? `Tất cả đơn vị đã xác nhận (${updated.progress_text}). Lệnh thu hồi ${updated.recall_code} tự động chuyển sang Hoàn tất!`
+          : `Đã ghi nhận xác nhận xử lý của đơn vị. Tiến độ hiện tại: ${updated.progress_text}.`,
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể xác nhận xử lý thu hồi.')
+    } finally {
+      setConfirming(false)
+    }
+  }
 
   const isLoading = loading || reportLotId !== lotId
 
+  const activeLotsList = useMemo(() => {
+    if (recallOrder && recallOrder.affected_lots && recallOrder.affected_lots.length > 0) {
+      return recallOrder.affected_lots
+    }
+    return report?.affected_lots ?? []
+  }, [recallOrder, report])
+
   const filteredLots = useMemo(() => {
-    if (!report) return []
-    const lots = report.affected_lots
-    if (statusFilter === 'all') return lots
-    if (statusFilter === 'active') return lots.filter((item) => item.status === 'active' || item.status === 'pending_handover')
-    if (statusFilter === 'consumed') return lots.filter((item) => item.status === 'consumed')
-    if (statusFilter === 'closed') return lots.filter((item) => item.status === 'closed')
-    return lots
-  }, [report, statusFilter])
+    if (statusFilter === 'all') return activeLotsList
+    if (statusFilter === 'active') return activeLotsList.filter((item) => item.status === 'active' || item.status === 'pending_handover')
+    if (statusFilter === 'consumed') return activeLotsList.filter((item) => item.status === 'consumed')
+    if (statusFilter === 'closed') return activeLotsList.filter((item) => item.status === 'closed')
+    return activeLotsList
+  }, [activeLotsList, statusFilter])
 
   const exportCsv = () => {
     if (!report) return
@@ -67,7 +191,7 @@ export function RecallPanel({ lotId, onOpenLot }: RecallPanelProps) {
       'Gộp đa nguồn',
     ]
 
-    const rows = report.affected_lots.map((item) => [
+    const rows = activeLotsList.map((item) => [
       `"${item.lot_code ?? item.id}"`,
       `"${item.name.replace(/"/g, '""')}"`,
       item.tier,
@@ -97,7 +221,7 @@ export function RecallPanel({ lotId, onOpenLot }: RecallPanelProps) {
     return <section className="panel-card panel-box" aria-busy="true">Đang tổng hợp danh sách thu hồi phả hệ…</section>
   }
 
-  if (error) {
+  if (error && !report) {
     return <div className="alert-box alert-error" role="alert">{error}</div>
   }
 
@@ -105,7 +229,11 @@ export function RecallPanel({ lotId, onOpenLot }: RecallPanelProps) {
     return <p>Không có dữ liệu thu hồi cho lô này.</p>
   }
 
-  const { summary, root_lot } = report
+  const summary = recallOrder?.summary ?? report.summary
+  const root_lot = recallOrder?.root_lot ?? report.root_lot
+  const myOrgProgress = recallOrder?.organizations_progress.find(
+    (p) => p.organization_id === organizationId,
+  )
 
   return (
     <section className="panel-card panel-box" aria-labelledby="recall-panel-title">
@@ -113,17 +241,228 @@ export function RecallPanel({ lotId, onOpenLot }: RecallPanelProps) {
         <div>
           <h2 id="recall-panel-title">Danh sách và Kế hoạch Thu hồi</h2>
           <p className="panel-sub">
-            Truy vết xuôi toàn bộ các nhánh phân phối từ lô <strong>{root_lot.lot_code ?? root_lot.name}</strong> để xác định vị trí tồn kho và lượng hàng đã tiêu thụ.
+            Truy vết xuôi động toàn bộ các nhánh phân phối từ lô <strong>{root_lot.lot_code ?? root_lot.name}</strong> (kể cả lô gộp đa nguồn) để xác định vị trí tồn kho và theo dõi tiến độ xác nhận.
           </p>
         </div>
-        <button
-          type="button"
-          className="ds-button ds-button-secondary"
-          onClick={exportCsv}
-        >
-          Xuất báo cáo CSV
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="ds-button ds-button-secondary"
+            onClick={() => void handleRefresh()}
+            disabled={refreshing}
+          >
+            {refreshing ? 'Đang làm mới…' : 'Làm mới danh sách động'}
+          </button>
+          <button
+            type="button"
+            className="ds-button ds-button-secondary"
+            onClick={exportCsv}
+          >
+            Xuất báo cáo CSV
+          </button>
+        </div>
       </div>
+
+      {error && (
+        <div className="alert-box alert-error" role="alert">
+          {error}
+        </div>
+      )}
+      {notice && (
+        <div className="alert-box alert-success" role="status">
+          {notice}
+        </div>
+      )}
+
+      {/* Recall Order Status, Progress & Confirmation Section (N3-52 & N3-55) */}
+      {recallOrder ? (
+        <div
+          className="panel-box"
+          style={{
+            marginTop: '1rem',
+            marginBottom: '1rem',
+            border:
+              recallOrder.status === 'completed'
+                ? '1px solid rgba(22, 163, 74, 0.35)'
+                : '1px solid rgba(220, 38, 38, 0.35)',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+            }}
+          >
+            <div>
+              <h3 style={{ margin: 0 }}>
+                Lệnh thu hồi: <code>{recallOrder.recall_code}</code>
+              </h3>
+              <p className="panel-sub" style={{ marginTop: '0.25rem' }}>
+                Lý do: <strong>{recallOrder.reason}</strong>
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <span className="status-badge status-neutral">
+                Tiến độ xác nhận: {recallOrder.progress_text}
+              </span>
+              <span
+                className={`status-badge ${recallOrder.status === 'completed' ? 'status-done' : 'status-warning'}`}
+              >
+                {recallOrder.status === 'completed' ? 'Hoàn tất' : 'Đang mở thu hồi'}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '0.75rem', fontSize: '0.9rem' }}>
+            <div>
+              <strong>Đã xác nhận ({recallOrder.confirmed_organizations_count}/{recallOrder.total_organizations_count}): </strong>
+              <span>
+                {recallOrder.confirmed_organizations.length > 0
+                  ? recallOrder.confirmed_organizations.join(' · ')
+                  : 'Chưa có đơn vị nào xác nhận'}
+              </span>
+            </div>
+            <div style={{ marginTop: '0.25rem' }}>
+              <strong>Đang chờ xử lý ({recallOrder.pending_organizations.length}): </strong>
+              <span style={{ color: recallOrder.pending_organizations.length > 0 ? '#dc2626' : '#16a34a' }}>
+                {recallOrder.pending_organizations.length > 0
+                  ? recallOrder.pending_organizations.join(' · ')
+                  : 'Tất cả tổ chức liên quan đã hoàn tất xử lý'}
+              </span>
+            </div>
+          </div>
+
+          {/* Organization Progress Table */}
+          {recallOrder.organizations_progress.length > 0 && (
+            <div className="lineage-table-scroll" style={{ marginTop: '0.75rem' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Tổ chức liên quan</th>
+                    <th>Lô ảnh hưởng</th>
+                    <th>Tồn kho cần thu hồi</th>
+                    <th>Trạng thái xử lý</th>
+                    <th>Ghi chú & Thời điểm xác nhận</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recallOrder.organizations_progress.map((orgProg) => (
+                    <tr key={orgProg.organization_id}>
+                      <td>
+                        <strong>{orgProg.organization_name}</strong>
+                        {orgProg.organization_type && (
+                          <span style={{ fontSize: '0.8rem', opacity: 0.75 }}>
+                            {' '}
+                            ({orgProg.organization_type})
+                          </span>
+                        )}
+                      </td>
+                      <td>{orgProg.affected_lot_codes.join(', ') || '—'}</td>
+                      <td>
+                        {orgProg.recoverable_quantity} {root_lot.unit ?? 'kg'}
+                      </td>
+                      <td>
+                        <span
+                          className={`status-badge ${orgProg.status === 'confirmed' ? 'status-done' : 'status-warning'}`}
+                        >
+                          {orgProg.status === 'confirmed' ? 'Đã xử lý' : 'Đang chờ'}
+                        </span>
+                      </td>
+                      <td>
+                        {orgProg.status === 'confirmed' ? (
+                          <span>
+                            {orgProg.note}
+                            {orgProg.confirmed_at
+                              ? ` (${new Date(orgProg.confirmed_at).toLocaleString('vi-VN')})`
+                              : ''}
+                          </span>
+                        ) : (
+                          <span style={{ opacity: 0.7 }}>Chưa xác nhận</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Action form for involved organization to confirm its part (N3-55 AC2) */}
+          {canConfirmRecall &&
+            recallOrder.status === 'open' &&
+            myOrgProgress &&
+            myOrgProgress.status === 'pending' && (
+              <form
+                onSubmit={(e) => void handleConfirmHandling(e)}
+                style={{
+                  marginTop: '0.85rem',
+                  display: 'flex',
+                  gap: '0.5rem',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                }}
+              >
+                <input
+                  type="text"
+                  className="ds-input"
+                  style={{ flex: '1 1 280px' }}
+                  placeholder="Ghi chú xác nhận đã gom hàng khỏi kệ / cách ly kho..."
+                  value={confirmNote}
+                  onChange={(e) => setConfirmNote(e.target.value)}
+                />
+                <button
+                  type="submit"
+                  className="ds-button ds-button-brand"
+                  disabled={confirming}
+                >
+                  {confirming ? 'Đang ghi nhận…' : 'Xác nhận đã xử lý phần của đơn vị'}
+                </button>
+              </form>
+            )}
+        </div>
+      ) : (
+        canOpenRecall &&
+        root_lot.status !== 'consumed' && (
+          <form
+            onSubmit={(e) => void handleOpenRecall(e)}
+            className="panel-box"
+            style={{
+              marginTop: '1rem',
+              marginBottom: '1rem',
+              padding: '1rem',
+              border: '1px solid rgba(217, 119, 6, 0.35)',
+              borderRadius: '0.5rem',
+            }}
+          >
+            <h3 style={{ marginTop: 0 }}>Phát lệnh thu hồi chính thức</h3>
+            <p className="panel-sub">
+              Nhập lý do thu hồi (tối thiểu 20 ký tự) để phong tỏa toàn bộ lô hậu duệ và gửi cảnh báo cho các tổ chức liên quan.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+              <input
+                type="text"
+                className="ds-input"
+                style={{ flex: '1 1 320px' }}
+                placeholder="Lý do thu hồi (tối thiểu 20 ký tự, VD: Phát hiện dư lượng thuốc BVTV vượt ngưỡng)"
+                value={reasonInput}
+                onChange={(e) => setReasonInput(e.target.value)}
+              />
+              <button
+                type="submit"
+                className="ds-button ds-button-brand"
+                disabled={openingOrder || reasonInput.trim().length < 20}
+              >
+                {openingOrder ? 'Đang phát lệnh…' : 'Mở lệnh thu hồi'}
+              </button>
+            </div>
+          </form>
+        )
+      )}
 
       {summary.has_consumed_lot && (
         <div className="alert-box alert-error" role="alert">
@@ -180,28 +519,28 @@ export function RecallPanel({ lotId, onOpenLot }: RecallPanelProps) {
           className={`ds-button ${statusFilter === 'all' ? 'ds-button-brand' : 'ds-button-secondary'} ds-button-sm`}
           onClick={() => setStatusFilter('all')}
         >
-          Tất cả ({report.affected_lots.length})
+          Tất cả ({activeLotsList.length})
         </button>
         <button
           type="button"
           className={`ds-button ${statusFilter === 'active' ? 'ds-button-brand' : 'ds-button-secondary'} ds-button-sm`}
           onClick={() => setStatusFilter('active')}
         >
-          Còn tồn kho ({report.affected_lots.filter((item) => item.status === 'active' || item.status === 'pending_handover').length})
+          Còn tồn kho ({activeLotsList.filter((item) => item.status === 'active' || item.status === 'pending_handover').length})
         </button>
         <button
           type="button"
           className={`ds-button ${statusFilter === 'consumed' ? 'ds-button-brand' : 'ds-button-secondary'} ds-button-sm`}
           onClick={() => setStatusFilter('consumed')}
         >
-          Đã bán/tiêu thụ ({report.affected_lots.filter((item) => item.status === 'consumed').length})
+          Đã bán/tiêu thụ ({activeLotsList.filter((item) => item.status === 'consumed').length})
         </button>
         <button
           type="button"
           className={`ds-button ${statusFilter === 'closed' ? 'ds-button-brand' : 'ds-button-secondary'} ds-button-sm`}
           onClick={() => setStatusFilter('closed')}
         >
-          Đã chia tách/gộp ({report.affected_lots.filter((item) => item.status === 'closed').length})
+          Đã chia tách/gộp ({activeLotsList.filter((item) => item.status === 'closed').length})
         </button>
       </div>
 
