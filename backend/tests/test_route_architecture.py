@@ -11,7 +11,11 @@ from app.core.auth import Principal, get_current_principal
 from app.core.authorization import enforce_route_permission
 from app.main import app
 
-AUTH_ROUTE_ALLOWLIST = {("/api/v1/auth/login", "POST")}
+AUTH_ROUTE_ALLOWLIST = {
+    ("/api/v1/auth/login", "POST"),
+    # Trang công khai truy xuất theo mã lô: cố ý không đăng nhập (S-48).
+    ("/api/v1/public/trace/{lot_code}", "GET"),
+}
 AUTH_QUERY_FILE_ALLOWLIST = {"auth.py"}
 DIRECT_QUERY_METHODS = {"execute", "get", "scalar", "scalars"}
 

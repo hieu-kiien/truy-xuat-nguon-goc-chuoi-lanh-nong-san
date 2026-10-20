@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     LOGIN_LOCK_MINUTES: int = Field(default=15, ge=1, le=1440)
     SESSION_TTL_MINUTES: int = Field(default=480, ge=1, le=10080)
     HANDOVER_OVERDUE_HOURS: int = Field(default=48, ge=1, le=8760)
+    PUBLIC_TRACE_CACHE_TTL_SECONDS: int = Field(default=60, ge=0, le=3600)
+    PUBLIC_TRACE_RATE_LIMIT_CODES: int = Field(default=30, ge=1, le=1000)
+    PUBLIC_TRACE_RATE_WINDOW_SECONDS: int = Field(default=60, ge=1, le=3600)
     SESSION_COOKIE_NAME: str = "__Host-session"
     SESSION_COOKIE_SAMESITE: str = "none"
     SESSION_COOKIE_SECURE: bool = True
