@@ -1,8 +1,22 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { ApiError, getPublicTrace } from '../services/api'
 import type { PublicTraceResponse, PublicTraceWarning } from '../types'
 
-const LOT_CODE_PATTERN = /^[A-Za-z0-9]{4,12}$/
+const LOT_CODE_PATTERN = /^[A-Za-z0-9-]{4,32}$/
+
+function readInitialLotCode(): string {
+  if (typeof window === 'undefined') return ''
+  const match = /^\/(?:trace|truy-xuat)\/([^/?#]+)\/?$/i.exec(window.location?.pathname ?? '')
+  if (match?.[1]) {
+    try {
+      return decodeURIComponent(match[1]).trim()
+    } catch {
+      return match[1].trim()
+    }
+  }
+  const param = new URLSearchParams(window.location?.search ?? '').get('code')
+  return param ? param.trim() : ''
+}
 
 function WarningIcon({ level }: { level: PublicTraceWarning['level'] }) {
   if (level === 'danger') {
@@ -24,10 +38,39 @@ function WarningIcon({ level }: { level: PublicTraceWarning['level'] }) {
 }
 
 export function PublicTracePage() {
-  const [code, setCode] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [code, setCode] = useState(readInitialLotCode)
+  const [loading, setLoading] = useState(() => {
+    const initial = readInitialLotCode().toUpperCase()
+    return Boolean(initial && LOT_CODE_PATTERN.test(initial))
+  })
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [result, setResult] = useState<PublicTraceResponse | null>(null)
+
+  useEffect(() => {
+    const initial = readInitialLotCode().toUpperCase()
+    if (!initial || !LOT_CODE_PATTERN.test(initial)) return
+    let active = true
+    getPublicTrace(initial)
+      .then((payload) => {
+        if (active) setResult(payload)
+      })
+      .catch((err: unknown) => {
+        if (!active) return
+        if (err instanceof ApiError && err.status === 404) {
+          setErrorMessage('Không tìm thấy lô hàng với mã này. Vui lòng kiểm tra lại mã in trên bao bì.')
+        } else if (err instanceof ApiError && err.message) {
+          setErrorMessage(err.message)
+        } else {
+          setErrorMessage('Không tra cứu được lúc này. Vui lòng thử lại.')
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
