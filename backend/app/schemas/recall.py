@@ -1,4 +1,4 @@
-"""Schemas for recall operations (N3-49, N3-50, N3-51, N3-52, N3-53 & N3-55)."""
+"""Schemas for recall operations (N3-49, N3-51 & N3-53)."""
 
 from datetime import date, datetime
 from decimal import Decimal
@@ -45,55 +45,6 @@ class RecallOrderCreate(BaseModel):
         return normalized
 
 
-class RecallConfirmCreate(BaseModel):
-    """Payload for an involved organization to confirm handling of a recall order (N3-55)."""
-
-    note: str = Field(
-        default="Đã gom hàng khỏi kệ và cách ly phần lô ảnh hưởng tại đơn vị.",
-        min_length=1,
-        max_length=1000,
-    )
-
-    @field_validator("note")
-    @classmethod
-    def validate_note(cls, value: str) -> str:
-        trimmed = value.strip()
-        if not trimmed:
-            raise ValueError("Ghi chú xác nhận xử lý không được để trống.")
-        return trimmed
-
-
-class RecallConfirmationRead(BaseModel):
-    """Immutable confirmation record of an involved organization (N3-55)."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    recall_order_id: UUID
-    organization_id: UUID
-    organization_name: str | None = None
-    confirmed_by_user_id: UUID
-    confirmed_by_user_name: str | None = None
-    note: str
-    confirmed_at: datetime
-
-
-class RecallOrganizationProgress(BaseModel):
-    """Per-organization handling status within a recall order (N3-52 & N3-55)."""
-
-    organization_id: UUID
-    organization_name: str
-    organization_type: str | None = None
-    status: Literal["confirmed", "pending"]
-    confirmed_at: datetime | None = None
-    confirmed_by_user_id: UUID | None = None
-    confirmed_by_user_name: str | None = None
-    note: str | None = None
-    affected_lot_ids: list[UUID] = Field(default_factory=list)
-    affected_lot_codes: list[str] = Field(default_factory=list)
-    recoverable_quantity: Decimal = Decimal("0.000")
-
-
 class RecallOrderLotRead(BaseModel):
     id: UUID
     lot_id: UUID
@@ -104,6 +55,23 @@ class RecallOrderLotRead(BaseModel):
 
 class RecallOrderLotIncidentUpdate(BaseModel):
     incident_flag: bool
+
+
+class RecallOrderRead(BaseModel):
+    """Projection of an open or completed recall order."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    recall_code: str
+    root_lot_id: UUID
+    opened_by_user_id: UUID
+    opened_by_organization_id: UUID
+    reason: str
+    status: str
+    created_at: datetime
+    completed_at: datetime | None = None
+    lots: list[RecallOrderLotRead] = Field(default_factory=list)
 
 
 class RecallLotItem(BaseModel):
@@ -158,59 +126,3 @@ class RecallReport(BaseModel):
     summary: RecallSummary
     descendants: list[RecallLotItem]
     affected_lots: list[RecallLotItem]
-
-
-class RecallOrderRead(BaseModel):
-    """Projection of an open or completed recall order with dynamic lineage and progress (N3-50, N3-52, N3-55)."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    recall_code: str
-    root_lot_id: UUID
-    opened_by_user_id: UUID
-    opened_by_organization_id: UUID
-    reason: str
-    status: str
-    created_at: datetime
-    completed_at: datetime | None = None
-    lots: list[RecallOrderLotRead] = Field(default_factory=list)
-    root_lot: RecallLotItem | None = Field(
-        default=None, validation_alias="root_lot_item"
-    )
-    summary: RecallSummary | None = None
-    descendants: list[RecallLotItem] = Field(default_factory=list)
-    affected_lots: list[RecallLotItem] = Field(default_factory=list)
-    total_organizations_count: int = 0
-    confirmed_organizations_count: int = 0
-    progress_text: str = "0/0"
-    pending_organizations: list[str] = Field(default_factory=list)
-    confirmed_organizations: list[str] = Field(default_factory=list)
-    organizations_progress: list[RecallOrganizationProgress] = Field(
-        default_factory=list
-    )
-    confirmations: list[RecallConfirmationRead] = Field(
-        default_factory=list, validation_alias="confirmations_read"
-    )
-
-
-class RecallNotificationRead(BaseModel):
-    """Alert notification for an involved organization about an active recall (N3-55)."""
-
-    recall_id: UUID
-    recall_code: str
-    root_lot_id: UUID
-    root_lot_code: str | None = None
-    root_lot_name: str
-    reason: str
-    status: str
-    created_at: datetime
-    organization_id: UUID
-    organization_name: str
-    handling_status: Literal["confirmed", "pending"]
-    confirmed_at: datetime | None = None
-    note: str | None = None
-    total_organizations_count: int
-    confirmed_organizations_count: int
-    progress_text: str
-    affected_lots: list[RecallLotItem] = Field(default_factory=list)

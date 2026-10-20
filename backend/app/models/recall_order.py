@@ -1,4 +1,4 @@
-"""Models for recall orders, affected recall lots, and append-only recall confirmations."""
+"""Models for recall orders and affected recall lots."""
 
 from datetime import datetime
 from typing import Any
@@ -131,22 +131,6 @@ class RecallOrder(Base):
     def note(self) -> str:
         return self.reason
 
-    @property
-    def root_lot_item(self) -> Any:
-        return getattr(self, "_root_lot_item", None)
-
-    @root_lot_item.setter
-    def root_lot_item(self, value: Any) -> None:
-        self._root_lot_item = value
-
-    @property
-    def confirmations_read(self) -> Any:
-        return getattr(self, "_confirmations_read", [])
-
-    @confirmations_read.setter
-    def confirmations_read(self, value: Any) -> None:
-        self._confirmations_read = value
-
     # Relationships
     root_lot = relationship("Lot", foreign_keys=[root_lot_id])
     opened_by_user = relationship("User", foreign_keys=[opened_by_user_id])
@@ -157,10 +141,6 @@ class RecallOrder(Base):
         "RecallOrderLot",
         back_populates="recall_order",
         cascade="all, delete-orphan",
-    )
-    confirmations = relationship(
-        "RecallConfirmation",
-        back_populates="recall_order",
     )
 
 
@@ -212,59 +192,3 @@ class RecallOrderLot(Base):
 
     recall_order = relationship("RecallOrder", back_populates="lot_entries")
     lot = relationship("Lot", foreign_keys=[lot_id])
-
-
-class RecallConfirmation(Base):
-    __tablename__ = "recall_confirmations"
-    __table_args__ = (
-        CheckConstraint(
-            "length(btrim(note)) > 0",
-            name="ck_recall_confirmations_note_nonblank",
-        ),
-        UniqueConstraint(
-            "recall_order_id",
-            "organization_id",
-            name="uq_recall_confirmations_order_org",
-        ),
-        Index("ix_recall_confirmations_recall_order_id", "recall_order_id"),
-        Index("ix_recall_confirmations_organization_id", "organization_id"),
-    )
-
-    id: Mapped[UUID] = mapped_column(
-        PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4
-    )
-    recall_order_id: Mapped[UUID] = mapped_column(
-        PostgreSQLUUID(as_uuid=True),
-        ForeignKey(
-            "recall_orders.id",
-            name="fk_recall_confirmations_recall_order_id",
-            ondelete="RESTRICT",
-        ),
-        nullable=False,
-    )
-    organization_id: Mapped[UUID] = mapped_column(
-        PostgreSQLUUID(as_uuid=True),
-        ForeignKey(
-            "organizations.id",
-            name="fk_recall_confirmations_org_id_organizations",
-            ondelete="RESTRICT",
-        ),
-        nullable=False,
-    )
-    confirmed_by_user_id: Mapped[UUID] = mapped_column(
-        PostgreSQLUUID(as_uuid=True),
-        ForeignKey(
-            "users.id",
-            name="fk_recall_confirmations_user_id_users",
-            ondelete="RESTRICT",
-        ),
-        nullable=False,
-    )
-    note: Mapped[str] = mapped_column(Text, nullable=False)
-    confirmed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=text("now()")
-    )
-
-    recall_order = relationship("RecallOrder", back_populates="confirmations")
-    organization = relationship("Organization", foreign_keys=[organization_id])
-    confirmed_by_user = relationship("User", foreign_keys=[confirmed_by_user_id])
