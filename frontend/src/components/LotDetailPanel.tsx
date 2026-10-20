@@ -15,6 +15,8 @@ import { lotStatusLabel } from '../types'
 import { TaskLink } from './TaskLink'
 import { EventCreateForm } from './EventCreateForm'
 import { RecallPanel } from './RecallPanel'
+import { LotQrPanel } from './LotQrPanel'
+import { EditDialog } from './EditDialog'
 const LineagePanel = lazy(() => import('./LineagePanel').then(module => ({default: module.LineagePanel})))
 
 interface LotDetailPanelProps {
@@ -68,11 +70,12 @@ export function LotDetailPanel({
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [transformCompleted, setTransformCompleted] = useState(false)
+  const [qrModalOpen, setQrModalOpen] = useState(false)
   const savingRef = useRef(false)
   const task = new URLSearchParams(window.location.search).get('task')
   const initialView = new URLSearchParams(window.location.search).get('view')
   const [view, setView] = useState((initialView === 'history' && canReadEvents) || initialView === 'origins' || initialView === 'recall' ? initialView : 'overview')
-  const taskAllowed = task === 'split' || task === 'merge' ? canTransform : task === 'move' || task === 'consume' ? canManageDistribution : task === 'handover' ? canCreateHandover : task === 'event' ? canCreateEvents : task === 'recall' ? true : false
+  const taskAllowed = task === 'split' || task === 'merge' ? canTransform : task === 'move' || task === 'consume' ? canManageDistribution : task === 'handover' ? canCreateHandover : task === 'event' ? canCreateEvents : task === 'recall' || task === 'qr' ? true : false
 
   const loadDetails = useCallback(async () => {
     const [lotResult, historyResult, outgoing, incoming, orgOptions] = await Promise.all([
@@ -158,9 +161,14 @@ export function LotDetailPanel({
                 <p className="panel-sub">Mã truy xuất: <code>{displayLotCode(lot)}</code></p>
                 <p className="panel-sub">Đơn vị đang giữ: <strong>{lot.current_holder_organization_name}</strong></p>
               </div>
-              <span className={`status-badge ${lot.status === 'active' ? 'status-done' : 'status-neutral'}`}>
-                {statusLabel(lot.status)}
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                <span className={`status-badge ${lot.status === 'active' ? 'status-done' : 'status-neutral'}`}>
+                  {statusLabel(lot.status)}
+                </span>
+                <button type="button" className="ds-button ds-button-secondary lot-qr-btn" onClick={() => setQrModalOpen(true)}>
+                  Sinh mã QR
+                </button>
+              </div>
             </div>
             <dl className="lot-detail-facts">
               {canReadEvents && <div><dt>Hoạt động đã ghi</dt><dd>{lot.event_count}</dd></div>}
@@ -196,6 +204,7 @@ export function LotDetailPanel({
                     {canCreateHandover && <TaskLink href={`/lots/${lot.id}?task=handover`} secondary>Bàn giao lô</TaskLink>}
                     {canCreateEvents && <TaskLink href={`/lots/${lot.id}?task=event`} secondary>Ghi nhận hoạt động</TaskLink>}
                   </>}
+                  <TaskLink href={`/lots/${lot.id}?task=qr`} secondary>Sinh mã QR</TaskLink>
                   <TaskLink href={`/lots/${lot.id}?task=recall`} secondary>Kế hoạch thu hồi</TaskLink>
                 </div>
                 {lot.status !== 'active' && <p>Lô {statusLabel(lot.status).toLocaleLowerCase('vi-VN')}. Xem lịch sử hoặc kế hoạch thu hồi để kiểm tra dòng chảy sản phẩm.</p>}
@@ -224,6 +233,12 @@ export function LotDetailPanel({
 
           {task && <a className="ds-button ds-button-secondary" href={`/lots/${lot.id}`}>← Quay lại chi tiết lô</a>}
           {task === 'recall' && <RecallPanel key={lot.id} lotId={lot.id} onOpenLot={onOpenLot} />}
+          {task === 'qr' && <LotQrPanel key={lot.id} lot={lot} />}
+          {qrModalOpen && (
+            <EditDialog title="Sinh mã QR cho lô hàng" onClose={() => setQrModalOpen(false)}>
+              <LotQrPanel lot={lot} onClose={() => setQrModalOpen(false)} isDialog />
+            </EditDialog>
+          )}
           {task === 'event' && canCreateEvents && lot.current_holder_organization_id === organizationId && lot.status === 'active' && <EventCreateForm lot={lot} />}
 
           {(task === 'split' || task === 'merge') && canTransform && (transformCompleted || (lot.current_holder_organization_id === organizationId && lot.status === 'active')) && (
