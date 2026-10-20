@@ -25,6 +25,7 @@ from app.models.organization_invitation import (
 )
 from app.schemas.organization import (
     InvitationCreate,
+    InvitationCreated,
     InvitationRead,
     MemberRead,
 )
@@ -49,7 +50,7 @@ def _assert_role_known(db: Session, role_code: str) -> Role:
 
 def create_invitation(
     db: Session, principal: Principal, payload: InvitationCreate
-) -> InvitationRead:
+) -> InvitationCreated:
     """Create one invitation and send the e-mail with the single-use link."""
     email = payload.email.strip().lower()
     _assert_role_known(db, payload.role_code)
@@ -109,7 +110,10 @@ def create_invitation(
         organization_id=principal.organization_id,
         related_id=str(invitation.id),
     )
-    return _serialize(invitation, organization.name)
+    return InvitationCreated(
+        **_serialize(invitation, organization.name).model_dump(),
+        invitation_url=invitation_url,
+    )
 
 
 def _serialize(

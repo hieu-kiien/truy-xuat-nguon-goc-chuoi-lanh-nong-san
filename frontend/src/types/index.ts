@@ -374,6 +374,8 @@ export const ORG_TYPE_LABELS: Record<OrganizationType, string> = {
 
 export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   grower: [
+    'organizations:read',
+
     'auth:session',
     'processing_steps:read',
     'input_lots:create',
@@ -392,6 +394,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'recalls:confirm',
   ],
   cooperative: [
+    'organizations:read',
+
     'lots:transform',
     'auth:session',
     'processing_steps:read',
@@ -414,6 +418,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'telemetry:read',
   ],
   transporter: [
+    'organizations:read',
+
     'auth:session',
     'processing_steps:read',
     'notifications:read',
@@ -432,6 +438,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'telemetry:read',
   ],
   distributor: [
+    'organizations:read',
+
     'locations:manage',
     'lots:consume',
     'lots:transform',
@@ -454,6 +462,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'telemetry:read',
   ],
   inspector: [
+    'organizations:read',
+
     'auth:session',
     'processing_steps:read',
     'input_lots:read',
@@ -472,6 +482,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'telemetry:read_all',
   ],
   organization_admin: [
+    'organizations:manage',
+    'organizations:read',
+
     'locations:manage',
     'lots:consume',
     'lots:transform',
@@ -501,6 +514,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'telemetry:read',
   ],
   system_admin: [
+    'organizations:manage',
+    'organizations:read',
+
     'auth:session',
     'processing_steps:read',
     'processing_steps:create',
@@ -696,4 +712,72 @@ export interface LotInputLotPayload {
   product_id: string
   quantity: string
   used_on: string
+}
+
+export interface Shipment {
+  id: string
+  shipment_code: string
+  organization_id: string
+  created_by_user_id: string
+  container_code: string
+  status: string
+  notes: string | null
+  created_at: string
+  completed_at: string | null
+  lot_count: number
+}
+
+export interface ShipmentTemperatureReading {
+  id: string
+  shipment_id: string
+  container_code: string
+  temperature_celsius: string
+  recorded_at: string
+  ingested_at: string
+}
+
+export interface ShipmentHourlyAggregate {
+  id: string
+  shipment_id: string
+  container_code: string
+  bucket_start: string
+  reading_count: number
+  min_temperature_celsius: string | null
+  max_temperature_celsius: string | null
+  avg_temperature_celsius: string | null
+  is_gap: boolean
+}
+
+export interface OrganizationProfile {
+  id: string
+  name: string
+  organization_type: string
+  contact_email: string | null
+}
+
+export interface OrganizationInvitation {
+  id: string
+  organization_id: string
+  organization_name: string
+  email: string
+  role_code: string
+  status: string
+  created_at: string
+  expires_at: string
+  accepted_at: string | null
+  revoked_at: string | null
+}
+
+export interface OrganizationMember {
+  id: string
+  email: string
+  full_name: string
+  role_code: string
+  is_active: boolean
+  locked_until: string | null
+}
+
+export interface OrganizationInvitationCreated extends OrganizationInvitation {
+  /** The single-use link, handed over only when the invitation is made. */
+  invitation_url: string
 }

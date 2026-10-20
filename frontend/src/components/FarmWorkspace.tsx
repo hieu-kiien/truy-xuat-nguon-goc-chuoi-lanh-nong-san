@@ -15,6 +15,8 @@ import {
 } from '../types'
 import { FarmFormPanel } from './FarmFormPanel'
 import { ColdChainStatsPanel } from './ColdChainStatsPanel'
+import { OrganizationAdminPanel } from './OrganizationAdminPanel'
+import { ShipmentTemperaturePanel } from './ShipmentTemperaturePanel'
 import { IntegrityPanel } from './IntegrityPanel'
 import { HandoversPanel } from './HandoversPanel'
 import { LotsPanel } from './LotsPanel'
@@ -37,6 +39,8 @@ export type WorkspaceTab =
   | 'security'
   | 'integrity'
   | 'cold-chain-stats'
+  | 'cold-chain'
+  | 'organization'
   | 'demo'
 
 interface FarmWorkspaceProps {
@@ -652,6 +656,20 @@ export function FarmWorkspace({
             {activeTab === 'cold-chain-stats' && (
               <ErrorBoundary fallbackTitle="Không thể tải thống kê vi phạm chuỗi lạnh">
                 <ColdChainStatsPanel />
+              </ErrorBoundary>
+            )}
+
+            {activeTab === 'cold-chain' && (
+              <ErrorBoundary fallbackTitle="Không thể tải chuỗi nhiệt độ của chuyến vận chuyển">
+                <ShipmentTemperaturePanel />
+              </ErrorBoundary>
+            )}
+
+            {activeTab === 'organization' && (
+              <ErrorBoundary fallbackTitle="Không thể tải thông tin quản trị tổ chức">
+                <OrganizationAdminPanel
+                  canManage={hasPermission(user.role, 'organizations:manage')}
+                />
               </ErrorBoundary>
             )}
           </main>

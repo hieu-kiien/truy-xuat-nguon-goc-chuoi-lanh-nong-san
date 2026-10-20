@@ -62,8 +62,8 @@ web, và ghi log số lượng đã xử lý.
 | Sao lưu | `./scripts/backup.sh` | Hằng đêm 02:15 UTC | Sao lưu CSDL, giữ 14 bản ghi, xác minh checksum (N3-76) |
 
 Workflow `.github/workflows/integrity-scan.yml` đã chạy job quét toàn vẹn hằng tuần.
-Job nén dữ liệu hiện **chưa có workflow**, cần bổ sung cùng với việc cấu hình SMTP và
-nơi lưu bản sao lưu.
+Workflow `.github/workflows/nightly-telemetry-compaction.yml` chạy job nén dữ liệu lúc
+02:40 UTC mỗi ngày, sau lần sao lưu lúc 02:15 UTC.
 
 **Lưu ý khi chạy job nén dữ liệu:** job chỉ gộp chuyến đã đóng. Chuyến đang chạy giữ
 nguyên lần đo thô, vì bộ phát hiện vi phạm tính lại chuỗi từ toàn bộ lần đo.

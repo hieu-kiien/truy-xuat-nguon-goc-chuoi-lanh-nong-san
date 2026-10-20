@@ -57,6 +57,17 @@ class InvitationRead(BaseModel):
     revoked_at: datetime | None = None
 
 
+class InvitationCreated(InvitationRead):
+    """A freshly created invitation, with its single-use link.
+
+    The link is returned only once, right after the invitation is made, so the
+    administrator can pass it on when the e-mail channel is not configured yet.
+    It is never returned by the listing endpoint.
+    """
+
+    invitation_url: str
+
+
 class InvitationPreview(BaseModel):
     """Public details of an invitation, shown to the invited person."""
 

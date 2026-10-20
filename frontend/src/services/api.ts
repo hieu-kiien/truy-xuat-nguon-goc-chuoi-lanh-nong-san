@@ -33,6 +33,13 @@ import type {
   PublicRoute,
   ProcessingStep,
   ProcessingStepRecord,
+  Shipment,
+  ShipmentHourlyAggregate,
+  ShipmentTemperatureReading,
+  OrganizationProfile,
+  OrganizationInvitation,
+  OrganizationInvitationCreated,
+  OrganizationMember,
 } from '../types'
 
 
@@ -428,7 +435,6 @@ export const getColdChainViolationStats = (
 
 export const getNotifications = () =>
   request<NotificationList>('/api/v1/notifications')
-
 export const markNotificationRead = (notificationId: string) =>
   request<NotificationItem>(
     `/api/v1/notifications/${notificationId}/read`,
@@ -452,3 +458,45 @@ export const createEvent = (payload: CreateEventRequest) =>
 // ARCHITECTURAL GUARANTEE (N3-21):
 // There are NO updateEvent or deleteEvent functions.
 // Events are strictly append-only.
+
+export const getShipments = () => request<Shipment[]>('/api/v1/shipments')
+
+export const getShipmentReadings = (shipmentId: string) =>
+  request<ShipmentTemperatureReading[]>(
+    `/api/v1/telemetry/shipments/${shipmentId}/readings`,
+  )
+
+export const getShipmentHourlyAggregates = (shipmentId: string) =>
+  request<ShipmentHourlyAggregate[]>(
+    `/api/v1/telemetry/shipments/${shipmentId}/readings/hourly`,
+  )
+
+export const getMyOrganization = () =>
+  request<OrganizationProfile>('/api/v1/organizations/me')
+
+export const updateContactEmail = (contactEmail: string) =>
+  request<OrganizationProfile>('/api/v1/organizations/me/contact-email', {
+    method: 'PUT',
+    body: JSON.stringify({ contact_email: contactEmail }),
+  })
+
+export const getOrganizationInvitations = () =>
+  request<OrganizationInvitation[]>('/api/v1/organizations/invitations')
+
+export const createOrganizationInvitation = (payload: {
+  email: string
+  role_code: string
+}) =>
+  request<OrganizationInvitationCreated>('/api/v1/organizations/invitations', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const revokeOrganizationInvitation = (invitationId: string) =>
+  request<OrganizationInvitation>(
+    `/api/v1/organizations/invitations/${invitationId}/revoke`,
+    { method: 'POST' },
+  )
+
+export const getOrganizationMembers = () =>
+  request<OrganizationMember[]>('/api/v1/organizations/members')

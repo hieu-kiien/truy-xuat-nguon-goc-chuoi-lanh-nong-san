@@ -130,6 +130,28 @@ export function WorkspaceSidebar({
                   <span>Thống kê chuỗi lạnh</span>
                 </button>
               </li>}
+              {hasPermission(user.role, 'shipments:read') && <li>
+                <button
+                  type="button"
+                  onClick={() => selectTab('cold-chain')}
+                  className={`dashboard-nav-item ${
+                    activeTab === 'cold-chain' ? 'dashboard-nav-item-active' : ''
+                  }`}
+                >
+                  <span>Chuỗi nhiệt độ</span>
+                </button>
+              </li>}
+              {hasPermission(user.role, 'organizations:read') && <li>
+                <button
+                  type="button"
+                  onClick={() => selectTab('organization')}
+                  className={`dashboard-nav-item ${
+                    activeTab === 'organization' ? 'dashboard-nav-item-active' : ''
+                  }`}
+                >
+                  <span>Quản trị tổ chức</span>
+                </button>
+              </li>}
             </ul>
           </div>
 

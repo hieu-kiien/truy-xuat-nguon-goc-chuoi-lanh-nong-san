@@ -241,6 +241,34 @@ async def test_n3_30_invitation_can_be_revoked(
 
 
 @pytest.mark.asyncio
+async def test_n3_30_the_single_use_link_is_returned_only_once(
+    admin_session: Session, identity_factory
+):
+    """The link comes back when the invitation is made, never in the listing."""
+    admin = identity_factory(role="organization_admin", organization_type="cooperative")
+    email = "link@example.com"
+
+    async with _client() as admin_client:
+        await _login(admin_client, admin)
+        created = await admin_client.post(
+            "/api/v1/organizations/invitations",
+            json={"email": email, "role_code": "grower"},
+        )
+        assert created.status_code == 201, created.text
+        invitation_url = created.json()["invitation_url"]
+        assert "/moi-dai-nhiep?token=" in invitation_url
+
+        listed = await admin_client.get("/api/v1/organizations/invitations")
+        assert listed.status_code == 200, listed.text
+        for row in listed.json():
+            assert "invitation_url" not in row
+            assert "token" not in row
+
+    # The link that was handed out is the one that was mailed.
+    assert _token_for(admin_session, email) in invitation_url
+
+
+@pytest.mark.asyncio
 async def test_n3_30_administrator_deactivates_a_member(
     admin_session: Session, identity_factory
 ):

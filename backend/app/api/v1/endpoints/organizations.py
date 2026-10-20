@@ -12,6 +12,7 @@ from app.core.database import get_db
 from app.schemas.organization import (
     ContactEmailUpdate,
     InvitationCreate,
+    InvitationCreated,
     InvitationRead,
     MemberRead,
     OrganizationRead,
@@ -51,7 +52,7 @@ def update_contact_email(
 
 @router.post(
     "/invitations",
-    response_model=InvitationRead,
+    response_model=InvitationCreated,
     status_code=201,
     summary="Mời một thành viên mới vào tổ chức (N3-30)",
 )
@@ -60,7 +61,7 @@ def create_invitation(
     payload: InvitationCreate,
     principal: Annotated[Principal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
-) -> InvitationRead:
+) -> InvitationCreated:
     """Send an invitation link that works once and expires after 72 hours."""
     return invitation_service.create_invitation(db, principal, payload)
 
