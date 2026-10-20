@@ -7,7 +7,7 @@ Migration chạy bằng tài khoản riêng. Web dùng role không SUPERUSER/BYP
 - Cấu hình chuỗi lạnh `product_cold_chain_configs` là bảng chung theo sản phẩm với RLS FORCE như danh mục sản phẩm: mọi phiên hợp lệ được đọc, chỉ system_admin được ghi. Chuyến vận chuyển lưu snapshot ngưỡng hiệu lực (2–8°C, 30 phút nếu chưa cấu hình) khi mở chuyến; số đo nhiệt độ bất biến và đổi cấu hình không ghi đè snapshot, nên không tính lại vi phạm đã ghi.
 - Lô hiển thị cho bên giữ, bên nhận chờ xác nhận và nguồn gốc được phép. Người từng giữ chỉ xem lịch sử đến thời điểm bàn giao; không được xem logistics hiện tại hoặc lô anh em.
 - Lượng dùng NUMERIC/Decimal. Tách/gộp khóa các lô theo thứ tự UUID ổn định, đọc lại số dư và ghi toàn bộ thay đổi/Event trong cùng giao dịch.
-- events, lot_relations và audit_logs có ràng buộc chỉ thêm. Role ứng dụng không được cấp quyền sửa/xóa nhật ký.
+- events, lot_relations, recall_confirmations và audit_logs có ràng buộc chỉ thêm (append-only trigger chống UPDATE/DELETE). Role ứng dụng không được cấp quyền sửa/xóa nhật ký và xác nhận thu hồi.
 - SECURITY DEFINER có search_path cố định, không nhận tổ chức từ người gọi. `app_mark_overdue_handovers` chỉ đánh dấu tối đa 500 bàn giao pending quá hạn mỗi lần, không chuyển quyền giữ và không sửa chuỗi Event; PUBLIC bị thu hồi EXECUTE.
 - Web chạy maintenance bằng quyền EXECUTE hẹp, không dùng tài khoản migration để xử lý request.
 - Không sửa/xóa migration đã phát hành. Thay đổi mới là revision tiếp theo, có downgrade.
