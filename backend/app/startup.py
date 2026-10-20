@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 import sys
 from collections.abc import Mapping
 from pathlib import Path
@@ -14,6 +15,43 @@ from app.core.config import settings
 from app.seed_demo import seed_demo_data
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_exception_details(exc: Exception) -> str:
+    """Format exception type and message safely without leaking secrets or credentials."""
+    exc_type = type(exc).__name__
+    orig = getattr(exc, "orig", None)
+    orig_type = type(orig).__name__ if orig else None
+    pgcode = getattr(orig, "pgcode", None) or getattr(exc, "pgcode", None)
+
+    diag = getattr(orig, "diag", None) if orig else None
+    primary = getattr(diag, "message_primary", None) if diag else None
+
+    raw_message = primary or str(exc)
+    safe_message = re.sub(r"://([^:@\s]+):([^@\s]+)@", r"://\1:***@", raw_message)
+    safe_message = re.sub(
+        r"(password=)[^&\s]+", r"\1***", safe_message, flags=re.IGNORECASE
+    )
+
+    for secret in (
+        getattr(settings, "DB_PASSWORD", None),
+        getattr(settings, "DB_ADMIN_PASSWORD", None),
+        getattr(settings, "DEMO_PASSWORD", None),
+    ):
+        if secret and isinstance(secret, str) and len(secret) >= 3:
+            safe_message = safe_message.replace(secret, "***")
+
+    components = []
+    if orig_type and orig_type != exc_type:
+        components.append(f"{exc_type}[{orig_type}]")
+    else:
+        components.append(exc_type)
+
+    if pgcode:
+        components.append(f"SQLSTATE {pgcode}")
+
+    components.append(safe_message.strip())
+    return ": ".join(components)
 
 
 def run_migrations() -> None:
@@ -40,14 +78,20 @@ def main() -> None:
     settings.validate_runtime(migrate=True)
     try:
         bootstrap_database_role()
-    except Exception:
-        logger.critical("Database role bootstrap failed; startup stopped.")
+    except Exception as exc:
+        logger.critical(
+            "Database role bootstrap failed: %s; startup stopped.",
+            _safe_exception_details(exc),
+        )
         raise SystemExit(1) from None
 
     try:
         run_migrations()
-    except Exception:
-        logger.critical("Database migration failed; startup stopped.")
+    except Exception as exc:
+        logger.critical(
+            "Database migration failed: %s; startup stopped.",
+            _safe_exception_details(exc),
+        )
         raise SystemExit(1) from None
 
     seed_demo_data()
