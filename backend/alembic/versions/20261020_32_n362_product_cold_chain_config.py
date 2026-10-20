@@ -1,7 +1,7 @@
 """Add per-product cold chain config and shipment limit snapshot columns (N3-62).
 
-Revision ID: 20261019_29
-Revises: 20261019_28
+Revision ID: 20261020_32
+Revises: 20261020_31
 Create Date: 2026-10-19 21:40:00.000000
 
 """
@@ -15,8 +15,8 @@ from alembic import op
 from app.core.config import settings
 
 # revision identifiers, used by Alembic.
-revision: str = "20261019_29"
-down_revision: str | Sequence[str] | None = "20261019_28"
+revision: str = "20261020_32"
+down_revision: str | Sequence[str] | None = "20261020_31"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

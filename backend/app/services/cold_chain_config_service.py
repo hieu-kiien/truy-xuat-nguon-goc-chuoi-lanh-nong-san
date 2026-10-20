@@ -278,6 +278,9 @@ def apply_snapshot_limits(shipment: Shipment, limits: ResolvedColdChainLimits) -
     shipment.cold_chain_max_temp_celsius = limits.max_temp_celsius
     shipment.cold_chain_delay_minutes = limits.delay_minutes
     shipment.cold_chain_config_resolved_at = datetime.now(UTC)
+    shipment.effective_min_temp = limits.min_temp_celsius
+    shipment.effective_max_temp = limits.max_temp_celsius
+    shipment.effective_delay_minutes = limits.delay_minutes
 
 
 def get_or_snapshot_shipment_limits(

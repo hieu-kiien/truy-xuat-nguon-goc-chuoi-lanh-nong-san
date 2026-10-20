@@ -48,11 +48,16 @@ class TelemetryReadingRead(BaseModel):
 class TelemetryViolationRead(BaseModel):
     """Summary of a detected cold chain temperature violation."""
 
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID | None = None
+    shipment_id: UUID | None = None
     violation_type: str
     started_at: datetime
     ended_at: datetime
     duration_minutes: float
     peak_temperature_celsius: float
+    is_settled: bool = False
 
 
 class TelemetryIngestResponse(BaseModel):

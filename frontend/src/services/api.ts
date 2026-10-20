@@ -21,6 +21,9 @@ import type {
   OrganizationOption,
   DistributionLocation,
   RecallReport,
+  RecallOrder,
+  RecallNotification,
+  PublicTraceResponse,
 } from '../types'
 
 
@@ -79,10 +82,13 @@ export function setStoredSessionToken(token: string | null): void {
 async function parseApiError(response: Response): Promise<ApiError> {
   try {
     const body = (await response.json()) as {
-      detail?: string | Array<{ msg?: string; loc?: Array<string | number> }>
+      detail?: string | { message?: string } | Array<{ msg?: string; loc?: Array<string | number> }>
     }
     if (typeof body.detail === 'string') {
       return new ApiError(response.status, body.detail)
+    }
+    if (body.detail && typeof body.detail === 'object' && !Array.isArray(body.detail) && typeof body.detail.message === 'string') {
+      return new ApiError(response.status, body.detail.message)
     }
     if (Array.isArray(body.detail) && body.detail.length > 0) {
       const fieldErrors: Record<string, string> = {}
@@ -103,6 +109,13 @@ async function parseApiError(response: Response): Promise<ApiError> {
   return new ApiError(
     response.status,
     `Lỗi HTTP ${response.status}: ${response.statusText || 'Yêu cầu thất bại'}`,
+  )
+}
+
+export async function getPublicTrace(code: string): Promise<PublicTraceResponse> {
+  const normalized = code.trim().toUpperCase()
+  return request<PublicTraceResponse>(
+    `/api/v1/public/trace/${encodeURIComponent(normalized)}`
   )
 }
 
@@ -249,6 +262,27 @@ export const getLineage = (lotId: string, direction: 'ancestors' | 'descendants'
 export const getLotRecall = (lotId: string) =>
   request<RecallReport>(`/api/v1/lots/${lotId}/recall`)
 
+export const getRecalls = (statusFilter?: 'open' | 'completed') =>
+  request<RecallOrder[]>(`/api/v1/recalls/${statusFilter ? `?status_filter=${statusFilter}` : ''}`)
+
+export const getRecallOrder = (recallId: string) =>
+  request<RecallOrder>(`/api/v1/recalls/${recallId}`)
+
+export const getRecallNotifications = (includeCompleted = false) =>
+  request<RecallNotification[]>(`/api/v1/recalls/notifications?include_completed=${String(includeCompleted)}`)
+
+export const openRecallOrder = (lotId: string, reason: string) =>
+  request<RecallOrder>('/api/v1/recalls/', {
+    method: 'POST',
+    body: JSON.stringify({ lot_id: lotId, reason }),
+  })
+
+export const confirmRecallHandling = (recallId: string, note: string) =>
+  request<RecallOrder>(`/api/v1/recalls/${recallId}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  })
+
 export const splitLot = (lotId: string, children: Array<{name: string; quantity: string; location_id?: string | null}>) =>
   request<{parent: Lot; children: Lot[]}>(`/api/v1/lots/${lotId}/split`, {
     method: 'POST', body: JSON.stringify({children}),
@@ -346,4 +380,3 @@ export const createEvent = (payload: CreateEventRequest) =>
 // ARCHITECTURAL GUARANTEE (N3-21):
 // There are NO updateEvent or deleteEvent functions.
 // Events are strictly append-only.
-

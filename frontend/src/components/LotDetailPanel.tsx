@@ -20,6 +20,8 @@ const LineagePanel = lazy(() => import('./LineagePanel').then(module => ({defaul
 interface LotDetailPanelProps {
   canManageDistribution: boolean
   canTransform: boolean
+  canOpenRecall?: boolean
+  canConfirmRecall?: boolean
   organizationId: string
   onOpenLot: (lotId: string) => void
   lotId: string
@@ -47,6 +49,8 @@ function handoverLabel(status: Handover['status']): string {
 export function LotDetailPanel({
   canManageDistribution,
   canTransform,
+  canOpenRecall = false,
+  canConfirmRecall = false,
   organizationId,
   onOpenLot,
   lotId,
@@ -216,14 +220,30 @@ export function LotDetailPanel({
           </Suspense>
 
           <div style={{ marginTop: '1rem' }}>
-            <RecallPanel key={lot.id} lotId={lot.id} onOpenLot={onOpenLot} />
+            <RecallPanel
+              key={lot.id}
+              lotId={lot.id}
+              onOpenLot={onOpenLot}
+              canOpenRecall={canOpenRecall}
+              canConfirmRecall={canConfirmRecall}
+              organizationId={organizationId}
+            />
           </div>
               </>}
             </div>
           </>}
 
           {task && <a className="ds-button ds-button-secondary" href={`/lots/${lot.id}`}>← Quay lại chi tiết lô</a>}
-          {task === 'recall' && <RecallPanel key={lot.id} lotId={lot.id} onOpenLot={onOpenLot} />}
+          {task === 'recall' && (
+            <RecallPanel
+              key={lot.id}
+              lotId={lot.id}
+              onOpenLot={onOpenLot}
+              canOpenRecall={canOpenRecall}
+              canConfirmRecall={canConfirmRecall}
+              organizationId={organizationId}
+            />
+          )}
           {task === 'event' && canCreateEvents && lot.current_holder_organization_id === organizationId && lot.status === 'active' && <EventCreateForm lot={lot} />}
 
           {(task === 'split' || task === 'merge') && canTransform && (transformCompleted || (lot.current_holder_organization_id === organizationId && lot.status === 'active')) && (

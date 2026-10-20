@@ -1,4 +1,4 @@
-"""Models for cold chain shipments and lot containment (N3-58)."""
+"""Models for cold chain shipments and lot containment (N3-58, N3-62)."""
 
 from datetime import datetime
 from decimal import Decimal
@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     Numeric,
     String,
     Text,
@@ -90,8 +91,35 @@ class Shipment(Base):
     cold_chain_max_temp_celsius: Mapped[Decimal | None] = mapped_column(
         Numeric(5, 2), nullable=True
     )
-    cold_chain_delay_minutes: Mapped[int | None] = mapped_column(nullable=True)
+    cold_chain_delay_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cold_chain_config_resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    effective_min_temp: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("2.00"),
+        server_default=text("2.00"),
+    )
+    effective_max_temp: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2),
+        nullable=False,
+        default=Decimal("8.00"),
+        server_default=text("8.00"),
+    )
+    effective_delay_minutes: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=30,
+        server_default=text("30"),
+    )
+    effective_merge_gap_minutes: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=5,
+        server_default=text("5"),
+    )
+    last_reading_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -110,6 +138,18 @@ class Shipment(Base):
         cascade="all, delete-orphan",
         order_by="ShipmentLot.loaded_at",
     )
+    readings = relationship(
+        "TemperatureReading",
+        back_populates="shipment",
+        cascade="all, delete-orphan",
+        order_by="TemperatureReading.recorded_at",
+    )
+    violations = relationship(
+        "ColdChainViolation",
+        back_populates="shipment",
+        cascade="all, delete-orphan",
+        order_by="ColdChainViolation.started_at",
+    )
 
 
 class ShipmentLot(Base):
@@ -120,7 +160,7 @@ class ShipmentLot(Base):
         UniqueConstraint("shipment_id", "lot_id", name="uq_shipment_lots_shipment_lot"),
         Index("ix_shipment_lots_shipment_id", "shipment_id"),
         Index("ix_shipment_lots_lot_id", "lot_id"),
-        # NFR (N3-58): một lô chỉ nằm trong một chuyến đang chạy tại một thời điểm
+        # NFR (N3-58): m?t l? ch? n?m trong m?t chuy?n ?ang ch?y t?i m?t th?i ?i?m
         Index(
             "uq_shipment_lots_active_lot",
             "lot_id",

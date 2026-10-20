@@ -53,6 +53,7 @@ class HandoverRead(BaseModel):
     rejection_reason: str | None
     created_at: datetime
     overdue_at: datetime | None
+    has_cold_chain_violation: bool = False
 
 
 class HandoverDecisionRead(BaseModel):

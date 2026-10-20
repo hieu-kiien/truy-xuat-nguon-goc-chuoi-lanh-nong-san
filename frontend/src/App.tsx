@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { FarmWorkspace, type WorkspaceTab } from './components/FarmWorkspace'
 import { LoginView } from './components/LoginView'
+import { PublicTracePage } from './components/PublicTracePage'
 import { ApiError, checkHealth, getCurrentUser, logout } from './services/api'
 import type { SessionUser } from './types'
 
@@ -15,7 +16,13 @@ const WORKSPACE_PATHS = new Set([
   '/integrity',
   '/demo',
 ])
+// Trang công khai: ai cũng xem được, không yêu cầu đăng nhập (S-48).
+const PUBLIC_PATHS = new Set(['/truy-xuat'])
 const LOT_DETAIL_PATH = /^\/lots\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i
+
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PATHS.has(pathname)
+}
 
 function isWorkspacePath(pathname: string): boolean {
   return WORKSPACE_PATHS.has(pathname) || LOT_DETAIL_PATH.test(pathname)
@@ -124,7 +131,11 @@ export default function App() {
   useEffect(() => {
     const syncLocation = () => {
       let nextLocation = readLocation()
-      if (!currentUserRef.current && nextLocation.pathname !== '/login') {
+      if (
+        !currentUserRef.current &&
+        nextLocation.pathname !== '/login' &&
+        !isPublicPath(nextLocation.pathname)
+      ) {
         const returnTo =
           safeWorkspacePath(
             `${nextLocation.pathname}${nextLocation.search}${nextLocation.hash}`
@@ -195,13 +206,14 @@ export default function App() {
       ) ?? '/lots'
 
     async function bootstrap() {
+      const startsOnPublicPage = isPublicPath(initialLocation.pathname)
       try {
         await checkHealth()
         if (active) setBackendOnline(true)
       } catch {
         if (active) {
           setBackendOnline(false)
-          if (initialLocation.pathname !== '/login') {
+          if (initialLocation.pathname !== '/login' && !startsOnPublicPage) {
             navigate(loginPath(initialReturnTo), true)
           }
           setInitializing(false)
@@ -230,7 +242,7 @@ export default function App() {
         if (active) {
           currentUserRef.current = null
           setCurrentUser(null)
-          if (initialLocation.pathname !== '/login') {
+          if (initialLocation.pathname !== '/login' && !startsOnPublicPage) {
             navigate(loginPath(initialReturnTo), true)
           }
         }
@@ -306,6 +318,8 @@ export default function App() {
           onOpenLot={(lotId) => navigate(`/lots/${lotId}`)}
           onBackToLots={() => navigate('/lots')}
         />
+      ) : !currentUser && isPublicPath(location.pathname) ? (
+        <PublicTracePage />
       ) : (
         <LoginView
           backendOnline={backendOnline}

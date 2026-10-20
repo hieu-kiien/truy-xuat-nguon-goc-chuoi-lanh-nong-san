@@ -241,6 +241,12 @@ def complete_shipment(
         )
 
     now = datetime.now(UTC)
+
+    # N3-63: Flush detector and settle any open violations to lot events before unloading
+    from app.services.telemetry_service import sync_shipment_violations_and_events
+
+    sync_shipment_violations_and_events(db, principal, shipment, is_completing=True)
+
     shipment.status = "completed"
     shipment.completed_at = now
 

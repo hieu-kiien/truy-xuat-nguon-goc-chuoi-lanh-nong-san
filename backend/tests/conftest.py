@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.bootstrap_db_role import bootstrap_database_role
 from app.core.config import settings
 from app.core.security import hash_password, hash_session_token
+from app.models.cold_chain_config import ProductColdChainConfig
 from app.models.event import Event
 from app.models.farm import Farm
 from app.models.handover import Handover
@@ -17,9 +18,9 @@ from app.models.identity import AuthSession, Organization, Role, User
 from app.models.integrity_check import IntegrityCheck
 from app.models.lot import Lot
 from app.models.lot_relation import LotRelation
-from app.models.recall_order import RecallOrder
+from app.models.recall_order import RecallConfirmation, RecallOrder
 from app.models.shipment import Shipment, ShipmentLot
-from app.models.telemetry import TemperatureReading
+from app.models.telemetry import ColdChainViolation, TemperatureReading
 
 
 def pytest_sessionstart(session):
@@ -124,6 +125,14 @@ def identity_factory(
     yield create_identity
 
     if created_organizations:
+        admin_session.execute(
+            text("ALTER TABLE recall_confirmations DISABLE TRIGGER USER")
+        )
+        admin_session.execute(
+            delete(RecallConfirmation).where(
+                RecallConfirmation.organization_id.in_(created_organizations)
+            )
+        )
         lot_ids = list(
             admin_session.scalars(
                 select(Lot.id).where(Lot.organization_id.in_(created_organizations))
@@ -155,6 +164,15 @@ def identity_factory(
                 )
                 admin_session.execute(delete(Event).where(Event.lot_id.in_(lot_ids)))
                 admin_session.execute(
+                    delete(RecallConfirmation).where(
+                        RecallConfirmation.recall_order_id.in_(
+                            select(RecallOrder.id).where(
+                                RecallOrder.root_lot_id.in_(lot_ids)
+                            )
+                        )
+                    )
+                )
+                admin_session.execute(
                     delete(RecallOrder).where(RecallOrder.root_lot_id.in_(lot_ids))
                 )
                 admin_session.execute(
@@ -165,6 +183,23 @@ def identity_factory(
                     text("ALTER TABLE integrity_checks ENABLE TRIGGER USER")
                 )
                 admin_session.execute(text("ALTER TABLE events ENABLE TRIGGER USER"))
+        admin_session.execute(
+            delete(RecallConfirmation).where(
+                RecallConfirmation.recall_order_id.in_(
+                    select(RecallOrder.id).where(
+                        RecallOrder.opened_by_organization_id.in_(created_organizations)
+                    )
+                )
+            )
+        )
+        admin_session.execute(
+            delete(RecallOrder).where(
+                RecallOrder.opened_by_organization_id.in_(created_organizations)
+            )
+        )
+        admin_session.execute(
+            text("ALTER TABLE recall_confirmations ENABLE TRIGGER USER")
+        )
         admin_session.execute(
             text("ALTER TABLE temperature_readings DISABLE TRIGGER USER")
         )
@@ -181,12 +216,27 @@ def identity_factory(
             text("ALTER TABLE temperature_readings ENABLE TRIGGER USER")
         )
         admin_session.execute(
+            delete(ColdChainViolation).where(
+                ColdChainViolation.shipment_id.in_(
+                    select(Shipment.id).where(
+                        Shipment.organization_id.in_(created_organizations)
+                    )
+                )
+            )
+        )
+        admin_session.execute(
             delete(Shipment).where(Shipment.organization_id.in_(created_organizations))
         )
+
         admin_session.execute(
             delete(Farm).where(Farm.organization_id.in_(created_organizations))
         )
     if created_users:
+        admin_session.execute(
+            delete(ProductColdChainConfig).where(
+                ProductColdChainConfig.updated_by_user_id.in_(created_users)
+            )
+        )
         admin_session.execute(
             delete(AuthSession).where(AuthSession.user_id.in_(created_users))
         )
