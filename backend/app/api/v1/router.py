@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     imports,
     locations,
     lots,
+    notifications,
     products,
     recalls,
     shipments,
@@ -29,3 +30,6 @@ api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(recalls.router, prefix="/recalls", tags=["recalls"])
 api_router.include_router(shipments.router, prefix="/shipments", tags=["shipments"])
 api_router.include_router(telemetry.router, prefix="/telemetry", tags=["telemetry"])
+api_router.include_router(
+    notifications.router, prefix="/notifications", tags=["notifications"]
+)

@@ -26,6 +26,8 @@ import type {
   RecallNotification,
   PublicTraceResponse,
   ColdChainViolationStats,
+  NotificationList,
+  NotificationItem,
 } from '../types'
 
 
@@ -384,6 +386,20 @@ export const getColdChainViolationStats = (
     `/api/v1/telemetry/violations/stats${suffix}`,
   )
 }
+
+export const getNotifications = () =>
+  request<NotificationList>('/api/v1/notifications')
+
+export const markNotificationRead = (notificationId: string) =>
+  request<NotificationItem>(
+    `/api/v1/notifications/${notificationId}/read`,
+    { method: 'POST' },
+  )
+
+export const markAllNotificationsRead = () =>
+  request<{ updated: number }>('/api/v1/notifications/read-all', {
+    method: 'POST',
+  })
 
 export const getLotHistory = (lotId: string, after = 0) =>
   request<EventHistory>(`/api/v1/events/lots/${lotId}/history?page_size=10&after=${after}`)

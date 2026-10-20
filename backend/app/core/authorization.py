@@ -12,6 +12,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "grower": frozenset(
         {
             "auth:session",
+            "notifications:read",
             "farms:read",
             "farms:write",
             "products:read",
@@ -29,6 +30,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         {
             "lots:transform",
             "auth:session",
+            "notifications:read",
             "products:read",
             "lots:read",
             "events:read",
@@ -47,6 +49,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "transporter": frozenset(
         {
             "auth:session",
+            "notifications:read",
             "products:read",
             "lots:read",
             "events:read",
@@ -68,6 +71,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "lots:consume",
             "lots:transform",
             "auth:session",
+            "notifications:read",
             "products:read",
             "lots:read",
             "events:read",
@@ -86,6 +90,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "inspector": frozenset(
         {
             "auth:session",
+            "notifications:read",
             "products:read",
             "lots:read_all",
             "events:read_all",
@@ -106,6 +111,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "lots:consume",
             "lots:transform",
             "auth:session",
+            "notifications:read",
             "farms:read",
             "farms:write",
             "products:read",
@@ -129,6 +135,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "system_admin": frozenset(
         {
             "auth:session",
+            "notifications:read",
             "farms:read",
             "farms:write",
             "farms:read_all",

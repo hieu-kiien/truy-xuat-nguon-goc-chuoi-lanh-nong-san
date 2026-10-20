@@ -375,6 +375,7 @@ export const ORG_TYPE_LABELS: Record<OrganizationType, string> = {
 export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   grower: [
     'auth:session',
+    'notifications:read',
     'farms:read',
     'farms:write',
     'products:read',
@@ -390,6 +391,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   cooperative: [
     'lots:transform',
     'auth:session',
+    'notifications:read',
     'products:read',
     'lots:read',
     'events:read',
@@ -406,6 +408,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   ],
   transporter: [
     'auth:session',
+    'notifications:read',
     'products:read',
     'lots:read',
     'events:read',
@@ -425,6 +428,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'lots:consume',
     'lots:transform',
     'auth:session',
+    'notifications:read',
     'products:read',
     'lots:read',
     'events:read',
@@ -441,6 +445,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   ],
   inspector: [
     'auth:session',
+    'notifications:read',
     'products:read',
     'lots:read_all',
     'events:read_all',
@@ -459,6 +464,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'lots:consume',
     'lots:transform',
     'auth:session',
+    'notifications:read',
     'farms:read',
     'farms:write',
     'products:read',
@@ -480,6 +486,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   ],
   system_admin: [
     'auth:session',
+    'notifications:read',
     'farms:read',
     'farms:write',
     'farms:read_all',
@@ -601,4 +608,22 @@ export interface IntegrityScanSummary {
   broken_lot_count: number
   broken_lots: IntegrityAlert[]
   recent_alerts: IntegrityAlert[]
+}
+
+export interface NotificationItem {
+  id: string
+  kind: 'handover_pending' | 'recall_affected' | 'cold_chain_violation'
+  title: string
+  body: string
+  link_path: string
+  lot_id: string | null
+  lot_code: string | null
+  created_at: string
+  read_at: string | null
+}
+
+export interface NotificationList {
+  items: NotificationItem[]
+  unread_count: number
+  generated_at: string
 }

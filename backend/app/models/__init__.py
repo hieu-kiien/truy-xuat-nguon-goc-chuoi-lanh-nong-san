@@ -9,6 +9,7 @@ from app.models.integrity_check import IntegrityCheck
 from app.models.location import Location
 from app.models.lot import Lot
 from app.models.lot_relation import LotRelation
+from app.models.notification import Notification
 from app.models.product import Product
 from app.models.recall_order import (
     RecallConfirmation,
@@ -30,6 +31,7 @@ __all__ = [
     "Location",
     "Lot",
     "LotRelation",
+    "Notification",
     "Organization",
     "Product",
     "ProductColdChainConfig",

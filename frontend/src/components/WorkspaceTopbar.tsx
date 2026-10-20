@@ -1,4 +1,5 @@
-import { ORG_TYPE_LABELS, type SessionUser } from '../types'
+import { hasPermission, ORG_TYPE_LABELS, type SessionUser } from '../types'
+import { NotificationBell } from './NotificationBell'
 import type { WorkspaceTab } from './FarmWorkspace'
 
 interface WorkspaceTopbarProps {
@@ -84,6 +85,8 @@ export function WorkspaceTopbar({
         >
           {isDark ? 'Sáng' : 'Tối'}
         </button>
+
+        <NotificationBell canRead={hasPermission(user.role, 'notifications:read')} />
       </div>
     </header>
   )
