@@ -158,9 +158,15 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
         cursor.execute(sql.SQL("REVOKE DELETE ON shipments FROM {}").format(role_ident))
         cursor.execute(
             sql.SQL(
-                "GRANT UPDATE (status, completed_at, notes, last_reading_at) ON shipments TO {}"
+                "GRANT UPDATE (status, completed_at, notes) ON shipments TO {}"
             ).format(role_ident)
         )
+        if "last_reading_at" in _table_columns(cursor, "shipments"):
+            cursor.execute(
+                sql.SQL("GRANT UPDATE (last_reading_at) ON shipments TO {}").format(
+                    role_ident
+                )
+            )
     if "shipment_lots" in tables:
         cursor.execute(
             sql.SQL("GRANT SELECT, INSERT, DELETE ON shipment_lots TO {}").format(
