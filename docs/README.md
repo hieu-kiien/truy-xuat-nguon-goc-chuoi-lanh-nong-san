@@ -7,6 +7,7 @@
 4. [API](api.md), [quyền DB](database.md), [chuỗi hash](N3-4-INTEGRITY.md)
 5. [Mẫu phả hệ và oracle](LINEAGE-ACCEPTANCE.md)
 6. [Sao lưu cơ sở dữ liệu và khôi phục](BACKUP-RECOVERY.md)
+7. [Rà soát rủi ro dự án](RISK-REVIEW.md)
 
 Các kế hoạch, ảnh chụp tiến độ và báo cáo cũ nằm trong [history](history/). Chúng ghi nhận trạng thái tại thời điểm viết, không phải xác nhận trạng thái hiện tại. Không xóa migrations hoặc oracle để giảm số file: chúng vẫn cần cho nâng cấp DB và kiểm chứng.
 
