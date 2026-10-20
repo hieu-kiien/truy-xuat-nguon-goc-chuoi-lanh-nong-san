@@ -17,7 +17,7 @@ from app.models.identity import AuthSession, Organization, Role, User
 from app.models.integrity_check import IntegrityCheck
 from app.models.lot import Lot
 from app.models.lot_relation import LotRelation
-from app.models.recall_order import RecallOrder
+from app.models.recall_order import RecallConfirmation, RecallOrder
 from app.models.shipment import Shipment, ShipmentLot
 from app.models.telemetry import ColdChainViolation, TemperatureReading
 
@@ -124,6 +124,14 @@ def identity_factory(
     yield create_identity
 
     if created_organizations:
+        admin_session.execute(
+            text("ALTER TABLE recall_confirmations DISABLE TRIGGER USER")
+        )
+        admin_session.execute(
+            delete(RecallConfirmation).where(
+                RecallConfirmation.organization_id.in_(created_organizations)
+            )
+        )
         lot_ids = list(
             admin_session.scalars(
                 select(Lot.id).where(Lot.organization_id.in_(created_organizations))
@@ -155,6 +163,15 @@ def identity_factory(
                 )
                 admin_session.execute(delete(Event).where(Event.lot_id.in_(lot_ids)))
                 admin_session.execute(
+                    delete(RecallConfirmation).where(
+                        RecallConfirmation.recall_order_id.in_(
+                            select(RecallOrder.id).where(
+                                RecallOrder.root_lot_id.in_(lot_ids)
+                            )
+                        )
+                    )
+                )
+                admin_session.execute(
                     delete(RecallOrder).where(RecallOrder.root_lot_id.in_(lot_ids))
                 )
                 admin_session.execute(
@@ -165,6 +182,23 @@ def identity_factory(
                     text("ALTER TABLE integrity_checks ENABLE TRIGGER USER")
                 )
                 admin_session.execute(text("ALTER TABLE events ENABLE TRIGGER USER"))
+        admin_session.execute(
+            delete(RecallConfirmation).where(
+                RecallConfirmation.recall_order_id.in_(
+                    select(RecallOrder.id).where(
+                        RecallOrder.opened_by_organization_id.in_(created_organizations)
+                    )
+                )
+            )
+        )
+        admin_session.execute(
+            delete(RecallOrder).where(
+                RecallOrder.opened_by_organization_id.in_(created_organizations)
+            )
+        )
+        admin_session.execute(
+            text("ALTER TABLE recall_confirmations ENABLE TRIGGER USER")
+        )
         admin_session.execute(
             text("ALTER TABLE temperature_readings DISABLE TRIGGER USER")
         )

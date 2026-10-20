@@ -140,6 +140,17 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
                 role_ident
             )
         )
+    if "recall_confirmations" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT ON recall_confirmations TO {}").format(
+                role_ident
+            )
+        )
+        cursor.execute(
+            sql.SQL("REVOKE UPDATE, DELETE ON recall_confirmations FROM {}").format(
+                role_ident
+            )
+        )
     if "shipments" in tables:
         cursor.execute(
             sql.SQL("GRANT SELECT, INSERT ON shipments TO {}").format(role_ident)
@@ -191,6 +202,7 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
         "app_current_organization_id",
         "app_current_role",
         "app_readable_lot_ids",
+        "app_recall_affected_lot_ids",
     ):
         if func in routines:
             cursor.execute(

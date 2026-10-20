@@ -97,3 +97,59 @@ test('N3-51: recall panel renders accessible loading state with busy aria attrib
   assert.match(output, /Đang tổng hợp danh sách thu hồi phả hệ/)
 })
 
+test('N3-55 & N3-52: recall alert banner lists affected lots, progress X/Y, and confirmation form', async () => {
+  const output = html(await load('RecallAlertBanner'), {
+    onOpenLot: () => {},
+    initialNotifications: [
+      {
+        recall_id: '00000000-0000-0000-0000-000000000001',
+        recall_code: 'RC-2026-ABCDEF',
+        root_lot_id: lot.id,
+        root_lot_code: 'LOT-R1',
+        root_lot_name: 'Cà chua cherry — R1',
+        reason: 'Phát hiện tồn dư thuốc bảo vệ thực vật vượt ngưỡng.',
+        status: 'open',
+        created_at: '2026-10-20T10:00:00Z',
+        organization_id: 'org-dist',
+        organization_name: 'Kho phân phối Rau Việt',
+        handling_status: 'pending',
+        confirmed_at: null,
+        note: null,
+        total_organizations_count: 5,
+        confirmed_organizations_count: 3,
+        progress_text: '3/5',
+        affected_lots: [
+          {
+            id: '00000000-0000-0000-0000-000000000002',
+            lot_code: 'LOT-D1',
+            name: 'Cà chua cherry — D1',
+            tier: 4,
+            status: 'active',
+            is_multi_source_merge: true,
+            organization_id: 'org-dist',
+            current_holder_organization_id: 'org-dist',
+            current_holder_organization_name: 'Kho phân phối Rau Việt',
+            holder_org_type: 'distribution',
+            current_location_id: null,
+            current_location: null,
+            quantity: '40.000',
+            remaining_quantity: '40.000',
+            consumed_quantity: '0.000',
+            recoverable_quantity: '40.000',
+            unit: 'kg',
+            harvested_on: '2026-10-01',
+            historical_only: false,
+            parent_lot_ids: [],
+          },
+        ],
+      },
+    ],
+  })
+  assert.match(output, /Cảnh báo lệnh thu hồi liên quan/)
+  assert.match(output, /RC-2026-ABCDEF/)
+  assert.match(output, /Tiến độ: 3\/5 đơn vị/)
+  assert.match(output, /Đang chờ xác nhận/)
+  assert.match(output, /LOT-D1/)
+  assert.match(output, /Gộp đa nguồn/)
+  assert.match(output, /Xác nhận đã xử lý phần của đơn vị/)
+})
