@@ -50,12 +50,11 @@ test('location manager opens a separate task instead of inline fields', async ()
   assert.match(output, /href="\/lots\?task=locations"/)
   assert.doesNotMatch(output, /<form/)
 })
-test('demo guide offers twelve steps with role and expected-result instructions', async () => {
-  const output = html(await load('DemoGuide'), {})
-  assert.match(output, /12. Bàn giao quá hạn/)
-  assert.match(output, /Tài khoản thực hiện/)
-  assert.match(output, /Kết quả cần đối chiếu/)
-  assert.match(output, /không tự động xác nhận nghiệm thu/)
+test('audit panel renders read-only operation log table and refresh button', async () => {
+  const output = html(await load('AuditPanel'), {})
+  assert.match(output, /Nhật ký thao tác/)
+  assert.match(output, /Nhật ký chỉ đọc/)
+  assert.match(output, /Làm mới nhật ký/)
 })
 
 test('merge candidates exclude other holders, products and unavailable lots across pages', async () => {

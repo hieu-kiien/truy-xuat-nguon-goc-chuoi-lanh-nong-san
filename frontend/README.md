@@ -1,6 +1,6 @@
 # Frontend AgroChain
 
-React, TypeScript và Vite. Hướng dẫn chạy: [README](../README.md); trình diễn: [UX-DEMO](../docs/UX-DEMO.md).
+React, TypeScript và Vite. Hướng dẫn chạy: [README](../README.md).
 
 Chạy `npm ci`, đặt `VITE_BACKEND_TARGET=http://127.0.0.1:8000` cho API local rồi `npm run dev`.
 

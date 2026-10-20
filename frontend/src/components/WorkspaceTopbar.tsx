@@ -18,9 +18,8 @@ const TAB_TITLES: Record<WorkspaceTab, string> = {
   products: 'Nông sản',
   handovers: 'Bàn giao',
   overview: 'Vùng trồng',
-  security: 'Phân quyền & bảo mật',
+  security: 'Nhật ký thao tác',
   integrity: 'Kiểm tra tính toàn vẹn',
-  demo: 'Hướng dẫn trình diễn',
 }
 
 export function WorkspaceTopbar({

@@ -14,7 +14,6 @@ const WORKSPACE_PATHS = new Set([
   '/security',
   '/audit',
   '/integrity',
-  '/demo',
 ])
 // Trang công khai: ai cũng xem được, không yêu cầu đăng nhập (S-48, N3-65).
 const PUBLIC_PATHS = new Set(['/truy-xuat', '/trace'])
@@ -54,17 +53,15 @@ function safeWorkspacePath(candidate: string | null): string | null {
 }
 
 function routeForTab(tab: WorkspaceTab): string {
-  if (tab === 'demo') return '/demo'
   if (tab === 'overview') return '/farms'
   if (tab === 'handovers') return '/handovers'
   if (tab === 'products') return '/products'
-  if (tab === 'security') return '/security'
+  if (tab === 'security') return '/audit'
   if (tab === 'integrity') return '/integrity'
   return '/lots'
 }
 
 function tabForPath(pathname: string): WorkspaceTab {
-  if (pathname === '/demo') return 'demo'
   if (pathname === '/farms') return 'overview'
   if (pathname === '/handovers') return 'handovers'
   if (pathname === '/products') return 'products'

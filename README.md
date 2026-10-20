@@ -5,7 +5,6 @@ Học phần TTCS, nhóm TTCS_T926_K18C4_N3. Quản lý vùng trồng, nông s�
 ## Sử dụng
 - [Web staging](https://ttcs-frontend-staging.onrender.com)
 - [API tương tác](https://ttcs-backend-staging.onrender.com/docs)
-- [Hướng dẫn demo từng vai trò](docs/UX-DEMO.md)
 - [Tài liệu và tình trạng nghiệm thu](docs/README.md)
 
 Chức năng cảm biến tự động, thu hồi, QR và báo cáo PDF thuộc sprint sau. Có thể ghi sự kiện thủ công; không coi đó là tích hợp cảm biến đã hoàn thành.
@@ -40,7 +39,7 @@ npm run dev
 
 ## Dữ liệu demo
 Seed chỉ chạy khi `APP_ENV=development` hoặc `staging`; production không tự tạo tài khoản mẫu.
-Mật khẩu demo lấy từ `DEMO_PASSWORD`, mặc định `Password123!` chỉ dành cho môi trường mẫu. Các vai trò/email xem trên trang `/demo`. Không dùng dữ liệu cá nhân thật để trình diễn.
+Mật khẩu demo lấy từ `DEMO_PASSWORD`, mặc định `Password123!` chỉ dành cho môi trường mẫu. Các vai trò/email mẫu được tích hợp sẵn trên màn hình đăng nhập. Không dùng dữ liệu cá nhân thật để trình diễn.
 
 ## Kiểm tra
 Backend local dùng **DB riêng**, không dùng DB đang trình diễn:
