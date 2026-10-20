@@ -1011,7 +1011,6 @@ def confirm_recall_handling(
             "recall_id": str(order.id),
             "recall_code": order.recall_code,
             "organization_id": str(principal.organization_id),
-            "organization_name": principal.organization_name,
             "confirmed_by_user_id": str(principal.user_id),
             "note": payload.note,
             "affected_lot_codes": [i.lot_code or i.name for i in org_affected_items],

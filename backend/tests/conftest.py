@@ -22,6 +22,7 @@ from app.models.lot import Lot
 from app.models.lot_input import LotInputLot
 from app.models.lot_relation import LotRelation
 from app.models.organization_invitation import OrganizationInvitation
+from app.models.pii_request import PiiAnonymizationRequest
 from app.models.processing_step import LotProcessingStep
 from app.models.recall_order import RecallConfirmation, RecallOrder
 from app.models.shipment import Shipment, ShipmentLot
@@ -217,6 +218,11 @@ def identity_factory(
         admin_session.execute(
             delete(RecallOrder).where(
                 RecallOrder.opened_by_organization_id.in_(created_organizations)
+            )
+        )
+        admin_session.execute(
+            delete(PiiAnonymizationRequest).where(
+                PiiAnonymizationRequest.organization_id.in_(created_organizations)
             )
         )
         admin_session.execute(

@@ -18,6 +18,35 @@ from app.models.integrity_check import IntegrityCheck
 from app.models.lot import Lot
 from app.schemas.event import EventCreate, EventRead, IntegrityIssue
 
+# Payload keys that would put identifying data into the hashed content
+# (N3-75). The chain must only reference entities by id, so that erasing a
+# farmer's identity never breaks an existing hash.
+FORBIDDEN_PAYLOAD_KEYS = frozenset(
+    {
+        "to_organization_name",
+        "from_organization_name",
+        "organization_name",
+        "location_name",
+        "location_address",
+        "full_name",
+        "email",
+        "phone",
+        "address",
+        "actor_name",
+    }
+)
+
+
+def assert_payload_has_no_identity(payload: dict) -> None:
+    """Reject a payload that would hash identifying data into the chain."""
+    offending = sorted(FORBIDDEN_PAYLOAD_KEYS.intersection(payload))
+    if offending:
+        raise HTTPException(
+            400,
+            "Sự kiện chỉ được tham chiếu định danh bằng mã, không ghi tên, "
+            "email, số điện thoại hay địa chỉ vào chuỗi.",
+        )
+
 
 def _payload_lot_ids(value) -> set[UUID]:
     identifiers: set[UUID] = set()
@@ -120,6 +149,7 @@ def append_event(
     payload: dict,
 ) -> Event:
     """Append an event without committing, for callers with a wider transaction."""
+    assert_payload_has_no_identity(payload)
     # Serialize appends per lot so concurrent writers cannot reuse a sequence.
     db.scalar(select(Lot).where(Lot.id == lot_id).with_for_update(of=Lot))
 

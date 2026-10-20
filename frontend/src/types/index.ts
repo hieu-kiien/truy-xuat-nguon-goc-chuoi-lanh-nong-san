@@ -39,8 +39,8 @@ export interface Farm {
   organization_id: string
   name: string
   area_ha: string
-  latitude: string
-  longitude: string
+  latitude: string | null
+  longitude: string | null
 }
 
 export interface FarmPayload {
@@ -48,6 +48,18 @@ export interface FarmPayload {
   area_ha: number | string
   latitude: number | string
   longitude: number | string
+}
+
+export interface PiiAnonymizationRequest {
+  id: string
+  organization_id: string
+  farm_id: string
+  requested_by_user_id: string
+  requested_at: string
+  reason: string | null
+  status: string
+  decided_by_user_id: string | null
+  executed_at: string | null
 }
 
 export interface Lot {
@@ -395,6 +407,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'handovers:resolve',
     'recalls:read',
     'recalls:confirm',
+    'pii:request',
   ],
   cooperative: [
     'organizations:read',
@@ -515,6 +528,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'shipments:complete',
     'telemetry:ingest',
     'telemetry:read',
+    'pii:request',
   ],
   system_admin: [
     'organizations:manage',
@@ -550,6 +564,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'telemetry:ingest',
     'telemetry:read',
     'telemetry:read_all',
+    'pii:anonymize',
   ],
 }
 
