@@ -145,7 +145,8 @@ export default function App() {
         nextLocation = readLocation()
       } else if (
         currentUserRef.current &&
-        !isWorkspacePath(nextLocation.pathname)
+        !isWorkspacePath(nextLocation.pathname) &&
+        !isPublicPath(nextLocation.pathname)
       ) {
         window.history.replaceState(null, '', '/lots')
         nextLocation = readLocation()
@@ -235,7 +236,10 @@ export default function App() {
               new URLSearchParams(initialLocation.search).get('next')
             )
             navigate(requestedReturnTo ?? '/lots', true)
-          } else if (!isWorkspacePath(initialLocation.pathname)) {
+          } else if (
+            !isWorkspacePath(initialLocation.pathname) &&
+            !isPublicPath(initialLocation.pathname)
+          ) {
             navigate('/lots', true)
           }
         }
@@ -305,6 +309,10 @@ export default function App() {
             </p>
           </div>
         </div>
+      ) : isPublicPath(location.pathname) ? (
+        // Trang công khai luôn hiển thị bản công khai, kể cả khi đang đăng nhập:
+        // nhân viên mở link trên tem QR sẽ thấy đúng trải nghiệm của người tiêu dùng.
+        <PublicTracePage />
       ) : currentUser ? (
         <FarmWorkspace
           key={`${currentUser.id}:${location.pathname}:${location.search}`}
@@ -319,8 +327,6 @@ export default function App() {
           onOpenLot={(lotId) => navigate(`/lots/${lotId}`)}
           onBackToLots={() => navigate('/lots')}
         />
-      ) : !currentUser && isPublicPath(location.pathname) ? (
-        <PublicTracePage />
       ) : (
         <LoginView
           backendOnline={backendOnline}

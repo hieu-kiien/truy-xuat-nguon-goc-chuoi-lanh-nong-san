@@ -1,21 +1,28 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { ApiError, getPublicTrace } from '../services/api'
 import type { PublicTraceResponse, PublicTraceWarning } from '../types'
 
 const LOT_CODE_PATTERN = /^[A-Za-z0-9-]{4,32}$/
 
+const normalizeCode = (raw: string): string => raw.trim().toUpperCase()
+
+/** Mã lô lấy từ URL khi quét tem QR: `/trace/<mã>`, `/truy-xuat/<mã>` hoặc `?code=<mã>` (N3-65). */
 function readInitialLotCode(): string {
   if (typeof window === 'undefined') return ''
   const match = /^\/(?:trace|truy-xuat)\/([^/?#]+)\/?$/i.exec(window.location?.pathname ?? '')
+  let raw = ''
   if (match?.[1]) {
     try {
-      return decodeURIComponent(match[1]).trim()
+      raw = decodeURIComponent(match[1])
     } catch {
-      return match[1].trim()
+      raw = match[1]
     }
+  } else {
+    raw = new URLSearchParams(window.location?.search ?? '').get('code') ?? ''
   }
-  const param = new URLSearchParams(window.location?.search ?? '').get('code')
-  return param ? param.trim() : ''
+  const normalized = normalizeCode(raw)
+  // Mã không hợp lệ trên URL không được đẩy vào ô nhập.
+  return LOT_CODE_PATTERN.test(normalized) ? normalized : ''
 }
 
 function WarningIcon({ level }: { level: PublicTraceWarning['level'] }) {
@@ -39,48 +46,20 @@ function WarningIcon({ level }: { level: PublicTraceWarning['level'] }) {
 
 export function PublicTracePage() {
   const [code, setCode] = useState(readInitialLotCode)
-  const [loading, setLoading] = useState(() => {
-    const initial = readInitialLotCode().toUpperCase()
-    return Boolean(initial && LOT_CODE_PATTERN.test(initial))
-  })
+  const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [result, setResult] = useState<PublicTraceResponse | null>(null)
+  const autoLookupDone = useRef(false)
 
-  useEffect(() => {
-    const initial = readInitialLotCode().toUpperCase()
-    if (!initial || !LOT_CODE_PATTERN.test(initial)) return
-    let active = true
-    getPublicTrace(initial)
-      .then((payload) => {
-        if (active) setResult(payload)
-      })
-      .catch((err: unknown) => {
-        if (!active) return
-        if (err instanceof ApiError && err.status === 404) {
-          setErrorMessage('Không tìm thấy lô hàng với mã này. Vui lòng kiểm tra lại mã in trên bao bì.')
-        } else if (err instanceof ApiError && err.message) {
-          setErrorMessage(err.message)
-        } else {
-          setErrorMessage('Không tra cứu được lúc này. Vui lòng thử lại.')
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [])
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const normalized = code.trim().toUpperCase()
+  const lookup = useCallback(async (rawCode: string) => {
+    const normalized = normalizeCode(rawCode)
     if (!LOT_CODE_PATTERN.test(normalized)) {
       setErrorMessage('Mã lô gồm 4–12 ký tự chữ và số, không có ký tự đặc biệt.')
       setResult(null)
       return
     }
 
+    setCode(normalized)
     setLoading(true)
     setErrorMessage(null)
     setResult(null)
@@ -100,6 +79,20 @@ export function PublicTracePage() {
     } finally {
       setLoading(false)
     }
+  }, [])
+
+  // Tem QR trỏ tới /truy-xuat?code=<mã lô> (hoặc /trace/<mã lô>): tra cứu ngay, không bắt nhập lại.
+  useEffect(() => {
+    if (autoLookupDone.current) return
+    const initial = readInitialLotCode()
+    if (!initial) return
+    autoLookupDone.current = true
+    void lookup(initial)
+  }, [lookup])
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    void lookup(code)
   }
 
   const trace = result?.trace
