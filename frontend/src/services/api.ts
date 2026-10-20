@@ -23,6 +23,7 @@ import type {
   RecallReport,
   RecallOrder,
   RecallNotification,
+  PublicTraceResponse,
 } from '../types'
 
 
@@ -108,6 +109,13 @@ async function parseApiError(response: Response): Promise<ApiError> {
   return new ApiError(
     response.status,
     `Lỗi HTTP ${response.status}: ${response.statusText || 'Yêu cầu thất bại'}`,
+  )
+}
+
+export async function getPublicTrace(code: string): Promise<PublicTraceResponse> {
+  const normalized = code.trim().toUpperCase()
+  return request<PublicTraceResponse>(
+    `/api/v1/public/trace/${encodeURIComponent(normalized)}`
   )
 }
 
