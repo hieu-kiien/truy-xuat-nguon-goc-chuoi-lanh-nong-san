@@ -16,12 +16,13 @@ const WORKSPACE_PATHS = new Set([
   '/integrity',
   '/demo',
 ])
-// Trang công khai: ai cũng xem được, không yêu cầu đăng nhập (S-48).
-const PUBLIC_PATHS = new Set(['/truy-xuat'])
+// Trang công khai: ai cũng xem được, không yêu cầu đăng nhập (S-48, N3-65).
+const PUBLIC_PATHS = new Set(['/truy-xuat', '/trace'])
+const PUBLIC_TRACE_CODE_PATH = /^\/(?:trace|truy-xuat)\/([^/?#]+)\/?$/i
 const LOT_DETAIL_PATH = /^\/lots\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i
 
 function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATHS.has(pathname)
+  return PUBLIC_PATHS.has(pathname) || PUBLIC_TRACE_CODE_PATH.test(pathname)
 }
 
 function isWorkspacePath(pathname: string): boolean {
