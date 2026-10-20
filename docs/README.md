@@ -6,6 +6,7 @@
 3. [Nghiệm thu Sprint 1–4 và quyết định thiết kế](ACCEPTANCE.md)
 4. [API](api.md), [quyền DB](database.md), [chuỗi hash](N3-4-INTEGRITY.md)
 5. [Mẫu phả hệ và oracle](LINEAGE-ACCEPTANCE.md)
+6. [Quyết định xoá dữ liệu định danh (R-06)](N3-141-RISK-R06.md)
 
 Các kế hoạch, ảnh chụp tiến độ và báo cáo cũ nằm trong [history](history/). Chúng ghi nhận trạng thái tại thời điểm viết, không phải xác nhận trạng thái hiện tại. Không xóa migrations hoặc oracle để giảm số file: chúng vẫn cần cho nâng cấp DB và kiểm chứng.
 
