@@ -375,6 +375,8 @@ export const ORG_TYPE_LABELS: Record<OrganizationType, string> = {
 export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   grower: [
     'auth:session',
+    'input_lots:create',
+    'input_lots:read',
     'notifications:read',
     'farms:read',
     'farms:write',
@@ -391,6 +393,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   cooperative: [
     'lots:transform',
     'auth:session',
+    'input_lots:create',
+    'input_lots:read',
     'notifications:read',
     'products:read',
     'lots:read',
@@ -445,6 +449,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   ],
   inspector: [
     'auth:session',
+    'input_lots:read',
     'notifications:read',
     'products:read',
     'lots:read_all',
@@ -464,6 +469,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'lots:consume',
     'lots:transform',
     'auth:session',
+    'input_lots:create',
+    'input_lots:read',
     'notifications:read',
     'farms:read',
     'farms:write',
@@ -486,6 +493,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   ],
   system_admin: [
     'auth:session',
+    'input_lots:read',
     'notifications:read',
     'farms:read',
     'farms:write',
@@ -626,4 +634,21 @@ export interface NotificationList {
   items: NotificationItem[]
   unread_count: number
   generated_at: string
+}
+
+export interface LotInputLot {
+  id: string
+  lot_id: string
+  product_id: string
+  product_name: string
+  quantity: string
+  used_on: string
+  organization_id: string
+  created_at: string
+}
+
+export interface LotInputLotPayload {
+  product_id: string
+  quantity: string
+  used_on: string
 }

@@ -26,6 +26,8 @@ import type {
   RecallNotification,
   PublicTraceResponse,
   ColdChainViolationStats,
+  LotInputLot,
+  LotInputLotPayload,
   NotificationList,
   NotificationItem,
 } from '../types'
@@ -374,6 +376,18 @@ export const getIntegrityCheckHistory = (lotId: string) =>
 
 export const getIntegrityScanSummary = () =>
   request<IntegrityScanSummary>('/api/v1/events/integrity/summary')
+
+export const getLotInputLots = (lotId: string) =>
+  request<LotInputLot[]>(`/api/v1/lots/${lotId}/input-lots`)
+
+export const createLotInputLots = (
+  lotId: string,
+  items: LotInputLotPayload[],
+) =>
+  request<LotInputLot[]>(`/api/v1/lots/${lotId}/input-lots`, {
+    method: 'POST',
+    body: JSON.stringify({ items }),
+  })
 
 export const getColdChainViolationStats = (
   params: { from?: string; to?: string } = {},

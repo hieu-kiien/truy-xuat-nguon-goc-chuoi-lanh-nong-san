@@ -221,6 +221,8 @@ def test_n3_57_delivery_is_retried_and_recorded(admin_session: Session, monkeypa
     assert row is not None
     assert row.status == "failed"
     assert row.attempts == 3
+    admin_session.delete(row)
+    admin_session.commit()
 
 
 def test_n3_57_delivery_without_smtp_is_recorded(admin_session: Session, monkeypatch):
@@ -241,3 +243,5 @@ def test_n3_57_delivery_without_smtp_is_recorded(admin_session: Session, monkeyp
     row = admin_session.get(EmailOutbox, delivery.id)
     assert row is not None
     assert row.recipient_email == "nhan@example.com"
+    admin_session.delete(row)
+    admin_session.commit()

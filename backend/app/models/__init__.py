@@ -9,6 +9,7 @@ from app.models.integrity_alert import IntegrityAlert
 from app.models.integrity_check import IntegrityCheck
 from app.models.location import Location
 from app.models.lot import Lot
+from app.models.lot_input import LotInputLot
 from app.models.lot_relation import LotRelation
 from app.models.notification import Notification
 from app.models.organization_invitation import OrganizationInvitation
@@ -33,6 +34,7 @@ __all__ = [
     "IntegrityCheck",
     "Location",
     "Lot",
+    "LotInputLot",
     "LotRelation",
     "Notification",
     "Organization",
