@@ -158,7 +158,8 @@ def upgrade() -> None:
     if app_role:
         op.execute(
             f"GRANT UPDATE (cold_chain_min_temp_celsius, cold_chain_max_temp_celsius, "
-            f"cold_chain_delay_minutes, cold_chain_config_resolved_at) ON shipments TO {app_role}"
+            f"cold_chain_delay_minutes, cold_chain_config_resolved_at, "
+            f"effective_min_temp, effective_max_temp, effective_delay_minutes) ON shipments TO {app_role}"
         )
 
 

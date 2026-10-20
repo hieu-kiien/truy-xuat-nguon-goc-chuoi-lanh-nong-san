@@ -181,6 +181,20 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
                     "ON shipments TO {}"
                 ).format(role_ident)
             )
+        effective_columns = {
+            "effective_min_temp",
+            "effective_max_temp",
+            "effective_delay_minutes",
+            "effective_merge_gap_minutes",
+        }
+        if effective_columns.issubset(_table_columns(cursor, "shipments")):
+            cursor.execute(
+                sql.SQL(
+                    "GRANT UPDATE (effective_min_temp, effective_max_temp, "
+                    "effective_delay_minutes, effective_merge_gap_minutes) "
+                    "ON shipments TO {}"
+                ).format(role_ident)
+            )
     if "shipment_lots" in tables:
         cursor.execute(
             sql.SQL("GRANT SELECT, INSERT, DELETE ON shipment_lots TO {}").format(
