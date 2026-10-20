@@ -157,10 +157,7 @@ export async function getPublicTrace(code: string): Promise<PublicTraceResponse>
   )
 }
 
-export async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
+function buildHeaders(options: RequestInit = {}): Headers {
   const headers = new Headers(options.headers)
   if (!headers.has('Content-Type') && options.body) {
     headers.set('Content-Type', 'application/json')
@@ -172,6 +169,14 @@ export async function request<T>(
   if (storedToken && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${storedToken}`)
   }
+  return headers
+}
+
+export async function request<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const headers = buildHeaders(options)
 
   let response: Response
   try {
@@ -454,6 +459,37 @@ export const createEvent = (payload: CreateEventRequest) =>
     method: 'POST',
     body: JSON.stringify(payload),
   })
+
+/**
+ * Tải hồ sơ truy xuất PDF của lô kèm kết quả kiểm toàn vẹn (N3-72).
+ * Endpoint trả tệp nhị phân nên không dùng `request<T>` (hàm này parse JSON).
+ */
+export async function downloadLotReport(lotId: string): Promise<Blob> {
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/lots/${lotId}/report.pdf`, {
+      headers: buildHeaders(),
+      credentials: 'include',
+    })
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw err
+    }
+    throw new ApiError(
+      0,
+      'Không thể kết nối đến máy chủ API. Vui lòng thử lại sau vài giây.',
+    )
+  }
+
+  if (response.status === 401 && typeof window !== 'undefined') {
+    setStoredSessionToken(null)
+    window.location.replace(`/login?next=${encodeURIComponent('/lots')}`)
+  }
+  if (!response.ok) {
+    throw await parseApiError(response)
+  }
+  return response.blob()
+}
 
 // ARCHITECTURAL GUARANTEE (N3-21):
 // There are NO updateEvent or deleteEvent functions.

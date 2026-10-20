@@ -27,4 +27,4 @@ Cảm biến tự động, cảnh báo nhiệt độ tự động, thu hồi, QR
 
 API kiểm quyền, PostgreSQL RLS giới hạn dữ liệu theo phiên; trigger chặn sửa/xóa sự kiện đối với vai trò runtime. Chuỗi SHA-256 giúp phát hiện sửa đổi khi đối chiếu, không phải chữ ký số hoặc bảo đảm quản trị viên DB không thể viết lại dữ liệu.
 
-Chi tiết: [toàn vẹn](docs/N3-4-INTEGRITY.md), [database](docs/database.md). Cách chạy và tài khoản mẫu xem [README](README.md) và trang demo, tránh sao chép mật khẩu/cấu hình vào nhiều tài liệu.
+Chi tiết: [toàn vẹn](docs/N3-4-INTEGRITY.md), [database](docs/database.md). Cách chạy và tài khoản mẫu xem [README](README.md), tránh sao chép mật khẩu/cấu hình vào nhiều tài liệu.

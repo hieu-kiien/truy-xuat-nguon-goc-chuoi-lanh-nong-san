@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   createHandover,
+  downloadLotReport,
   getHandoverOrganizations,
   getIncomingHandovers,
   getLot,
@@ -19,6 +20,8 @@ import { LotQrPanel } from './LotQrPanel'
 import { LotInputLotsPanel } from './LotInputLotsPanel'
 import { ProcessingStepsPanel } from './ProcessingStepsPanel'
 import { EditDialog } from './EditDialog'
+import { displayLotCode } from '../utils/qr'
+import { lotReportFileName } from '../utils/report'
 const LineagePanel = lazy(() => import('./LineagePanel').then(module => ({default: module.LineagePanel})))
 
 interface LotDetailPanelProps {
@@ -38,10 +41,6 @@ interface LotDetailPanelProps {
   canReadProcessingSteps?: boolean
   canRecordProcessingSteps?: boolean
   onBack: () => void
-}
-
-function displayLotCode(lot: Pick<Lot, 'lot_code' | 'id'>): string {
-  return lot.lot_code ?? lot.id.slice(0, 8)
 }
 
 function statusLabel(status: Lot['status']): string {
@@ -85,11 +84,12 @@ export function LotDetailPanel({
   const [notice, setNotice] = useState<string | null>(null)
   const [transformCompleted, setTransformCompleted] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
+  const [exportingReport, setExportingReport] = useState(false)
   const savingRef = useRef(false)
   const task = new URLSearchParams(window.location.search).get('task')
   const initialView = new URLSearchParams(window.location.search).get('view')
   const [view, setView] = useState((initialView === 'history' && canReadEvents) || initialView === 'origins' || initialView === 'recall' ? initialView : 'overview')
-  const taskAllowed = task === 'split' || task === 'merge' ? canTransform : task === 'move' || task === 'consume' ? canManageDistribution : task === 'handover' ? canCreateHandover : task === 'event' ? canCreateEvents : task === 'recall' || task === 'qr' ? true : false
+  const taskAllowed = task === 'split' || task === 'merge' ? canTransform : task === 'move' || task === 'consume' ? canManageDistribution : task === 'handover' ? canCreateHandover : task === 'event' ? canCreateEvents : task === 'recall' ? true : false
 
   const loadDetails = useCallback(async () => {
     const [lotResult, historyResult, outgoing, incoming, orgOptions] = await Promise.all([
@@ -155,6 +155,29 @@ export function LotDetailPanel({
     }
   }
 
+  const exportReport = async () => {
+    if (!lot || exportingReport) return
+    setExportingReport(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const blob = await downloadLotReport(lot.id)
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = lotReportFileName(lot)
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 0)
+      setNotice('Đã xuất hồ sơ truy xuất PDF kèm kết quả kiểm tra toàn vẹn.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể xuất hồ sơ PDF.')
+    } finally {
+      setExportingReport(false)
+    }
+  }
+
   return (
     <div className="info-stack lot-detail-page">
       <button type="button" className="ds-button ds-button-secondary lot-detail-back" onClick={onBack}>
@@ -175,12 +198,21 @@ export function LotDetailPanel({
                 <p className="panel-sub">Mã truy xuất: <code>{displayLotCode(lot)}</code></p>
                 <p className="panel-sub">Đơn vị đang giữ: <strong>{lot.current_holder_organization_name}</strong></p>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+              <div className="lot-detail-heading-actions">
                 <span className={`status-badge ${lot.status === 'active' ? 'status-done' : 'status-neutral'}`}>
                   {statusLabel(lot.status)}
                 </span>
                 <button type="button" className="ds-button ds-button-secondary lot-qr-btn" onClick={() => setQrModalOpen(true)}>
                   Sinh mã QR
+                </button>
+                <button
+                  type="button"
+                  className="ds-button ds-button-secondary"
+                  onClick={() => void exportReport()}
+                  disabled={exportingReport}
+                  aria-label="Xuất hồ sơ truy xuất PDF"
+                >
+                  {exportingReport ? 'Đang xuất…' : 'Xuất hồ sơ PDF'}
                 </button>
               </div>
             </div>
@@ -218,7 +250,6 @@ export function LotDetailPanel({
                     {canCreateHandover && <TaskLink href={`/lots/${lot.id}?task=handover`} secondary>Bàn giao lô</TaskLink>}
                     {canCreateEvents && <TaskLink href={`/lots/${lot.id}?task=event`} secondary>Ghi nhận hoạt động</TaskLink>}
                   </>}
-                  <TaskLink href={`/lots/${lot.id}?task=qr`} secondary>Sinh mã QR</TaskLink>
                   <TaskLink href={`/lots/${lot.id}?task=recall`} secondary>Kế hoạch thu hồi</TaskLink>
                 </div>
                 {lot.status !== 'active' && <p>Lô {statusLabel(lot.status).toLocaleLowerCase('vi-VN')}. Xem lịch sử hoặc kế hoạch thu hồi để kiểm tra dòng chảy sản phẩm.</p>}
@@ -277,10 +308,9 @@ export function LotDetailPanel({
               organizationId={organizationId}
             />
           )}
-          {task === 'qr' && <LotQrPanel key={lot.id} lot={lot} />}
           {qrModalOpen && (
             <EditDialog title="Sinh mã QR cho lô hàng" onClose={() => setQrModalOpen(false)}>
-              <LotQrPanel lot={lot} onClose={() => setQrModalOpen(false)} isDialog />
+              <LotQrPanel lot={lot} />
             </EditDialog>
           )}
           {task === 'event' && canCreateEvents && lot.current_holder_organization_id === organizationId && lot.status === 'active' && <EventCreateForm lot={lot} />}

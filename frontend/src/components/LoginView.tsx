@@ -66,7 +66,6 @@ export function LoginView({
   const [rememberMe, setRememberMe] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [showAuditModal, setShowAuditModal] = useState(false)
 
   const syncAriaInvalid = (input: HTMLInputElement) => {
     if (!input.checkValidity()) {
@@ -219,20 +218,14 @@ export function LoginView({
             </div>
           </div>
 
-          {/* Inspector Audit Drawer Trigger */}
           <div className="hero-footer-bar">
-            <button
-              type="button"
-              className="audit-inspect-button"
-              onClick={() => setShowAuditModal(true)}
-              aria-haspopup="dialog"
-            >
+            <a href="/truy-xuat" className="audit-inspect-button">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 <path d="M9 12l2 2 4-4" />
               </svg>
-              <span>Xem Báo cáo Giám định Kỹ thuật (Technical Audit)</span>
-            </button>
+              <span>Tra cứu Nguồn gốc Nông sản Công khai (Không cần đăng nhập)</span>
+            </a>
           </div>
         </section>
 
@@ -473,91 +466,6 @@ export function LoginView({
         </section>
       </main>
 
-      {/* AUDIT INSPECTOR MODAL: Specialized for Mentors, Evaluators and Examiners */}
-      {showAuditModal && (
-        <div className="audit-modal-backdrop" onClick={() => setShowAuditModal(false)}>
-          <div
-            className="audit-modal-panel"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="audit-modal-title"
-          >
-            <div className="audit-modal-header">
-              <div className="audit-header-icon-title">
-                <span className="audit-shield-icon">🔬</span>
-                <div>
-                  <h3 id="audit-modal-title">Báo cáo Kiểm định Kiến trúc Kỹ thuật (Technical Audit)</h3>
-                  <p className="audit-modal-sub">Dành cho Giảng viên hướng dẫn, Mentor &amp; Hội đồng đánh giá dự án</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="audit-close-button"
-                onClick={() => setShowAuditModal(false)}
-                aria-label="Đóng bảng kiểm định"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="audit-modal-body">
-              <div className="audit-section">
-                <h4 className="audit-section-title">1. Tính năng hệ thống</h4>
-                <div className="audit-table-container">
-                  <table className="audit-spec-table">
-                    <thead>
-                      <tr>
-                        <th>Hạng mục nghiệp vụ</th>
-                        <th>Công nghệ / Giải pháp kỹ thuật</th>
-                        <th>Trạng thái</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>Toàn vẹn Chuỗi lạnh</td>
-                        <td>Chuỗi băm SHA-256 + Canonical JSON RFC 8785</td>
-                        <td><span className="badge-pass">Hoàn thành (Passed)</span></td>
-                      </tr>
-                      <tr>
-                        <td>Quản lý Xác thực &amp; Phiên</td>
-                        <td>Argon2id + HttpOnly Cookie (__Host-session)</td>
-                        <td><span className="badge-pass">Bảo vệ nghiêm ngặt</span></td>
-                      </tr>
-                      <tr>
-                        <td>Đa tổ chức &amp; Phân quyền</td>
-                        <td>PostgreSQL FORCE Row Level Security (RLS) + RBAC</td>
-                        <td><span className="badge-pass">Cô lập tuyệt đối</span></td>
-                      </tr>
-                      <tr>
-                        <td>Danh mục Vùng trồng</td>
-                        <td>Tọa độ GPS chuẩn WGS84 + Khóa UUID định danh</td>
-                        <td><span className="badge-pass">Sẵn sàng xuất khẩu</span></td>
-                      </tr>
-                      <tr>
-                        <td>Bất biến Nhật ký Sự kiện</td>
-                        <td>Trigger PostgreSQL chặn UPDATE/DELETE + Chaining Hash</td>
-                        <td><span className="badge-pass">Append-only 5 lớp</span></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-            </div>
-
-            <div className="audit-modal-footer">
-              <button
-                type="button"
-                className="audit-confirm-btn"
-                onClick={() => setShowAuditModal(false)}
-              >
-                Đã kiểm tra xong
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

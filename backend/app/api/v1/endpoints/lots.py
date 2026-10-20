@@ -1,7 +1,7 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal, get_current_principal
@@ -32,6 +32,7 @@ from app.services import (
     input_lot_service,
     lineage_service,
     lot_lifecycle_service,
+    lot_report_service,
     lot_service,
     processing_step_service,
     recall_service,
@@ -191,6 +192,35 @@ def get_lot(
     db: Annotated[Session, Depends(get_db)],
 ) -> dict:
     return traversal_service.get_detail(db, principal, lot_id)
+
+
+@router.get(
+    "/{lot_id}/report.pdf",
+    response_class=Response,
+    responses={200: {"content": {"application/pdf": {}}}},
+)
+@require_permission("lots:read")
+def export_lot_report(
+    lot_id: UUID,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Response:
+    """Tải hồ sơ truy xuất đầy đủ của lô dưới dạng PDF (N3-72).
+
+    Hồ sơ gồm thông tin lô, kết quả kiểm tra toàn vẹn chuỗi băm tại thời điểm
+    xuất và toàn bộ sự kiện người gọi được phép xem. Endpoint chỉ đọc.
+    """
+    report = lot_report_service.build_lot_trace_report(db, principal, lot_id)
+    pdf = lot_report_service.render_lot_trace_pdf(report)
+    filename = lot_report_service.report_file_name(report["lot"]["code"])
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.get("/{lot_id}/recall", response_model=RecallReport)

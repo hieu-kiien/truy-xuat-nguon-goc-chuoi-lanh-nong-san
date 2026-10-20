@@ -19,12 +19,11 @@ const TAB_TITLES: Record<WorkspaceTab, string> = {
   products: 'Nông sản',
   handovers: 'Bàn giao',
   overview: 'Vùng trồng',
-  security: 'Phân quyền & bảo mật',
+  security: 'Nhật ký thao tác',
   integrity: 'Kiểm tra tính toàn vẹn',
   'cold-chain-stats': 'Thống kê chuỗi lạnh',
   'cold-chain': 'Chuỗi nhiệt độ',
   organization: 'Quản trị tổ chức',
-  demo: 'Hướng dẫn trình diễn',
 }
 
 export function WorkspaceTopbar({
@@ -88,7 +87,9 @@ export function WorkspaceTopbar({
           {isDark ? 'Sáng' : 'Tối'}
         </button>
 
-        <NotificationBell canRead={hasPermission(user.role, 'notifications:read')} />
+        <NotificationBell
+          canRead={hasPermission(user.role, 'notifications:read')}
+        />
       </div>
     </header>
   )

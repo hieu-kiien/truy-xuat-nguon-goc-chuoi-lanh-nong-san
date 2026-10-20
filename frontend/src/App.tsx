@@ -14,7 +14,6 @@ const WORKSPACE_PATHS = new Set([
   '/security',
   '/audit',
   '/integrity',
-  '/demo',
 ])
 // Trang công khai: ai cũng xem được, không yêu cầu đăng nhập (S-48, N3-65).
 const PUBLIC_PATHS = new Set(['/truy-xuat', '/trace'])
@@ -54,17 +53,15 @@ function safeWorkspacePath(candidate: string | null): string | null {
 }
 
 function routeForTab(tab: WorkspaceTab): string {
-  if (tab === 'demo') return '/demo'
   if (tab === 'overview') return '/farms'
   if (tab === 'handovers') return '/handovers'
   if (tab === 'products') return '/products'
-  if (tab === 'security') return '/security'
+  if (tab === 'security') return '/audit'
   if (tab === 'integrity') return '/integrity'
   return '/lots'
 }
 
 function tabForPath(pathname: string): WorkspaceTab {
-  if (pathname === '/demo') return 'demo'
   if (pathname === '/farms') return 'overview'
   if (pathname === '/handovers') return 'handovers'
   if (pathname === '/products') return 'products'
@@ -145,7 +142,8 @@ export default function App() {
         nextLocation = readLocation()
       } else if (
         currentUserRef.current &&
-        !isWorkspacePath(nextLocation.pathname)
+        !isWorkspacePath(nextLocation.pathname) &&
+        !isPublicPath(nextLocation.pathname)
       ) {
         window.history.replaceState(null, '', '/lots')
         nextLocation = readLocation()
@@ -235,7 +233,10 @@ export default function App() {
               new URLSearchParams(initialLocation.search).get('next')
             )
             navigate(requestedReturnTo ?? '/lots', true)
-          } else if (!isWorkspacePath(initialLocation.pathname)) {
+          } else if (
+            !isWorkspacePath(initialLocation.pathname) &&
+            !isPublicPath(initialLocation.pathname)
+          ) {
             navigate('/lots', true)
           }
         }
@@ -305,6 +306,10 @@ export default function App() {
             </p>
           </div>
         </div>
+      ) : isPublicPath(location.pathname) ? (
+        // Trang công khai luôn hiển thị bản công khai, kể cả khi đang đăng nhập:
+        // nhân viên mở link trên tem QR sẽ thấy đúng trải nghiệm của người tiêu dùng.
+        <PublicTracePage />
       ) : currentUser ? (
         <FarmWorkspace
           key={`${currentUser.id}:${location.pathname}:${location.search}`}
@@ -319,8 +324,6 @@ export default function App() {
           onOpenLot={(lotId) => navigate(`/lots/${lotId}`)}
           onBackToLots={() => navigate('/lots')}
         />
-      ) : !currentUser && isPublicPath(location.pathname) ? (
-        <PublicTracePage />
       ) : (
         <LoginView
           backendOnline={backendOnline}

@@ -49,7 +49,7 @@ Các yêu cầu còn lại được đối chiếu mã và test trong [bảng 92
 
 1. CI của commit cuối phải xanh, reviewer thật duyệt PR, merge không conflict.
 2. Xác nhận workspace Render, health path /health và bản /version khớp SHA vừa merge.
-3. Chạy [12 bước demo](UX-DEMO.md) trên staging: đổi vai trò, quyền từ chối, tách/gộp, nguồn gốc, hash, bàn giao/đến hạn, chuyển vị trí/tiêu thụ, CSV, audit.
+3. Chạy các kịch bản nghiệp vụ trên staging: đổi vai trò, quyền từ chối, tách/gộp, nguồn gốc, hash, bàn giao/đến hạn, chuyển vị trí/tiêu thụ, CSV, audit.
 4. Kiểm bảng quyền ở desktop/mobile, dialog sửa (focus/đóng/lưu), phân trang và đồ thị; lưu kết quả thực tế.
 5. Cập nhật Jira theo bằng chứng và các điều chỉnh AC đã thống nhất; không tự chuyển toàn bộ Done.
 

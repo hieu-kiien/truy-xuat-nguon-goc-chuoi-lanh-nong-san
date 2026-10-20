@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
 import {
-  ApiError,
   createFarm,
   getFarms,
   getIncomingHandovers,
@@ -24,11 +23,10 @@ import { LotDetailPanel } from './LotDetailPanel'
 import { LocationsPanel } from './LocationsPanel'
 import { ProductManager } from './ProductManager'
 import { RecallAlertBanner } from './RecallAlertBanner'
-import { SecurityPanel } from './SecurityPanel'
+import { AuditPanel } from './AuditPanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
 import { ErrorBoundary } from './ErrorBoundary'
-import { DemoGuide } from './DemoGuide'
 import { EditDialog } from './EditDialog'
 
 export type WorkspaceTab =
@@ -41,7 +39,6 @@ export type WorkspaceTab =
   | 'cold-chain-stats'
   | 'cold-chain'
   | 'organization'
-  | 'demo'
 
 interface FarmWorkspaceProps {
   user: SessionUser
@@ -100,7 +97,6 @@ export function FarmWorkspace({
     message: string
   } | null>(null)
 
-  const [rbacProbeResult, setRbacProbeResult] = useState<string | null>(null)
   const [pendingHandoverCount, setPendingHandoverCount] = useState<number | null>(
     canResolveHandovers ? null : 0,
   )
@@ -242,27 +238,6 @@ export function FarmWorkspace({
     }
   }
 
-  const runForbiddenProbe = async () => {
-    setRbacProbeResult('Đang kiểm tra quyền truy cập vùng trồng...')
-    try {
-      await getFarms()
-      setRbacProbeResult(
-        '200 OK — Tài khoản hiện tại đọc được danh sách vùng trồng.'
-      )
-      onNotify('Kiểm tra quyền truy cập thành công (200 OK)')
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 403) {
-        setRbacProbeResult(
-          `403 Forbidden — Backend đã chặn truy cập theo đúng ma trận RBAC: "${err.message}"`
-        )
-        onNotify('Backend đã chặn truy cập trái phép (403 Forbidden)')
-      } else {
-        const message = err instanceof Error ? err.message : 'Yêu cầu thất bại'
-        setRbacProbeResult(`Không thể kiểm tra quyền truy cập: ${message}`)
-      }
-    }
-  }
-
   const filteredFarms = farms.filter((f) => {
     const q = searchQuery.trim().toLowerCase()
     if (!q) return true
@@ -327,7 +302,6 @@ export function FarmWorkspace({
                 onNotify={onNotify}
               />
             )}
-            {activeTab === 'demo' && <DemoGuide />}
             {activeTab === 'overview' && canReadFarms && (
               <section aria-label="Tóm tắt vùng trồng">
               <div className="stats-grid">
@@ -439,42 +413,8 @@ export function FarmWorkspace({
                 {!farmFormOpen && formFeedback && <p role={formFeedback.type === 'error' ? 'alert' : 'status'}>{formFeedback.message}</p>}
                 <div className="dashboard-split-main">
                   {(!canReadFarms ? (
-                    <section className="panel-card panel-box">
-                      <div className="panel-head">
-                        <h2>Quyền truy cập vùng trồng</h2>
-                        <span className="status-badge status-danger">
-                          HTTP 403 Forbidden
-                        </span>
-                      </div>
-                      <p className="panel-sub">
-                        Tài khoản <strong>{user.email}</strong> đang mang vai trò{' '}
-                        <code>{user.role}</code> chưa được cấp quyền xem hoặc
-                        chỉnh sửa vùng trồng. Tài khoản chỉ có thể truy cập các
-                        chức năng đã được phân quyền.
-                      </p>
-
-                      <div className="action-row alert-spaced">
-                        <button
-                          type="button"
-                          className="ds-button ds-button-brand ds-button-sm"
-                          onClick={() => void runForbiddenProbe()}
-                        >
-                          Kiểm tra quyền truy cập
-                        </button>
-                        <button
-                          type="button"
-                          className="ds-button ds-button-secondary ds-button-sm"
-                          onClick={() => onTabChange('security')}
-                        >
-                          Mở Ma trận Phân quyền đầy đủ
-                        </button>
-                      </div>
-
-                      {rbacProbeResult && (
-                        <div className="alert-box alert-error alert-spaced">
-                          {rbacProbeResult}
-                        </div>
-                      )}
+                    <section className="panel-card panel-box" role="status">
+                      Tài khoản này không có quyền xem hoặc chỉnh sửa vùng trồng.
                     </section>
                   ) : (
                     <section
@@ -631,19 +571,15 @@ export function FarmWorkspace({
               </>
             )}
 
-            {activeTab === 'security' && hasPermission(user.role, 'security:read') && (
-              <ErrorBoundary fallbackTitle="Không thể tải phân hệ Phân quyền & Bảo mật">
-                <SecurityPanel
-                  user={user}
-                  rbacProbeResult={rbacProbeResult}
-                  onRunProbe={() => void runForbiddenProbe()}
-                />
+            {activeTab === 'security' && user.role === 'system_admin' && (
+              <ErrorBoundary fallbackTitle="Không thể tải nhật ký thao tác">
+                <AuditPanel />
               </ErrorBoundary>
             )}
 
-            {activeTab === 'security' && !hasPermission(user.role, 'security:read') && (
+            {activeTab === 'security' && user.role !== 'system_admin' && (
               <section className="panel-card panel-box" role="status">
-                Tài khoản này không có quyền xem thông tin bảo mật hệ thống.
+                Chỉ quản trị hệ thống mới có quyền xem nhật ký thao tác.
               </section>
             )}
 

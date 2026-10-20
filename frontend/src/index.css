@@ -2673,18 +2673,6 @@ code {
   color: var(--fg-success-strong);
 }
 
-.alert-info {
-  background-color: var(--neutral-primary-soft);
-  color: var(--body-default);
-}
-
-.alert-info code {
-  display: block;
-  margin-top: 4px;
-  word-break: break-all;
-  font-weight: 600;
-}
-
 .preset-strip {
   display: flex;
   flex-wrap: wrap;
@@ -3004,6 +2992,154 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     grid-template-columns: 1fr;
   }
 }
+
+/* --- Tem QR của lô (N3-65) --- */
+.lot-detail-heading-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.lot-qr-intro {
+  margin: 0 0 1rem;
+}
+
+.lot-qr-warning {
+  margin-bottom: 1rem;
+}
+
+.lot-qr-layout {
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.lot-qr-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Khung tem 40 x 40 mm: mã QR 30 x 30 mm + dòng mã lô đọc bằng mắt. */
+.lot-qr-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2mm;
+  width: 40mm;
+  padding: 3mm 0;
+  background: #ffffff;
+  border: 1px dashed var(--border-light);
+  border-radius: 4px;
+}
+
+.lot-qr-label-image {
+  width: 30mm;
+  height: 30mm;
+  display: block;
+}
+
+.lot-qr-label-code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #111827;
+}
+
+.lot-qr-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40mm;
+  height: 40mm;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.lot-qr-caption {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.lot-qr-info {
+  min-width: 0;
+}
+
+.lot-qr-url-label {
+  margin: 1rem 0 0.25rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.lot-qr-url {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--brand-strong);
+  word-break: break-all;
+}
+
+.lot-qr-actions {
+  margin: 1rem 0;
+}
+
+.lot-qr-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .lot-qr-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .lot-qr-preview {
+    justify-self: center;
+  }
+}
+
+@media print {
+  /* Chỉ in phần tem khi người dùng in trực tiếp từ hộp thoại. */
+  body * {
+    visibility: hidden;
+  }
+
+  .lot-qr-label,
+  .lot-qr-label * {
+    visibility: visible;
+  }
+
+  .lot-qr-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border: 0;
+  }
+}
+
+
+.alert-info {
+  background-color: var(--neutral-primary-soft);
+  color: var(--body-default);
+}
+
+.alert-info code {
+  display: block;
+  margin-top: 4px;
+  word-break: break-all;
+  font-weight: 600;
+}
+
 
 .cold-chain-stats-ranges {
   display: flex;

@@ -83,6 +83,8 @@ jobs:
               "/api/v1/telemetry/shipments/{shipment_id}/readings": {"get"},
               "/api/v1/telemetry/shipments/{shipment_id}/readings/hourly": {"get"},
               "/api/v1/telemetry/shipments/{shipment_id}/violations": {"get"},
+              "/api/v1/telemetry/violations/stats": {"get"},
+              "/api/v1/public/trace/{lot_code}/route": {"get"},
               "/health": {"get"},
               "/version": {"get"},
           }
