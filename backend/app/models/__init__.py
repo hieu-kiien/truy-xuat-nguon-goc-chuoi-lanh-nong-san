@@ -22,6 +22,7 @@ from app.models.recall_order import (
 )
 from app.models.shipment import Shipment, ShipmentLot
 from app.models.telemetry import ColdChainViolation, TemperatureReading
+from app.models.telemetry_aggregate import TemperatureHourlyAggregate
 
 __all__ = [
     "AuditLog",
@@ -50,6 +51,7 @@ __all__ = [
     "Role",
     "Shipment",
     "ShipmentLot",
+    "TemperatureHourlyAggregate",
     "TemperatureReading",
     "User",
 ]

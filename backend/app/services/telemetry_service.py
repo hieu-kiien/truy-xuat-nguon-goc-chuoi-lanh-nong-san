@@ -13,7 +13,9 @@ from sqlalchemy.orm import Session
 from app.core.auth import Principal
 from app.models.shipment import Shipment, ShipmentLot
 from app.models.telemetry import ColdChainViolation, TemperatureReading
+from app.models.telemetry_aggregate import TemperatureHourlyAggregate
 from app.schemas.telemetry import (
+    TelemetryHourlyAggregateRead,
     TelemetryIngestRequest,
     TelemetryIngestResponse,
     TelemetryViolationRead,
@@ -357,6 +359,50 @@ def list_shipment_readings(
             .order_by(TemperatureReading.recorded_at.asc())
         ).all()
     )
+
+
+def list_hourly_aggregates(
+    db: Session, principal: Principal, shipment_id: UUID
+) -> list[TelemetryHourlyAggregateRead]:
+    """Return the summarised hours of a shipment (N3-64).
+
+    A shipment keeps its raw readings for the retention window. Older readings
+    are folded into one row per hour, and the hours without any reading are
+    returned as an explicit gap.
+    """
+    shipment = db.get(Shipment, shipment_id)
+    if shipment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy chuyến vận chuyển.",
+        )
+    if not _can_access_shipment(db, principal, shipment):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không có quyền xem dữ liệu của chuyến xe này.",
+        )
+
+    rows = list(
+        db.scalars(
+            select(TemperatureHourlyAggregate)
+            .where(TemperatureHourlyAggregate.shipment_id == shipment_id)
+            .order_by(TemperatureHourlyAggregate.bucket_start.asc())
+        ).all()
+    )
+    return [
+        TelemetryHourlyAggregateRead(
+            id=row.id,
+            shipment_id=row.shipment_id,
+            container_code=row.container_code,
+            bucket_start=row.bucket_start,
+            reading_count=row.reading_count,
+            min_temperature_celsius=row.min_temperature_celsius,
+            max_temperature_celsius=row.max_temperature_celsius,
+            avg_temperature_celsius=row.avg_temperature_celsius,
+            is_gap=row.reading_count == 0,
+        )
+        for row in rows
+    ]
 
 
 def get_shipment_violations(

@@ -13,6 +13,7 @@ from app.core.database import get_db
 from app.schemas.cold_chain_config import ShipmentColdChainLimitsRead
 from app.schemas.cold_chain_stats import ColdChainViolationStatsRead
 from app.schemas.telemetry import (
+    TelemetryHourlyAggregateRead,
     TelemetryIngestRequest,
     TelemetryIngestResponse,
     TelemetryReadingRead,
@@ -54,6 +55,21 @@ def get_shipment_readings(
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> list[TelemetryReadingRead]:
     return telemetry_service.list_shipment_readings(db, principal, shipment_id)
+
+
+@router.get(
+    "/shipments/{shipment_id}/readings/hourly",
+    response_model=list[TelemetryHourlyAggregateRead],
+    summary="Chuoi nhiet do da tong hop theo gio cua chuyen van chuyen (N3-64)",
+)
+@require_permission("telemetry:read")
+def get_shipment_hourly_aggregates(
+    shipment_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> list[TelemetryHourlyAggregateRead]:
+    """The summarised hours of a shipment; empty hours stay visible as gaps."""
+    return telemetry_service.list_hourly_aggregates(db, principal, shipment_id)
 
 
 @router.get(
