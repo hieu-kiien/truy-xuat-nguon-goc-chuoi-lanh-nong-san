@@ -367,9 +367,15 @@ def downgrade() -> None:
         """
     )
 
-    op.execute("DROP TRIGGER IF EXISTS trg_recall_confirmations_immutable ON recall_confirmations")
+    op.execute(
+        "DROP TRIGGER IF EXISTS trg_recall_confirmations_immutable ON recall_confirmations"
+    )
     op.execute("DROP FUNCTION IF EXISTS trg_recall_confirmations_append_only()")
-    op.execute("DROP POLICY IF EXISTS recall_confirmations_insert ON recall_confirmations")
-    op.execute("DROP POLICY IF EXISTS recall_confirmations_read ON recall_confirmations")
+    op.execute(
+        "DROP POLICY IF EXISTS recall_confirmations_insert ON recall_confirmations"
+    )
+    op.execute(
+        "DROP POLICY IF EXISTS recall_confirmations_read ON recall_confirmations"
+    )
     op.drop_table("recall_confirmations")
     op.execute("DROP FUNCTION IF EXISTS public.app_recall_affected_lot_ids()")
