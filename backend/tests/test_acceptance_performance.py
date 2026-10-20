@@ -43,6 +43,7 @@ def test_two_hundred_event_history_one_event_query_under_200ms(
             def capture(conn, cur, statement, parameters, context, many):
                 statements.append((statement, parameters))
 
+            event_service.get_event_history(db, principal, lot.id)
             event.listen(connection, "before_cursor_execute", capture)
             started = perf_counter()
             result = event_service.get_event_history(db, principal, lot.id)

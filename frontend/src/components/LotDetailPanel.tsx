@@ -243,7 +243,7 @@ export function LotDetailPanel({
           </>}
 
           {task && <a className="ds-button ds-button-secondary" href={`/lots/${lot.id}`}>← Quay lại chi tiết lô</a>}
-{task === 'recall' && (
+          {task === 'recall' && (
             <RecallPanel
               key={lot.id}
               lotId={lot.id}
@@ -258,7 +258,6 @@ export function LotDetailPanel({
             <EditDialog title="Sinh mã QR cho lô hàng" onClose={() => setQrModalOpen(false)}>
               <LotQrPanel lot={lot} onClose={() => setQrModalOpen(false)} isDialog />
             </EditDialog>
-          )}in
           )}
           {task === 'event' && canCreateEvents && lot.current_holder_organization_id === organizationId && lot.status === 'active' && <EventCreateForm lot={lot} />}
 
