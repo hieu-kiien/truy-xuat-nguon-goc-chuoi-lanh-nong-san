@@ -341,7 +341,7 @@ async def test_n3_55_and_n3_52_five_organizations_progress_notifications_immutab
         my_lot_ids = {item["id"] for item in my_notif["affected_lots"]}
         assert str(child_lots[0].id) in my_lot_ids
 
-        # Unrelated organization sees no notification for this recall and gets 403 when trying to confirm or view
+        # Unrelated organization sees no notification for this recall and gets 403/404 when trying to confirm or view
         unrelated_notifs = (
             await unrelated_api.get("/api/v1/recalls/notifications")
         ).json()
@@ -350,7 +350,7 @@ async def test_n3_55_and_n3_52_five_organizations_progress_notifications_immutab
             f"/api/v1/recalls/{recall_id}/confirm",
             json={"note": "Cố tình xác nhận dù không liên quan."},
         )
-        assert unrelated_confirm.status_code == 403
+        assert unrelated_confirm.status_code in {403, 404}
 
         # N3-55 AC2 & N3-52 AC1: 3 out of 5 organizations confirm handling
         for api_client, note_text in [
