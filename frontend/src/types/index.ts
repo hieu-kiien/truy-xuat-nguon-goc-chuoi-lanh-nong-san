@@ -151,6 +151,74 @@ export interface RecallReport {
   affected_lots: RecallLotItem[]
 }
 
+export interface RecallOrganizationProgress {
+  organization_id: string
+  organization_name: string
+  organization_type: OrganizationType | string | null
+  status: 'confirmed' | 'pending'
+  confirmed_at: string | null
+  confirmed_by_user_id: string | null
+  confirmed_by_user_name: string | null
+  note: string | null
+  affected_lot_ids: string[]
+  affected_lot_codes: string[]
+  recoverable_quantity: string
+}
+
+export interface RecallConfirmationRecord {
+  id: string
+  recall_order_id: string
+  organization_id: string
+  organization_name: string | null
+  confirmed_by_user_id: string
+  confirmed_by_user_name: string | null
+  note: string
+  confirmed_at: string
+}
+
+export interface RecallOrder {
+  id: string
+  recall_code: string
+  root_lot_id: string
+  opened_by_user_id: string
+  opened_by_organization_id: string
+  reason: string
+  status: 'open' | 'completed'
+  created_at: string
+  completed_at: string | null
+  root_lot: RecallLotItem | null
+  summary: RecallSummary | null
+  descendants: RecallLotItem[]
+  affected_lots: RecallLotItem[]
+  total_organizations_count: number
+  confirmed_organizations_count: number
+  progress_text: string
+  pending_organizations: string[]
+  confirmed_organizations: string[]
+  organizations_progress: RecallOrganizationProgress[]
+  confirmations: RecallConfirmationRecord[]
+}
+
+export interface RecallNotification {
+  recall_id: string
+  recall_code: string
+  root_lot_id: string
+  root_lot_code: string | null
+  root_lot_name: string
+  reason: string
+  status: 'open' | 'completed'
+  created_at: string
+  organization_id: string
+  organization_name: string
+  handling_status: 'confirmed' | 'pending'
+  confirmed_at: string | null
+  note: string | null
+  total_organizations_count: number
+  confirmed_organizations_count: number
+  progress_text: string
+  affected_lots: RecallLotItem[]
+}
+
 export interface LotDetail extends Lot {
   parents: GraphLot[]
   children: GraphLot[]
@@ -317,6 +385,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'handovers:create',
     'handovers:resolve',
     'recalls:read',
+    'recalls:confirm',
   ],
   cooperative: [
     'lots:transform',
@@ -328,6 +397,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'handovers:create',
     'handovers:resolve',
     'recalls:read',
+    'recalls:confirm',
     'shipments:create',
     'shipments:read',
     'shipments:complete',
@@ -343,6 +413,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'handovers:create',
     'handovers:resolve',
     'recalls:read',
+    'recalls:confirm',
     'shipments:create',
     'shipments:read',
     'shipments:complete',
@@ -361,6 +432,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'handovers:create',
     'handovers:resolve',
     'recalls:read',
+    'recalls:confirm',
     'shipments:create',
     'shipments:read',
     'shipments:complete',
@@ -374,6 +446,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'events:read_all',
     'events:verify',
     'recalls:open',
+    'recalls:manage',
     'recalls:read',
     'recalls:read_all',
     'shipments:read',
@@ -396,7 +469,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'handovers:create',
     'handovers:resolve',
     'recalls:open',
+    'recalls:manage',
     'recalls:read',
+    'recalls:confirm',
     'shipments:create',
     'shipments:read',
     'shipments:complete',
@@ -418,8 +493,10 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'products:read_all',
     'security:read',
     'recalls:open',
+    'recalls:manage',
     'recalls:read',
     'recalls:read_all',
+    'recalls:confirm',
     'shipments:create',
     'shipments:read',
     'shipments:complete',
@@ -447,6 +524,9 @@ export function hasPermission(role: RoleCode, permission: string): boolean {
   if (permission === 'products:read' && perms.includes('products:read_all')) {
     return true
   }
+  if (permission === 'recalls:read' && perms.includes('recalls:read_all')) {
+    return true
+  }
   if (permission === 'shipments:read' && perms.includes('shipments:read_all')) {
     return true
   }
@@ -456,3 +536,25 @@ export function hasPermission(role: RoleCode, permission: string): boolean {
   return false
 }
 
+export interface PublicTrace {
+  lot_code: string | null
+  product_name: string | null
+  product_unit: string | null
+  harvested_on: string | null
+  farm_name: string | null
+  origin_organization_type: string | null
+  status: string | null
+  recall_active: boolean
+  cold_chain_violation: boolean
+}
+
+export interface PublicTraceWarning {
+  code: 'recall' | 'cold_chain'
+  level: 'danger' | 'note'
+  message: string
+}
+
+export interface PublicTraceResponse {
+  trace: PublicTrace
+  warnings: PublicTraceWarning[]
+}

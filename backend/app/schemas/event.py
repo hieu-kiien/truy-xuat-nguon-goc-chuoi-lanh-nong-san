@@ -26,6 +26,7 @@ class EventCreate(BaseModel):
             "lot_moved",
             "lot_consumed",
             "recall_opened",
+            "recall_confirmed",
             "recall_completed",
             "shipment_loaded",
             "shipment_unloaded",
