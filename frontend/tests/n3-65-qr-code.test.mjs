@@ -18,80 +18,126 @@ after(() => server.close())
 globalThis.window = {
   location: {
     origin: 'https://agrochain.vn',
+    pathname: '/truy-xuat',
     search: '',
   },
+  setTimeout: (callback, delay) => setTimeout(callback, delay),
 }
 
 const load = async (name) => (await server.ssrLoadModule(`/src/components/${name}.tsx`))[name]
 const html = (component, props) => renderToStaticMarkup(React.createElement(component, props))
 
-test('N3-65: getLotPublicUrl uses lot_code without auto-increment id', async () => {
-  const { getLotPublicUrl, displayLotCode } = await server.ssrLoadModule('/src/utils/qr.ts')
-  
-  // Test với lot có mã lot_code
-  const lotWithCode = { id: '987fcdeb-51a2-4c3d-be78-0123456789ab', lot_code: 'LOT-N3-2026-X01', name: 'Xoài Cát' }
-  assert.equal(displayLotCode(lotWithCode), 'LOT-N3-2026-X01')
-  assert.equal(getLotPublicUrl(lotWithCode), 'https://agrochain.vn/trace/LOT-N3-2026-X01')
-  
-  // Test với lot chưa có lot_code (dùng 8 ký tự đầu UUID, không dùng ID số tự tăng)
-  const lotWithoutCode = { id: 'a1b2c3d4-5678-90ab-cdef-1234567890ab', lot_code: null, name: 'Thanh Long' }
+test('N3-65: URL công khai dùng mã lô trên trang /truy-xuat, không dùng ID tự tăng', async () => {
+  const { displayLotCode, getLotPublicUrl } = await server.ssrLoadModule('/src/utils/qr.ts')
+
+  const lotWithCode = { id: '987fcdeb-51a2-4c3d-be78-0123456789ab', lot_code: 'K3M7P2QZ' }
+  assert.equal(displayLotCode(lotWithCode), 'K3M7P2QZ')
+  assert.equal(getLotPublicUrl(lotWithCode), 'https://agrochain.vn/truy-xuat?code=K3M7P2QZ')
+
+  // Lô cũ chưa có lot_code: dùng 8 ký tự đầu UUID, không dùng ID số tự tăng.
+  const lotWithoutCode = { id: 'a1b2c3d4-5678-90ab-cdef-1234567890ab', lot_code: null }
   assert.equal(displayLotCode(lotWithoutCode), 'a1b2c3d4')
-  assert.equal(getLotPublicUrl(lotWithoutCode), 'https://agrochain.vn/trace/a1b2c3d4')
+  assert.equal(getLotPublicUrl(lotWithoutCode), 'https://agrochain.vn/truy-xuat?code=a1b2c3d4')
 
-  // Đảm bảo không chứa số nguyên tự tăng
-  assert.doesNotMatch(getLotPublicUrl(lotWithCode), /\/trace\/\d+$/)
+  // Mã đặc biệt (nếu backend đổi định dạng) vẫn phải được encode an toàn.
+  const lotWithUnsafeCode = { id: 'a1b2c3d4-5678-90ab-cdef-1234567890ab', lot_code: 'A B&1' }
+  assert.equal(getLotPublicUrl(lotWithUnsafeCode), 'https://agrochain.vn/truy-xuat?code=A%20B%261')
 })
 
-test('N3-65: QRCode library generates high-resolution PNG and scalable vector SVG', async () => {
-  const testUrl = 'https://agrochain.vn/trace/LOT-N3-2026-X01'
+test('N3-65: SVG được gắn kích thước in 30mm và giữ nguyên viewBox', async () => {
+  const { applyPrintSize, QR_PRINT_SIZE_MM } = await server.ssrLoadModule('/src/utils/qr.ts')
+  assert.equal(QR_PRINT_SIZE_MM, 30)
 
-  // 1. Kiểm tra sinh ảnh PNG với độ phân giải 1024x1024 (~867 DPI ở khổ 3cm, vượt xa chuẩn in ấn 300 DPI)
-  const pngDataUrl = await QRCode.toDataURL(testUrl, {
-    width: 1024,
-    margin: 2,
-    errorCorrectionLevel: 'M',
-  })
-  assert.match(pngDataUrl, /^data:image\/png;base64,/)
-  assert.ok(pngDataUrl.length > 5000, 'PNG DataURL phải chứa dữ liệu hình ảnh độ nét cao')
-
-  // 2. Kiểm tra sinh SVG vector (vô hạn độ phân giải khi in)
-  const svgOutput = await QRCode.toString(testUrl, {
+  const svg = await QRCode.toString('https://agrochain.vn/truy-xuat?code=K3M7P2QZ', {
     type: 'svg',
-    margin: 2,
-    errorCorrectionLevel: 'M',
+    margin: 4,
+    errorCorrectionLevel: 'Q',
   })
-  assert.match(svgOutput, /<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)
-  assert.match(svgOutput, /viewBox=/)
-  assert.match(svgOutput, /<\/svg>\s*$/)
+  const printSvg = applyPrintSize(svg)
+
+  assert.match(printSvg, /^<svg[^>]*width="30mm"[^>]*height="30mm"/)
+  assert.match(printSvg, /viewBox="0 0 [0-9]+ [0-9]+"/)
+  assert.doesNotMatch(printSvg, /width="350"/)
+  assert.match(printSvg, /<\/svg>\s*$/)
 })
 
-test('N3-65: LotQrPanel renders accessible buttons for PNG, SVG downloads and 3cm print recommendation', async () => {
+test('N3-65: mã QR dùng quiet zone 4 module, mức sửa lỗi Q và PNG đủ nét để in 3cm', async () => {
+  const { QR_ERROR_CORRECTION, QR_PNG_SIZE_PX, QR_QUIET_ZONE_MODULES } =
+    await server.ssrLoadModule('/src/utils/qr.ts')
+
+  assert.equal(QR_QUIET_ZONE_MODULES, 4)
+  assert.equal(QR_ERROR_CORRECTION, 'Q')
+  // 1024px trên 30mm ≈ 867 DPI, vượt xa ngưỡng 300 DPI khi in tem.
+  assert.ok(QR_PNG_SIZE_PX / (30 / 25.4) >= 300)
+
+  const url = 'https://agrochain.vn/truy-xuat?code=K3M7P2QZ'
+  const png = await QRCode.toDataURL(url, {
+    width: QR_PNG_SIZE_PX,
+    margin: QR_QUIET_ZONE_MODULES,
+    errorCorrectionLevel: QR_ERROR_CORRECTION,
+  })
+  assert.match(png, /^data:image\/png;base64,/)
+  assert.ok(png.length > 5000)
+
+  const svg = await QRCode.toString(url, {
+    type: 'svg',
+    margin: QR_QUIET_ZONE_MODULES,
+    errorCorrectionLevel: QR_ERROR_CORRECTION,
+  })
+  // 4 module mỗi phía: viewBox rộng = số module của mã + 8.
+  const [, viewBoxWidth] = /viewBox="0 0 (\d+) \d+"/.exec(svg)
+  assert.ok(Number(viewBoxWidth) > 8)
+  assert.equal((Number(viewBoxWidth) - 8 - 1) % 4, 0) // 21 + 4*(version-1)
+})
+
+test('N3-65: LotQrPanel hiển thị mã lô, URL công khai, kích thước in và nút tải PNG/SVG', async () => {
   const LotQrPanel = await load('LotQrPanel')
-  const lot = {
-    id: '89d69962-fa86-59d7-8adf-26cb56fa9ef4',
-    lot_code: 'S34-MANGO-01',
-    name: 'Xoài Cát Chu',
-    product: { name: 'Xoài Cát Chu', unit: 'kg' },
-  }
+  const output = html(LotQrPanel, {
+    lot: {
+      id: '89d69962-fa86-59d7-8adf-26cb56fa9ef4',
+      lot_code: 'K3M7P2QZ',
+      name: 'Xoài Cát Chu',
+      product: { name: 'Xoài Cát Chu', unit: 'kg' },
+    },
+  })
 
-  const output = html(LotQrPanel, { lot })
-
-  // Tiêu đề và vùng chứa
-  assert.match(output, /Sinh mã QR cho lô hàng/)
   assert.match(output, /aria-label="Sinh mã QR cho lô hàng"/)
+  assert.match(output, /K3M7P2QZ/)
+  assert.match(output, /https:\/\/agrochain\.vn\/truy-xuat\?code=K3M7P2QZ/)
+  assert.match(output, /30 × 30 mm/)
+  assert.match(output, /aria-label="Tải mã QR định dạng PNG"/)
+  assert.match(output, /aria-label="Tải mã QR định dạng SVG"/)
+  assert.doesNotMatch(output, /Lô chưa có mã công khai/)
+})
 
-  // Mã lô và đường dẫn công khai
-  assert.match(output, /<code>S34-MANGO-01<\/code>/)
-  assert.match(output, /https:\/\/agrochain\.vn\/trace\/S34-MANGO-01/)
+test('N3-65: LotQrPanel cảnh báo khi lô chưa có mã công khai', async () => {
+  const LotQrPanel = await load('LotQrPanel')
+  const output = html(LotQrPanel, {
+    lot: {
+      id: '89d69962-fa86-59d7-8adf-26cb56fa9ef4',
+      lot_code: null,
+      name: 'Thanh Long',
+    },
+  })
 
-  // Hướng dẫn kích thước in 3 cm
-  assert.match(output, /3 cm × 3 cm/)
+  assert.match(output, /Lô chưa có mã công khai/)
+  assert.match(output, /89d69962/)
+})
 
-  // Nút tải tệp PNG
-  assert.match(output, /Tải về tệp PNG \(Chuẩn in ấn 3cm\)/)
-  assert.match(output, /aria-label="Tải về tệp ảnh PNG cho mã QR"/)
+test('N3-65: trang /truy-xuat tự điền mã lô từ tham số ?code= khi quét tem', async () => {
+  const PublicTracePage = await load('PublicTracePage')
 
-  // Nút tải tệp SVG
-  assert.match(output, /Tải về tệp SVG \(Vector không vỡ hình\)/)
-  assert.match(output, /aria-label="Tải về tệp đồ họa vector SVG cho mã QR"/)
+  window.location.search = '?code=k3m7p2qz'
+  const withCode = html(PublicTracePage, {})
+  assert.match(withCode, /id="public-lot-code"/)
+  assert.match(withCode, /value="K3M7P2QZ"/)
+
+  window.location.search = ''
+  const withoutCode = html(PublicTracePage, {})
+  assert.match(withoutCode, /value=""/)
+
+  // Mã không hợp lệ trong URL không được đẩy vào ô nhập.
+  window.location.search = '?code=ab!'
+  const withInvalid = html(PublicTracePage, {})
+  assert.match(withInvalid, /value=""/)
 })

@@ -1,8 +1,17 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { ApiError, getPublicTrace } from '../services/api'
 import type { PublicTraceResponse, PublicTraceWarning } from '../types'
 
 const LOT_CODE_PATTERN = /^[A-Za-z0-9]{4,12}$/
+
+const normalizeCode = (raw: string): string => raw.trim().toUpperCase()
+
+/** Mã lô truyền qua `?code=` khi người tiêu dùng quét tem QR. */
+function readRequestedCode(): string | null {
+  if (typeof window === 'undefined') return null
+  const requested = normalizeCode(new URLSearchParams(window.location.search).get('code') ?? '')
+  return LOT_CODE_PATTERN.test(requested) ? requested : null
+}
 
 function WarningIcon({ level }: { level: PublicTraceWarning['level'] }) {
   if (level === 'danger') {
@@ -24,20 +33,22 @@ function WarningIcon({ level }: { level: PublicTraceWarning['level'] }) {
 }
 
 export function PublicTracePage() {
-  const [code, setCode] = useState('')
+  const [requestedCode] = useState(readRequestedCode)
+  const [code, setCode] = useState(requestedCode ?? '')
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [result, setResult] = useState<PublicTraceResponse | null>(null)
+  const autoLookupDone = useRef(false)
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const normalized = code.trim().toUpperCase()
+  const lookup = useCallback(async (rawCode: string) => {
+    const normalized = normalizeCode(rawCode)
     if (!LOT_CODE_PATTERN.test(normalized)) {
       setErrorMessage('Mã lô gồm 4–12 ký tự chữ và số, không có ký tự đặc biệt.')
       setResult(null)
       return
     }
 
+    setCode(normalized)
     setLoading(true)
     setErrorMessage(null)
     setResult(null)
@@ -57,6 +68,18 @@ export function PublicTracePage() {
     } finally {
       setLoading(false)
     }
+  }, [])
+
+  // Quét tem QR sẽ mở /truy-xuat?code=<mã lô>: tra cứu ngay, không bắt người dùng nhập lại.
+  useEffect(() => {
+    if (!requestedCode || autoLookupDone.current) return
+    autoLookupDone.current = true
+    void lookup(requestedCode)
+  }, [lookup, requestedCode])
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    void lookup(code)
   }
 
   const trace = result?.trace
