@@ -122,6 +122,15 @@ test('shipment temperature panel explains the hourly aggregation', async () => {
   assert.match(output, /Đang tải chuyến vận chuyển/)
 })
 
+test('shipment temperature panel offers the time window of the raw series', async () => {
+  const output = html(await load('ShipmentTemperaturePanel'))
+  assert.match(output, /Khoảng thời gian/)
+  assert.match(output, />7 ngày</)
+  assert.match(output, />30 ngày</)
+  assert.match(output, />90 ngày</)
+  assert.match(output, />Tất cả</)
+})
+
 test('hourly aggregate list announces the loading state', async () => {
   const output = html(await load('HourlyAggregateList'), {shipmentId: 'ship-1'})
   assert.match(output, /Đang tải chuỗi tổng hợp/)
@@ -140,6 +149,7 @@ test('organization admin panel hides the management actions without the permissi
   assert.match(output, /Quản trị tổ chức/)
   assert.doesNotMatch(output, /Gửi lời mời/)
   assert.doesNotMatch(output, /Email đầu mối/)
+  assert.doesNotMatch(output, /Vô hiệu hoá/)
 })
 
 test('sidebar shows the temperature series entry for a transporter', async () => {

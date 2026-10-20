@@ -1,7 +1,7 @@
 """Business service for cold chain telemetry ingestion and violation inspection (N3-59, N3-60, N3-61, N3-62, N3-63)."""
 
 import logging
-from datetime import UTC
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -337,8 +337,15 @@ def list_shipment_readings(
     db: Session,
     principal: Principal,
     shipment_id: UUID,
+    *,
+    from_time: datetime | None = None,
+    to_time: datetime | None = None,
 ) -> list[TemperatureReading]:
-    """Retrieve all temperature readings for a given shipment."""
+    """Retrieve the temperature readings of a shipment, optionally in a window.
+
+    The window is applied to the moment the reading was recorded. Without a
+    window every retained reading is returned, newest window included.
+    """
     shipment = db.get(Shipment, shipment_id)
     if not shipment:
         raise HTTPException(
@@ -352,13 +359,15 @@ def list_shipment_readings(
             detail="B?n kh?ng c? quy?n xem d? li?u ?o c?a chuy?n xe n?y.",
         )
 
-    return list(
-        db.scalars(
-            select(TemperatureReading)
-            .where(TemperatureReading.shipment_id == shipment_id)
-            .order_by(TemperatureReading.recorded_at.asc())
-        ).all()
+    query = select(TemperatureReading).where(
+        TemperatureReading.shipment_id == shipment_id
     )
+    if from_time is not None:
+        query = query.where(TemperatureReading.recorded_at >= from_time)
+    if to_time is not None:
+        query = query.where(TemperatureReading.recorded_at <= to_time)
+
+    return list(db.scalars(query.order_by(TemperatureReading.recorded_at.asc())).all())
 
 
 def list_hourly_aggregates(

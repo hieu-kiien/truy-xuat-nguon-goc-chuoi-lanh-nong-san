@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   createOrganizationInvitation,
+  deactivateOrganizationMember,
   getOrganizationInvitations,
   getOrganizationMembers,
   getMyOrganization,
@@ -127,6 +128,27 @@ export function OrganizationAdminPanel({
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không thể thu hồi lời mời.')
+    }
+  }
+
+  const deactivate = async (memberId: string, memberName: string) => {
+    setError(null)
+    setNotice(null)
+    if (
+      !window.confirm(
+        `Vô hiệu hoá tài khoản của ${memberName}? Người này sẽ không đăng nhập được nữa.`,
+      )
+    ) {
+      return
+    }
+    try {
+      await deactivateOrganizationMember(memberId)
+      setNotice(`Đã vô hiệu hoá thành viên ${memberName}.`)
+      await load()
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Không thể vô hiệu hoá thành viên.',
+      )
     }
   }
 
@@ -277,6 +299,7 @@ export function OrganizationAdminPanel({
               <th scope="col">Email</th>
               <th scope="col">Vai trò</th>
               <th scope="col">Trạng thái</th>
+              {canManage && <th scope="col">Thao tác</th>}
             </tr>
           </thead>
           <tbody>
@@ -290,6 +313,21 @@ export function OrganizationAdminPanel({
                     {member.is_active ? 'Đang hoạt động' : 'Đã vô hiệu hoá'}
                   </span>
                 </td>
+                {canManage && (
+                  <td>
+                    {member.is_active && (
+                      <button
+                        type="button"
+                        className="ds-button ds-button-secondary ds-button-xs"
+                        onClick={() =>
+                          void deactivate(member.id, member.full_name)
+                        }
+                      >
+                        Vô hiệu hoá
+                      </button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

@@ -1,9 +1,24 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getShipmentReadings, getShipments } from '../services/api'
-import type { Shipment, ShipmentTemperatureReading } from '../types'
+import {
+  getShipmentColdChainLimits,
+  getShipmentReadings,
+  getShipments,
+} from '../services/api'
+import type {
+  Shipment,
+  ShipmentColdChainLimits,
+  ShipmentTemperatureReading,
+} from '../types'
 import { HourlyAggregateList } from './HourlyAggregateList'
 
 const EMPTY_READINGS: ShipmentTemperatureReading[] = []
+
+const RANGES = [
+  { days: 7, label: '7 ngày' },
+  { days: 30, label: '30 ngày' },
+  { days: 90, label: '90 ngày' },
+  { days: 0, label: 'Tất cả' },
+]
 
 function formatTime(value: string): string {
   return new Date(value).toLocaleString('vi-VN', {
@@ -19,6 +34,11 @@ export function ShipmentTemperaturePanel() {
     id: string
     items: ShipmentTemperatureReading[]
   }>({ id: '', items: EMPTY_READINGS })
+  const [limitsState, setLimits] = useState<{
+    id: string
+    payload: ShipmentColdChainLimits
+  } | null>(null)
+  const [rangeDays, setRangeDays] = useState(30)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -51,8 +71,12 @@ export function ShipmentTemperaturePanel() {
     if (!shipmentId) {
       return
     }
+    const from =
+      rangeDays > 0
+        ? new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000).toISOString()
+        : undefined
     let active = true
-    getShipmentReadings(shipmentId)
+    getShipmentReadings(shipmentId, { from })
       .then((raw) => {
         if (!active) return
         setReadings({ id: shipmentId, items: raw })
@@ -68,10 +92,28 @@ export function ShipmentTemperaturePanel() {
     return () => {
       active = false
     }
+  }, [shipmentId, rangeDays])
+
+  useEffect(() => {
+    if (!shipmentId) {
+      return
+    }
+    let active = true
+    getShipmentColdChainLimits(shipmentId)
+      .then((payload) => {
+        if (active) setLimits({ id: shipmentId, payload })
+      })
+      .catch(() => {
+        if (active) setLimits(null)
+      })
+    return () => {
+      active = false
+    }
   }, [shipmentId])
 
   const readings =
     readingsState.id === shipmentId ? readingsState.items : EMPTY_READINGS
+  const limits = limitsState?.id === shipmentId ? limitsState.payload : null
 
   return (
     <section
@@ -114,7 +156,34 @@ export function ShipmentTemperaturePanel() {
             ))}
           </select>
         </div>
+        <div className="form-field">
+          <label htmlFor="shipment-temperature-range">Khoảng thời gian</label>
+          <select
+            id="shipment-temperature-range"
+            value={rangeDays}
+            onChange={(event) => setRangeDays(Number(event.target.value))}
+          >
+            {RANGES.map((range) => (
+              <option key={range.days} value={range.days}>
+                {range.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
+
+      {limits && (
+        <div className="alert-box alert-info" role="status">
+          <p>
+            Ngưỡng hiệu lực: {limits.min_temp_celsius}°C đến{' '}
+            {limits.max_temp_celsius}°C, phát hiện vi phạm sau{' '}
+            {limits.delay_minutes} phút.{' '}
+            {limits.from_snapshot
+              ? 'Ngưỡng được chốt khi mở chuyến, đổi cấu hình sau này không áp dụng lại cho chuyến này.'
+              : 'Chuyến chưa chốt ngưỡng, đang dùng cấu hình hiện tại của từng loại hàng.'}
+          </p>
+        </div>
+      )}
 
       {loading && shipments.length === 0 && (
         <p role="status">Đang tải chuyến vận chuyển…</p>
@@ -130,7 +199,7 @@ export function ShipmentTemperaturePanel() {
 
           <h3>Lần đo gần đây</h3>
           {readings.length === 0 ? (
-            <p>Không có lần đo thô nào được giữ lại.</p>
+            <p>Không có lần đo thô nào trong khoảng thời gian đã chọn.</p>
           ) : (
             <div className="table-scroll">
               <table className="data-table">

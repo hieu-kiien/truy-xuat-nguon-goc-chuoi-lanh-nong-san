@@ -135,6 +135,46 @@ def test_n3_64_old_readings_are_folded_into_hourly_rows(
     assert remaining[0].recorded_at == NOW - timedelta(hours=2)
 
 
+def test_n3_152_the_raw_series_can_be_narrowed_to_a_time_window(
+    admin_session: Session, identity_factory
+):
+    """The readings endpoint keeps only the readings of the chosen window."""
+    from app.core.auth import Principal
+    from app.services import telemetry_service
+
+    carrier = identity_factory(role="transporter", organization_type="transport")
+    shipment = _seed_shipment(admin_session, carrier, completed=True)
+    inside = NOW - timedelta(days=3)
+    outside = NOW - timedelta(days=20)
+    _add_reading(admin_session, shipment, inside, "4.00")
+    _add_reading(admin_session, shipment, outside, "9.00")
+
+    principal = Principal(
+        user_id=carrier.user_id,
+        email=carrier.email,
+        full_name="Integration test user",
+        organization_id=carrier.organization_id,
+        organization_name="Integration carrier",
+        organization_type="transport",
+        role="transporter",
+    )
+
+    everything = telemetry_service.list_shipment_readings(
+        admin_session, principal, shipment.id
+    )
+    assert len(everything) == 2
+
+    window = telemetry_service.list_shipment_readings(
+        admin_session,
+        principal,
+        shipment.id,
+        from_time=NOW - timedelta(days=7),
+        to_time=NOW,
+    )
+    assert len(window) == 1
+    assert window[0].recorded_at == inside
+
+
 def test_n3_64_a_running_shipment_is_never_compacted(
     admin_session: Session, identity_factory
 ):

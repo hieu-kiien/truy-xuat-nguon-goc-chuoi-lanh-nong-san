@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal, get_current_principal
@@ -53,8 +53,18 @@ def get_shipment_readings(
     shipment_id: UUID,
     db: Annotated[Session, Depends(get_db)],
     principal: Annotated[Principal, Depends(get_current_principal)],
+    from_time: Annotated[datetime | None, Query(alias="from")] = None,
+    to_time: Annotated[datetime | None, Query(alias="to")] = None,
 ) -> list[TelemetryReadingRead]:
-    return telemetry_service.list_shipment_readings(db, principal, shipment_id)
+    """The readings of a shipment; the window narrows the moment recorded."""
+    if from_time is not None and to_time is not None and from_time > to_time:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Khoang thoi gian phai bat dau truoc ket thuc.",
+        )
+    return telemetry_service.list_shipment_readings(
+        db, principal, shipment_id, from_time=from_time, to_time=to_time
+    )
 
 
 @router.get(

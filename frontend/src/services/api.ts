@@ -40,6 +40,8 @@ import type {
   OrganizationInvitation,
   OrganizationInvitationCreated,
   OrganizationMember,
+  ShipmentColdChainLimits,
+  ProductColdChainConfig,
 } from '../types'
 
 
@@ -497,9 +499,22 @@ export async function downloadLotReport(lotId: string): Promise<Blob> {
 
 export const getShipments = () => request<Shipment[]>('/api/v1/shipments')
 
-export const getShipmentReadings = (shipmentId: string) =>
-  request<ShipmentTemperatureReading[]>(
-    `/api/v1/telemetry/shipments/${shipmentId}/readings`,
+export const getShipmentReadings = (
+  shipmentId: string,
+  params: { from?: string; to?: string } = {},
+) => {
+  const query = new URLSearchParams()
+  if (params.from) query.set('from', params.from)
+  if (params.to) query.set('to', params.to)
+  const suffix = query.toString() ? `?${query.toString()}` : ''
+  return request<ShipmentTemperatureReading[]>(
+    `/api/v1/telemetry/shipments/${shipmentId}/readings${suffix}`,
+  )
+}
+
+export const getShipmentColdChainLimits = (shipmentId: string) =>
+  request<ShipmentColdChainLimits>(
+    `/api/v1/telemetry/shipments/${shipmentId}/cold-chain-limits`,
   )
 
 export const getShipmentHourlyAggregates = (shipmentId: string) =>
@@ -536,3 +551,23 @@ export const revokeOrganizationInvitation = (invitationId: string) =>
 
 export const getOrganizationMembers = () =>
   request<OrganizationMember[]>('/api/v1/organizations/members')
+
+export const deactivateOrganizationMember = (userId: string) =>
+  request<OrganizationMember>(
+    `/api/v1/organizations/members/${userId}/deactivate`,
+    { method: 'POST' },
+  )
+
+export const getProductColdChainConfig = (productId: string) =>
+  request<ProductColdChainConfig>(
+    `/api/v1/products/${productId}/cold-chain-config`,
+  )
+
+export const updateProductColdChainConfig = (
+  productId: string,
+  payload: { min_temp_celsius: string; max_temp_celsius: string; delay_minutes: number },
+) =>
+  request<ProductColdChainConfig>(
+    `/api/v1/products/${productId}/cold-chain-config`,
+    { method: 'PUT', body: JSON.stringify(payload) },
+  )

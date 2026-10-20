@@ -781,3 +781,35 @@ export interface OrganizationInvitationCreated extends OrganizationInvitation {
   /** The single-use link, handed over only when the invitation is made. */
   invitation_url: string
 }
+
+export interface ShipmentColdChainLimits {
+  shipment_id: string
+  shipment_code: string
+  min_temp_celsius: string
+  max_temp_celsius: string
+  delay_minutes: number
+  from_snapshot: boolean
+  config_resolved_at: string | null
+  sources: ProductColdChainLimitSource[]
+}
+
+export interface ProductColdChainLimitSource {
+  product_id: string | null
+  product_name: string | null
+  configured: boolean
+  min_temp_celsius: string
+  max_temp_celsius: string
+  delay_minutes: number
+}
+
+export interface ProductColdChainConfig {
+  id: string
+  product_id: string
+  product_name: string
+  min_temp_celsius: string
+  max_temp_celsius: string
+  delay_minutes: number
+  updated_by_user_id: string | null
+  created_at: string
+  updated_at: string
+}
