@@ -535,3 +535,26 @@ export function hasPermission(role: RoleCode, permission: string): boolean {
   }
   return false
 }
+
+export interface PublicTrace {
+  lot_code: string | null
+  product_name: string | null
+  product_unit: string | null
+  harvested_on: string | null
+  farm_name: string | null
+  origin_organization_type: string | null
+  status: string | null
+  recall_active: boolean
+  cold_chain_violation: boolean
+}
+
+export interface PublicTraceWarning {
+  code: 'recall' | 'cold_chain'
+  level: 'danger' | 'note'
+  message: string
+}
+
+export interface PublicTraceResponse {
+  trace: PublicTrace
+  warnings: PublicTraceWarning[]
+}

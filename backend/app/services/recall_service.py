@@ -38,7 +38,7 @@ from app.schemas.recall import (
     RecallReport,
     RecallSummary,
 )
-from app.services import event_service
+from app.services import event_service, public_trace_cache
 from app.services.traversal_service import _roots_and_check_cycle
 
 ZERO_QUANTITY = Decimal("0.000")
@@ -623,6 +623,8 @@ def open_recall(
         raise
 
     db.refresh(order)
+    # Trang công khai phải phản ánh thu hồi ngay, không chờ cache hết hạn (S-50).
+    public_trace_cache.invalidate_all()
     return enrich_recall_order(db, principal, order)
 
 
@@ -695,6 +697,7 @@ def create_recall_order(
         )
     db.commit()
     db.refresh(order)
+    public_trace_cache.invalidate_all()
     return enrich_recall_order(db, principal, order)
 
 
@@ -982,6 +985,8 @@ def confirm_recall_handling(
 
     db.commit()
     db.refresh(order)
+    # Trang công khai phải phản ánh thu hồi ngay, không chờ cache hết hạn (S-50).
+    public_trace_cache.invalidate_all()
     return enrich_recall_order(db, principal, order)
 
 
@@ -1015,6 +1020,7 @@ def complete_recall_order(
     )
     db.commit()
     db.refresh(order)
+    public_trace_cache.invalidate_all()
     return enrich_recall_order(db, principal, order)
 
 
@@ -1050,6 +1056,7 @@ def update_incident_flag(
 
     entry.incident_flag = incident_flag
     db.commit()
+    public_trace_cache.invalidate_all()
 
 
 # --- N3-51: Recall Lineage Reporting ---
