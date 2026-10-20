@@ -1,3 +1,5 @@
+from app.models.audit_log import AuditLog
+from app.models.cold_chain_config import ProductColdChainConfig
 from app.models.event import Event
 from app.models.farm import Farm
 from app.models.handover import Handover
@@ -23,11 +25,12 @@ __all__ = [
     "Farm",
     "Handover",
     "IntegrityCheck",
-    "Lot",
     "Location",
+    "Lot",
     "LotRelation",
     "Organization",
     "Product",
+    "ProductColdChainConfig",
     "RecallConfirmation",
     "RecallOrder",
     "RecallOrderLot",
@@ -37,4 +40,3 @@ __all__ = [
     "TemperatureReading",
     "User",
 ]
-from app.models.audit_log import AuditLog

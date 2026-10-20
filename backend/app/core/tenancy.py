@@ -10,7 +10,7 @@ from app.core.auth import Principal
 from app.core.authorization import has_permission
 
 logger = logging.getLogger(__name__)
-SHARED_TABLE_NAMES = frozenset({"products"})
+SHARED_TABLE_NAMES = frozenset({"products", "product_cold_chain_configs"})
 
 
 def lot_is_historical(model: Any, principal: Principal):

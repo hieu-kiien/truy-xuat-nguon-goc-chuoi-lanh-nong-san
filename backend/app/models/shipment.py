@@ -1,4 +1,4 @@
-"""Models for cold chain shipments and lot containment (N3-58)."""
+"""Models for cold chain shipments and lot containment (N3-58, N3-62)."""
 
 from datetime import datetime
 from decimal import Decimal
@@ -43,6 +43,10 @@ class Shipment(Base):
             "(status = 'in_transit' AND completed_at IS NULL) OR (status = 'completed' AND completed_at IS NOT NULL)",
             name="ck_shipments_completion_status",
         ),
+        CheckConstraint(
+            "cold_chain_delay_minutes IS NULL OR (cold_chain_delay_minutes >= 1 AND cold_chain_delay_minutes <= 1440)",
+            name="ck_shipments_cold_chain_delay_range",
+        ),
         Index("ix_shipments_organization_id", "organization_id"),
         Index("ix_shipments_status", "status"),
         Index("ix_shipments_container_code", "container_code"),
@@ -78,6 +82,19 @@ class Shipment(Base):
         server_default=text("'in_transit'"),
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Snapshot of the strictest per-product cold chain limits applied to this
+    # shipment (N3-62). Frozen when the trip opens so later configuration
+    # changes never recompute already-recorded violations.
+    cold_chain_min_temp_celsius: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )
+    cold_chain_max_temp_celsius: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )
+    cold_chain_delay_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cold_chain_config_resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     effective_min_temp: Mapped[Decimal] = mapped_column(
         Numeric(5, 2),
         nullable=False,
@@ -143,7 +160,7 @@ class ShipmentLot(Base):
         UniqueConstraint("shipment_id", "lot_id", name="uq_shipment_lots_shipment_lot"),
         Index("ix_shipment_lots_shipment_id", "shipment_id"),
         Index("ix_shipment_lots_lot_id", "lot_id"),
-        # NFR (N3-58): một lô chỉ nằm trong một chuyến đang chạy tại một thời điểm
+        # NFR (N3-58): m?t l? ch? n?m trong m?t chuy?n ?ang ch?y t?i m?t th?i ?i?m
         Index(
             "uq_shipment_lots_active_lot",
             "lot_id",

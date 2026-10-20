@@ -86,6 +86,12 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
                 role_ident
             )
         )
+    if "product_cold_chain_configs" in tables:
+        cursor.execute(
+            sql.SQL(
+                "GRANT SELECT, INSERT, UPDATE, DELETE ON product_cold_chain_configs TO {}"
+            ).format(role_ident)
+        )
     if "events" in tables:
         cursor.execute(
             sql.SQL("GRANT SELECT, INSERT ON events TO {}").format(role_ident)
@@ -161,11 +167,40 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
                 "GRANT UPDATE (status, completed_at, notes) ON shipments TO {}"
             ).format(role_ident)
         )
-        if "last_reading_at" in _table_columns(cursor, "shipments"):
+        shipment_cols = _table_columns(cursor, "shipments")
+        if "last_reading_at" in shipment_cols:
             cursor.execute(
                 sql.SQL("GRANT UPDATE (last_reading_at) ON shipments TO {}").format(
                     role_ident
                 )
+            )
+        snapshot_columns = {
+            "cold_chain_min_temp_celsius",
+            "cold_chain_max_temp_celsius",
+            "cold_chain_delay_minutes",
+            "cold_chain_config_resolved_at",
+        }
+        if snapshot_columns.issubset(shipment_cols):
+            cursor.execute(
+                sql.SQL(
+                    "GRANT UPDATE (cold_chain_min_temp_celsius, cold_chain_max_temp_celsius, "
+                    "cold_chain_delay_minutes, cold_chain_config_resolved_at) "
+                    "ON shipments TO {}"
+                ).format(role_ident)
+            )
+        effective_columns = {
+            "effective_min_temp",
+            "effective_max_temp",
+            "effective_delay_minutes",
+            "effective_merge_gap_minutes",
+        }
+        if effective_columns.issubset(shipment_cols):
+            cursor.execute(
+                sql.SQL(
+                    "GRANT UPDATE (effective_min_temp, effective_max_temp, "
+                    "effective_delay_minutes, effective_merge_gap_minutes) "
+                    "ON shipments TO {}"
+                ).format(role_ident)
             )
     if "shipment_lots" in tables:
         cursor.execute(
