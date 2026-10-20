@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   createHandover,
+  downloadLotReport,
   getHandoverOrganizations,
   getIncomingHandovers,
   getLot,
@@ -18,6 +19,7 @@ import { RecallPanel } from './RecallPanel'
 import { LotQrPanel } from './LotQrPanel'
 import { EditDialog } from './EditDialog'
 import { displayLotCode } from '../utils/qr'
+import { lotReportFileName } from '../utils/report'
 const LineagePanel = lazy(() => import('./LineagePanel').then(module => ({default: module.LineagePanel})))
 
 interface LotDetailPanelProps {
@@ -72,6 +74,7 @@ export function LotDetailPanel({
   const [notice, setNotice] = useState<string | null>(null)
   const [transformCompleted, setTransformCompleted] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
+  const [exportingReport, setExportingReport] = useState(false)
   const savingRef = useRef(false)
   const task = new URLSearchParams(window.location.search).get('task')
   const initialView = new URLSearchParams(window.location.search).get('view')
@@ -142,6 +145,29 @@ export function LotDetailPanel({
     }
   }
 
+  const exportReport = async () => {
+    if (!lot || exportingReport) return
+    setExportingReport(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const blob = await downloadLotReport(lot.id)
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = lotReportFileName(lot)
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 0)
+      setNotice('Đã xuất hồ sơ truy xuất PDF kèm kết quả kiểm tra toàn vẹn.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể xuất hồ sơ PDF.')
+    } finally {
+      setExportingReport(false)
+    }
+  }
+
   return (
     <div className="info-stack lot-detail-page">
       <button type="button" className="ds-button ds-button-secondary lot-detail-back" onClick={onBack}>
@@ -168,6 +194,15 @@ export function LotDetailPanel({
                 </span>
                 <button type="button" className="ds-button ds-button-secondary lot-qr-btn" onClick={() => setQrModalOpen(true)}>
                   Sinh mã QR
+                </button>
+                <button
+                  type="button"
+                  className="ds-button ds-button-secondary"
+                  onClick={() => void exportReport()}
+                  disabled={exportingReport}
+                  aria-label="Xuất hồ sơ truy xuất PDF"
+                >
+                  {exportingReport ? 'Đang xuất…' : 'Xuất hồ sơ PDF'}
                 </button>
               </div>
             </div>
