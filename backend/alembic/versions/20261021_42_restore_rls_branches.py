@@ -190,10 +190,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("DROP FUNCTION IF EXISTS public.app_shipment_carries_lot_of(uuid)")
-
     # The policies are restored to the state of revision 20261020_30 and
-    # 20261019_29, which is what the application code already expected.
+    # 20261019_29, which is what the application code already expected. The
+    # helper can only be dropped at the very end, because the policies that
+    # use it depend on it.
     op.execute("DROP POLICY IF EXISTS events_insert_tenant ON events")
     op.execute(
         """
@@ -279,3 +279,6 @@ def downgrade() -> None:
         )
         """
     )
+
+    # Only now, after every policy stopped using it, the helper can go.
+    op.execute("DROP FUNCTION IF EXISTS public.app_shipment_carries_lot_of(uuid)")
