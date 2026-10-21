@@ -16,13 +16,16 @@ from scripts.backup import (
     BACKUP_PREFIX,
     BackupRecord,
     build_backup_filename,
+    build_object_key,
     build_pg_dump_command,
     build_pg_restore_command,
+    download_backup_from_external_store,
     list_backups,
     prune_backups,
     read_manifest,
     sha256_of_file,
     to_postgres_url,
+    upload_backup_to_external_store,
     verify_checksum,
     write_sidecars,
 )
@@ -202,3 +205,109 @@ def test_safe_target_hides_the_password():
     safe = backup_module._safe_target(SAMPLE_URL)
     assert safe == "db.internal:5432/ttcs_staging"
     assert "s3cret" not in safe
+
+
+class FakeS3Client:
+    """Records the uploads instead of talking to a real bucket."""
+
+    def __init__(self, objects=None):
+        self.uploads: list[tuple[str, str, str]] = []
+        self.downloads: list[tuple[str, str, str]] = []
+        self.objects = objects or []
+
+    def upload_file(self, path, bucket, key):
+        self.uploads.append((path, bucket, key))
+
+    def list_objects_v2(self, Bucket, Prefix):
+        return {
+            "Contents": [
+                {"Key": key, "Size": 1}
+                for key in self.objects
+                if key.startswith(Prefix)
+            ]
+        }
+
+    def download_file(self, bucket, key, target):
+        self.downloads.append((bucket, key, target))
+        Path(target).write_bytes(b"downloaded-dump")
+
+
+def test_object_key_joins_the_prefix_and_the_file_name():
+    assert build_object_key("agrochain", "a.dump") == "agrochain/a.dump"
+    assert build_object_key("/agrochain/", "a.dump") == "agrochain/a.dump"
+    assert build_object_key("", "a.dump") == "a.dump"
+
+
+def test_the_external_copy_ships_the_dump_with_its_manifest_and_checksum(tmp_path):
+    moment = datetime(2026, 10, 21, 2, 15, 0, tzinfo=UTC)
+    dump = _make_dump(tmp_path, moment)
+    client = FakeS3Client()
+
+    report = upload_backup_to_external_store(
+        dump,
+        bucket="ttcs-backups",
+        prefix="agrochain",
+        client=client,
+    )
+
+    uploaded_keys = sorted(key for _, _, key in client.uploads)
+    assert uploaded_keys == [
+        "agrochain/agrochain-20261021T021500Z.dump",
+        "agrochain/agrochain-20261021T021500Z.dump.manifest.json",
+        "agrochain/agrochain-20261021T021500Z.dump.sha256",
+    ]
+    assert all(bucket == "ttcs-backups" for _, bucket, _ in client.uploads)
+    assert report["bucket"] == "ttcs-backups"
+    assert len(report["files"]) == 3
+
+
+def test_the_external_copy_refuses_a_dump_without_its_sidecars(tmp_path):
+    moment = datetime(2026, 10, 21, 2, 15, 0, tzinfo=UTC)
+    dump = _make_dump(tmp_path, moment)
+    dump.with_suffix(dump.suffix + ".sha256").unlink()
+
+    with pytest.raises(FileNotFoundError):
+        upload_backup_to_external_store(
+            dump,
+            bucket="ttcs-backups",
+            client=FakeS3Client(),
+        )
+
+
+def test_the_external_copy_needs_a_bucket(tmp_path):
+    moment = datetime(2026, 10, 21, 2, 15, 0, tzinfo=UTC)
+    dump = _make_dump(tmp_path, moment)
+    with pytest.raises(ValueError, match="bucket"):
+        upload_backup_to_external_store(dump, bucket="  ", client=FakeS3Client())
+
+
+def test_downloading_picks_the_newest_dump_from_the_store(tmp_path):
+    client = FakeS3Client(
+        objects=[
+            "agrochain/agrochain-20261020T021500Z.dump",
+            "agrochain/agrochain-20261022T021500Z.dump",
+            "agrochain/agrochain-20261021T021500Z.dump.manifest.json",
+        ]
+    )
+
+    target = download_backup_from_external_store(
+        bucket="ttcs-backups",
+        prefix="agrochain",
+        directory=tmp_path,
+        client=client,
+    )
+
+    assert target.name == "agrochain-20261022T021500Z.dump"
+    assert client.downloads == [
+        ("ttcs-backups", "agrochain/agrochain-20261022T021500Z.dump", str(target))
+    ]
+
+
+def test_downloading_without_any_dump_fails_loudly(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        download_backup_from_external_store(
+            bucket="ttcs-backups",
+            prefix="agrochain",
+            directory=tmp_path,
+            client=FakeS3Client(objects=["agrochain/readme.txt"]),
+        )

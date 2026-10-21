@@ -99,3 +99,43 @@ def test_run_migrations_invokes_alembic_upgrade(monkeypatch):
 
     mock_upgrade.assert_called_once()
     assert mock_upgrade.call_args[0][1] == "head"
+
+
+def test_smtp_is_not_configured_without_a_host():
+    settings = Settings(_env_file=None, SMTP_HOST="")
+    assert settings.smtp_configured is False
+
+
+def test_smtp_is_configured_once_a_host_is_set():
+    settings = Settings(_env_file=None, SMTP_HOST="smtp.example.test")
+    assert settings.smtp_configured is True
+
+
+def test_the_external_backup_store_is_optional():
+    settings = Settings(_env_file=None)
+    assert settings.backup_external_store_configured is False
+    # No bucket means the nightly job only keeps the CI artifact, which is a
+    # valid (if weaker) state, so the check must not raise.
+    settings.validate_backup_external_store()
+
+
+def test_a_bucket_without_credentials_is_rejected_loudly():
+    settings = Settings(
+        _env_file=None,
+        BACKUP_EXTERNAL_BUCKET="ttcs-backups",
+        BACKUP_EXTERNAL_ACCESS_KEY_ID="",
+        BACKUP_EXTERNAL_SECRET_ACCESS_KEY="",
+    )
+    assert settings.backup_external_store_configured is True
+    with pytest.raises(ValueError, match="BACKUP_EXTERNAL_ACCESS_KEY_ID"):
+        settings.validate_backup_external_store()
+
+
+def test_a_complete_external_backup_store_passes_the_check():
+    settings = Settings(
+        _env_file=None,
+        BACKUP_EXTERNAL_BUCKET="ttcs-backups",
+        BACKUP_EXTERNAL_ACCESS_KEY_ID="key",
+        BACKUP_EXTERNAL_SECRET_ACCESS_KEY="secret",
+    )
+    settings.validate_backup_external_store()
