@@ -13,8 +13,11 @@ import {
   type SessionUser,
 } from '../types'
 import { FarmFormPanel } from './FarmFormPanel'
+import { ColdChainConfigPanel } from './ColdChainConfigPanel'
 import { ColdChainStatsPanel } from './ColdChainStatsPanel'
 import { OrganizationAdminPanel } from './OrganizationAdminPanel'
+import { ShipmentCreateForm } from './ShipmentCreateForm'
+import { ShipmentReadingForm } from './ShipmentReadingForm'
 import { ShipmentTemperaturePanel } from './ShipmentTemperaturePanel'
 import { IntegrityPanel } from './IntegrityPanel'
 import { HandoversPanel } from './HandoversPanel'
@@ -38,6 +41,7 @@ export type WorkspaceTab =
   | 'integrity'
   | 'cold-chain-stats'
   | 'cold-chain'
+  | 'cold-chain-ops'
   | 'organization'
 
 interface FarmWorkspaceProps {
@@ -380,7 +384,12 @@ export function FarmWorkspace({
 
             {activeTab === 'products' && (
               hasPermission(user.role, 'products:read') ? (
-                <ProductManager user={user} />
+                <>
+                  <ProductManager user={user} />
+                  <ColdChainConfigPanel
+                    canWrite={hasPermission(user.role, 'products:write')}
+                  />
+                </>
               ) : (
                 <section className="panel-card panel-box" role="status">
                   Bạn không có quyền xem danh mục sản phẩm.
@@ -598,6 +607,13 @@ export function FarmWorkspace({
             {activeTab === 'cold-chain' && (
               <ErrorBoundary fallbackTitle="Không thể tải chuỗi nhiệt độ của chuyến vận chuyển">
                 <ShipmentTemperaturePanel />
+              </ErrorBoundary>
+            )}
+
+            {activeTab === 'cold-chain-ops' && (
+              <ErrorBoundary fallbackTitle="Không thể tải thao tác chuỗi lạnh">
+                <ShipmentCreateForm />
+                <ShipmentReadingForm />
               </ErrorBoundary>
             )}
 

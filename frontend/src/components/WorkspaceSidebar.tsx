@@ -140,6 +140,18 @@ export function WorkspaceSidebar({
                   <span>Chuỗi nhiệt độ</span>
                 </button>
               </li>}
+              {(hasPermission(user.role, 'shipments:create') ||
+                hasPermission(user.role, 'telemetry:ingest')) && <li>
+                <button
+                  type="button"
+                  onClick={() => selectTab('cold-chain-ops')}
+                  className={`dashboard-nav-item ${
+                    activeTab === 'cold-chain-ops' ? 'dashboard-nav-item-active' : ''
+                  }`}
+                >
+                  <span>Thao tác chuỗi lạnh</span>
+                </button>
+              </li>}
               {hasPermission(user.role, 'organizations:read') && <li>
                 <button
                   type="button"
