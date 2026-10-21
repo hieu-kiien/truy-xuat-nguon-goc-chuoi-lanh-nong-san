@@ -28,6 +28,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "handovers:resolve",
             "recalls:read",
             "recalls:confirm",
+            "pii:request",
         }
     ),
     "cooperative": frozenset(
@@ -153,6 +154,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "shipments:complete",
             "telemetry:ingest",
             "telemetry:read",
+            "pii:request",
         }
     ),
     "system_admin": frozenset(
@@ -189,6 +191,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
             "telemetry:ingest",
             "telemetry:read",
             "telemetry:read_all",
+            "pii:anonymize",
         }
     ),
 }

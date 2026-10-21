@@ -51,4 +51,6 @@ def test_legacy_revision_08_precedes_harvest_schema_and_handover_migrations():
     assert deactivate_guard.down_revision == "20261021_40"
     rls_branches = script.get_revision("20261021_42")
     assert rls_branches.down_revision == "20261021_41"
-    assert script.get_current_head() == "20261021_42"
+    pii_anonymization = script.get_revision("20261021_43")
+    assert pii_anonymization.down_revision == "20261021_42"
+    assert script.get_current_head() == "20261021_43"

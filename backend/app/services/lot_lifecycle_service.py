@@ -103,8 +103,6 @@ def move_lot(db: Session, principal: Principal, lot_id: UUID, payload: LotMove) 
                 if lot.current_location_id
                 else None,
                 "to_location_id": str(location.id),
-                "location_name": location.name,
-                "location_address": location.address,
                 "note": payload.note,
             },
         )

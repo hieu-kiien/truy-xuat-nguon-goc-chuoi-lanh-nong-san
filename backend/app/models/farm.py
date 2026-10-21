@@ -43,5 +43,5 @@ class Farm(Base):
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     area_ha: Mapped[Decimal] = mapped_column(Numeric(12, 4), nullable=False)
-    latitude: Mapped[Decimal] = mapped_column(Numeric(9, 6), nullable=False)
-    longitude: Mapped[Decimal] = mapped_column(Numeric(9, 6), nullable=False)
+    latitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6), nullable=True)
+    longitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6), nullable=True)

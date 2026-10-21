@@ -147,7 +147,6 @@ def create_handover(db: Session, principal: Principal, payload: HandoverCreate) 
                 "handover_id": str(handover.id),
                 "from_organization_id": str(principal.organization_id),
                 "to_organization_id": str(recipient.id),
-                "to_organization_name": recipient.name,
                 "note": payload.note,
             },
         )
