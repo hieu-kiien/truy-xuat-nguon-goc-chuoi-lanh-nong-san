@@ -14,6 +14,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 from uuid import UUID
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
@@ -126,10 +127,19 @@ def _short_json(payload: dict[str, Any], limit: int = 320) -> str:
     return text
 
 
+def _safe(value: Any) -> str:
+    """Escape a value before it is placed inside ReportLab markup.
+
+    ReportLab parses a paragraph as mini XML, so a lot name or an event note
+    that contains & or < would otherwise break the whole export.
+    """
+    return escape(str(value))
+
+
 def _hash_lines(value: str, width: int = 32) -> str:
     """Chia mã băm dài thành dòng ngắn để không tràn lề khi in."""
     return "<br/>".join(
-        value[index : index + width] for index in range(0, len(value), width)
+        _safe(value[index : index + width]) for index in range(0, len(value), width)
     )
 
 
@@ -297,7 +307,7 @@ def _facts_table(lot: dict, styles: dict[str, ParagraphStyle]) -> Table:
     body = [
         [
             Paragraph(f"<b>{label}</b>", styles["small"]),
-            Paragraph(str(value), styles["small"]),
+            Paragraph(_safe(value), styles["small"]),
         ]
         for label, value in rows
     ]
@@ -335,7 +345,7 @@ def _integrity_block(
     issue_rows = [
         [
             Paragraph(f"Sự kiện {issue.sequence_number}", styles["small"]),
-            Paragraph(ISSUE_LABELS.get(issue.kind, issue.kind), styles["small"]),
+            Paragraph(_safe(ISSUE_LABELS.get(issue.kind, issue.kind)), styles["small"]),
         ]
         for issue in integrity["issues"]
     ]
@@ -352,7 +362,7 @@ def _integrity_block(
             ),
         ),
         Spacer(1, 3),
-        Paragraph(detail, styles["small"]),
+        Paragraph(_safe(detail), styles["small"]),
         Spacer(1, 3),
         Paragraph(
             f"Thời điểm kiểm tra: {_format_datetime(generated_at)} (GMT+7)",
@@ -437,9 +447,9 @@ def _events_table(
             [
                 Paragraph(str(event["sequence_number"]), styles["small"]),
                 Paragraph(_format_datetime(event["recorded_at"]), styles["small"]),
-                Paragraph(event["event_label"], styles["small"]),
-                Paragraph(event["organization_name"] or "—", styles["small"]),
-                Paragraph(payload, styles["small"]),
+                Paragraph(_safe(event["event_label"]), styles["small"]),
+                Paragraph(_safe(event["organization_name"] or "—"), styles["small"]),
+                Paragraph(_safe(payload), styles["small"]),
                 Paragraph(f"{event['event_hash'][:12]}…", styles["small"]),
                 Paragraph(status_labels[event["status"]], styles["small"]),
             ]
@@ -501,8 +511,8 @@ def render_lot_trace_pdf(report: dict) -> bytes:
     story: list = [
         Paragraph("HỒ SƠ TRUY XUẤT NGUỒN GỐC", styles["title"]),
         Paragraph(
-            f"Lô <b>{title_code}</b>"
-            + (f" · {lot['product_name']}" if lot.get("product_name") else ""),
+            f"Lô <b>{_safe(title_code)}</b>"
+            + (f" · {_safe(lot['product_name'])}" if lot.get("product_name") else ""),
             styles["subtitle"],
         ),
         Paragraph("1. Thông tin lô hàng", styles["h2"]),
@@ -541,7 +551,7 @@ def render_lot_trace_pdf(report: dict) -> bytes:
                 ),
                 Spacer(1, 3),
                 Paragraph(
-                    f"Hồ sơ được tạo tự động bởi hệ thống AgroChain cho lô {title_code}. "
+                    f"Hồ sơ được tạo tự động bởi hệ thống AgroChain cho lô {_safe(title_code)}. "
                     "Người xem có thể đối chiếu mã băm cuối cùng với API kiểm tra toàn vẹn "
                     "của lô để xác nhận tài liệu chưa bị thay đổi.",
                     styles["note"],

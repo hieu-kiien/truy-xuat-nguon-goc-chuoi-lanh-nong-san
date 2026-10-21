@@ -55,6 +55,11 @@ def persist_audit_row(session_token_hash: str, row: AuditLog) -> None:
     hết hạn (expire) các đối tượng ORM đang được dùng để serialize phản hồi
     của session nghiệp vụ chính.
     """
+    if not session_token_hash:
+        # Không có phiên đăng nhập thì không có chủ thể để ghi nhận. Ghi
+        # bằng session không có ngữ cảnh sẽ bị chính sách RLS của
+        # audit_logs từ chối, nên phải bỏ qua thay vì làm hỏng cả yêu cầu.
+        return
     with SessionLocal() as db:
         db.info["audit_fallback"] = True
         set_db_context(db, session_token_hash=session_token_hash)

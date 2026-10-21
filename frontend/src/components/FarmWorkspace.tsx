@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
 import {
   createFarm,
+  createPiiAnonymizationRequest,
   getFarms,
   getIncomingHandovers,
   updateFarm,
@@ -81,6 +82,11 @@ export function FarmWorkspace({
     hasPermission(user.role, 'handovers:resolve')
   const canResolveHandovers = hasPermission(user.role, 'handovers:resolve')
   const canVerifyEvents = hasPermission(user.role, 'events:verify')
+  const canRequestPii = hasPermission(user.role, 'pii:request')
+  const [piiFarm, setPiiFarm] = useState<Farm | null>(null)
+  const [piiReason, setPiiReason] = useState('')
+  const [piiBusy, setPiiBusy] = useState(false)
+  const [piiFeedback, setPiiFeedback] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -248,8 +254,8 @@ export function FarmWorkspace({
     return (
       f.name.toLowerCase().includes(q) ||
       f.id.toLowerCase().includes(q) ||
-      String(f.latitude).includes(q) ||
-      String(f.longitude).includes(q)
+      (f.latitude !== null && f.latitude !== undefined && String(f.latitude).includes(q)) ||
+      (f.longitude !== null && f.longitude !== undefined && String(f.longitude).includes(q))
     )
   })
 
@@ -515,22 +521,31 @@ export function FarmWorkspace({
                                     </td>
                                     <td>
                                       <div className="coord-inline">
-                                        <code>
-                                          {farm.latitude}, {farm.longitude}
-                                        </code>
-                                        <a
-                                          href={`https://www.google.com/maps?q=${farm.latitude},${farm.longitude}`}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="map-external-link"
-                                        >
-                                          Bản đồ
-                                        </a>
+                                        {farm.latitude !== null && farm.latitude !== undefined && farm.longitude !== null && farm.longitude !== undefined ? (
+                                          <>
+                                            <code>
+                                              {farm.latitude}, {farm.longitude}
+                                            </code>
+                                            <a
+                                              href={`https://www.google.com/maps?q=${farm.latitude},${farm.longitude}`}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="map-external-link"
+                                            >
+                                              Bản đồ
+                                            </a>
+                                          </>
+                                        ) : (
+                                          <span className="panel-sub">Đã ẩn danh vị trí</span>
+                                        )}
                                       </div>
                                     </td>
                                     <td>
                                       {canWriteFarms && (
-                                        <button type="button" className="ds-button ds-button-secondary" onClick={() => { setEditingFarm(farm); setName(farm.name); setAreaHa(String(farm.area_ha)); setLatitude(String(farm.latitude)); setLongitude(String(farm.longitude)); setFormFeedback(null); setFarmFormOpen(true) }}>Sửa<span className="sr-only"> {farm.name}</span></button>
+                                        <button type="button" className="ds-button ds-button-secondary" onClick={() => { setEditingFarm(farm); setName(farm.name); setAreaHa(String(farm.area_ha)); setLatitude(farm.latitude === null || farm.latitude === undefined ? '' : String(farm.latitude)); setLongitude(farm.longitude === null || farm.longitude === undefined ? '' : String(farm.longitude)); setFormFeedback(null); setFarmFormOpen(true) }}>Sửa<span className="sr-only"> {farm.name}</span></button>
+                                      )}
+                                      {canRequestPii && (
+                                        <button type="button" className="ds-button ds-button-secondary" onClick={() => { setPiiFarm(farm); setPiiReason(''); setPiiFeedback(null) }}>Ẩn danh<span className="sr-only"> dữ liệu định danh của {farm.name}</span></button>
                                       )}
                                     </td>
                                   </tr>
@@ -542,6 +557,54 @@ export function FarmWorkspace({
                       </div>
                     </section>
                   ))}
+
+                  {piiFarm && (
+                    <section className="panel-card" aria-label="Yêu cầu ẩn danh dữ liệu định danh">
+                      <h3>Yêu cầu xoá dữ liệu định danh</h3>
+                      <p className="panel-sub">
+                        Vùng trồng <strong>{piiFarm.name}</strong>. Khi yêu cầu được quản trị hệ thống xác nhận, tên tổ chức, tên tài khoản, email và toạ độ vùng trồng sẽ được thay bằng dữ liệu ẩn danh. Chuỗi hash của các lô vẫn giữ nguyên và vẫn kiểm tra được.
+                      </p>
+                      <label className="form-field">
+                        Lý do yêu cầu (không bắt buộc)
+                        <textarea
+                          value={piiReason}
+                          rows={3}
+                          maxLength={1000}
+                          onChange={event => setPiiReason(event.target.value)}
+                        />
+                      </label>
+                      {piiFeedback && (
+                        <p className={piiFeedback.startsWith('Đã') ? 'panel-sub' : 'alert-box alert-error'} role="status">
+                          {piiFeedback}
+                        </p>
+                      )}
+                      <div className="action-row">
+                        <button
+                          type="button"
+                          className="ds-button ds-button-brand"
+                          disabled={piiBusy}
+                          onClick={() => {
+                            setPiiBusy(true)
+                            setPiiFeedback(null)
+                            createPiiAnonymizationRequest(piiFarm.id, piiReason.trim() || undefined)
+                              .then(() => {
+                                setPiiFeedback('Đã gửi yêu cầu ẩn danh. Quản trị hệ thống sẽ xác nhận phạm vi dữ liệu cần xoá.')
+                                setPiiFarm(null)
+                              })
+                              .catch((err: unknown) => {
+                                setPiiFeedback(err instanceof Error ? err.message : 'Không gửi được yêu cầu.')
+                              })
+                              .finally(() => setPiiBusy(false))
+                          }}
+                        >
+                          {piiBusy ? 'Đang gửi…' : 'Gửi yêu cầu'}
+                        </button>
+                        <button type="button" className="ds-button ds-button-secondary" disabled={piiBusy} onClick={() => setPiiFarm(null)}>
+                          Huỷ
+                        </button>
+                      </div>
+                    </section>
+                  )}
 
                   {farmFormOpen && canWriteFarms && <EditDialog title={editingFarm ? 'Sửa vùng trồng' : 'Thêm vùng trồng'} busy={saving} onClose={() => setFarmFormOpen(false)}><FarmFormPanel showChart={false}
                     canReadFarms={canReadFarms}

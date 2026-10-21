@@ -44,3 +44,10 @@ class FarmRead(FarmFields):
 
     id: UUID
     organization_id: UUID
+    # An anonymized farm no longer holds a precise location.
+    latitude: Decimal | None = Field(
+        default=None, ge=-90, le=90, max_digits=9, decimal_places=6
+    )
+    longitude: Decimal | None = Field(
+        default=None, ge=-180, le=180, max_digits=9, decimal_places=6
+    )

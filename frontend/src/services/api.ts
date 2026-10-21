@@ -16,6 +16,7 @@ import type {
   SessionUser,
   IntegrityCheckRecord,
   IntegrityScanSummary,
+  PiiAnonymizationRequest,
   EventHistory,
   Handover,
   HandoverPayload,
@@ -267,6 +268,12 @@ export const logout = async (): Promise<void> => {
 }
 
 export const getFarms = () => request<Farm[]>('/api/v1/farms/')
+
+export const createPiiAnonymizationRequest = (farmId: string, reason?: string) =>
+  request<PiiAnonymizationRequest>('/api/v1/pii/anonymization-requests', {
+    method: 'POST',
+    body: JSON.stringify({ farm_id: farmId, reason: reason ?? null }),
+  })
 
 function normalizeLotPage(response: unknown): LotPage {
   if (Array.isArray(response)) {
