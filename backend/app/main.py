@@ -157,7 +157,14 @@ def readiness():
             connection.execute(text("SELECT 1"))
     except SQLAlchemyError:
         return JSONResponse(status_code=503, content={"status": "unavailable"})
-    return {"status": "ok"}
+    # The booleans let an operator confirm the staging infrastructure from
+    # outside without a login. They never carry a host name, a bucket or a
+    # credential (N3-160).
+    return {
+        "status": "ok",
+        "smtp_configured": settings.smtp_configured,
+        "backup_external_store_configured": settings.backup_external_store_configured,
+    }
 
 
 @app.get("/version", tags=["health"])

@@ -10,6 +10,10 @@ List and retention:
 Recovery drill (restores into a scratch database and measures the time):
     python scripts/backup.py drill --dump <file.dump> --target postgresql://...
 
+Copy outside the application server (N3-160):
+    python scripts/backup.py upload --dump <file.dump>
+    python scripts/backup.py download --directory ./backups
+
 The dump is produced with ``pg_dump --format=custom`` so a restore can run
 selectively. Every dump is written next to a manifest that records the
 checksum and the row counts of the business tables, so a restore drill can
@@ -401,6 +405,152 @@ def _safe_target(database_url: str) -> str:
     return f"{host}:{port}/{name}"
 
 
+# ---------------------------------------------------------------------------
+# Off-application-server copy (N3-160)
+#
+# A dump that only lives in a CI artifact disappears when the artifact
+# expires, and it still lives on the same provider as the application. The
+# copy below goes to any S3-compatible bucket, which is a different
+# provider with its own retention.
+# ---------------------------------------------------------------------------
+
+
+def build_object_key(prefix: str, filename: str) -> str:
+    """Build the object key a dump is stored under in the external bucket."""
+    cleaned = prefix.strip().strip("/")
+    return f"{cleaned}/{filename}" if cleaned else filename
+
+
+def build_backup_client(
+    *,
+    endpoint: str,
+    region: str,
+    access_key_id: str,
+    secret_access_key: str,
+) -> Any:
+    """Create the S3 client used for the external copy.
+
+    boto3 is imported lazily so the rest of the tooling keeps working on a
+    machine that only has the runtime requirements installed.
+    """
+    try:
+        import boto3
+    except ImportError as error:  # pragma: no cover - depends on the machine
+        raise RuntimeError(
+            "Cần 'boto3' để sao chép bản sao lưu ra kho bên ngoài. "
+            "Cài thêm: pip install boto3"
+        ) from error
+
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint or None,
+        region_name=region or "auto",
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+    )
+
+
+def upload_backup_to_external_store(
+    dump_path: Path,
+    *,
+    bucket: str,
+    endpoint: str = "",
+    region: str = "auto",
+    access_key_id: str = "",
+    secret_access_key: str = "",
+    prefix: str = "agrochain",
+    client: Any | None = None,
+) -> dict[str, Any]:
+    """Copy a dump and its sidecars to a store outside the application server.
+
+    The manifest and the checksum travel with the dump. A copy that arrives
+    without them cannot be verified, and a dump that cannot be verified
+    cannot be trusted during a restore.
+    """
+    if not bucket.strip():
+        raise ValueError("bucket is required for the external copy")
+
+    if client is None:
+        client = build_backup_client(
+            endpoint=endpoint,
+            region=region,
+            access_key_id=access_key_id,
+            secret_access_key=secret_access_key,
+        )
+
+    files = [
+        dump_path,
+        dump_path.with_suffix(dump_path.suffix + MANIFEST_SUFFIX),
+        dump_path.with_suffix(dump_path.suffix + CHECKSUM_SUFFIX),
+    ]
+
+    uploaded: list[dict[str, Any]] = []
+    for path in files:
+        if not path.is_file():
+            raise FileNotFoundError(f"missing backup file: {path}")
+        key = build_object_key(prefix, path.name)
+        client.upload_file(str(path), bucket, key)
+        uploaded.append(
+            {
+                "file": path.name,
+                "key": key,
+                "size_bytes": path.stat().st_size,
+                "sha256": sha256_of_file(path),
+            }
+        )
+
+    logger.info(
+        "Uploaded %d file(s) to %s (prefix %s)",
+        len(uploaded),
+        bucket,
+        prefix or "<root>",
+    )
+    return {
+        "bucket": bucket,
+        "endpoint": endpoint or None,
+        "prefix": prefix,
+        "files": uploaded,
+        "uploaded_at": datetime.now(UTC).isoformat(),
+    }
+
+
+def download_backup_from_external_store(
+    *,
+    bucket: str,
+    endpoint: str = "",
+    region: str = "auto",
+    access_key_id: str = "",
+    secret_access_key: str = "",
+    prefix: str = "agrochain",
+    directory: Path,
+    client: Any | None = None,
+) -> Path:
+    """Fetch the newest dump from the external store into a local directory."""
+    if client is None:
+        client = build_backup_client(
+            endpoint=endpoint,
+            region=region,
+            access_key_id=access_key_id,
+            secret_access_key=secret_access_key,
+        )
+
+    listing = client.list_objects_v2(Bucket=bucket, Prefix=prefix or "")
+    objects = [
+        item
+        for item in listing.get("Contents", [])
+        if item["Key"].endswith(BACKUP_SUFFIX)
+    ]
+    if not objects:
+        raise FileNotFoundError(f"no dump found in {bucket}/{prefix or '<root>'}")
+
+    newest = max(objects, key=lambda item: item["Key"])
+    target = Path(directory) / Path(newest["Key"]).name
+    Path(directory).mkdir(parents=True, exist_ok=True)
+    client.download_file(bucket, newest["Key"], str(target))
+    logger.info("Downloaded %s from %s", target.name, bucket)
+    return target
+
+
 def _default_backup_directory() -> str:
     return os.environ.get("BACKUP_DIR", str(backend_dir.parent / "backups"))
 
@@ -445,6 +595,28 @@ def main() -> int:
     drill_parser.add_argument("--dump", required=True)
     drill_parser.add_argument("--target", required=True)
     drill_parser.add_argument("--pg-restore-binary", default="pg_restore")
+    drill_parser.add_argument(
+        "--report",
+        help="Write the drill report as JSON to this file (the drill minutes)",
+    )
+
+    upload_parser = subparsers.add_parser(
+        "upload", help="Copy a dump to a store outside the application server"
+    )
+    upload_parser.add_argument("--dump", required=True)
+    upload_parser.add_argument("--bucket", default="")
+    upload_parser.add_argument("--endpoint", default="")
+    upload_parser.add_argument("--region", default="auto")
+    upload_parser.add_argument("--prefix", default="agrochain")
+
+    download_parser = subparsers.add_parser(
+        "download", help="Fetch the newest dump from the external store"
+    )
+    download_parser.add_argument("--directory", required=True)
+    download_parser.add_argument("--bucket", default="")
+    download_parser.add_argument("--endpoint", default="")
+    download_parser.add_argument("--region", default="auto")
+    download_parser.add_argument("--prefix", default="agrochain")
 
     args = parser.parse_args()
 
@@ -501,8 +673,60 @@ def main() -> int:
         report = run_restore_drill(
             Path(args.dump), args.target, pg_restore_binary=args.pg_restore_binary
         )
+        if args.report:
+            report_path = Path(args.report)
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            report_path.write_text(
+                json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            logger.info("Drill report written to %s", report_path)
         print(json.dumps(report, indent=2))
         return 0 if report["passed"] else 1
+
+    if args.command == "upload":
+        settings.validate_backup_external_store()
+        bucket = args.bucket or settings.BACKUP_EXTERNAL_BUCKET
+        if not bucket:
+            print(
+                "No external backup store configured. Set BACKUP_EXTERNAL_BUCKET "
+                "or pass --bucket.",
+                file=sys.stderr,
+            )
+            return 2
+        report = upload_backup_to_external_store(
+            Path(args.dump),
+            bucket=bucket,
+            endpoint=args.endpoint or settings.BACKUP_EXTERNAL_ENDPOINT,
+            region=args.region or settings.BACKUP_EXTERNAL_REGION,
+            access_key_id=settings.BACKUP_EXTERNAL_ACCESS_KEY_ID,
+            secret_access_key=settings.BACKUP_EXTERNAL_SECRET_ACCESS_KEY,
+            prefix=args.prefix or settings.BACKUP_EXTERNAL_PREFIX,
+        )
+        print(json.dumps(report, indent=2))
+        return 0
+
+    if args.command == "download":
+        settings.validate_backup_external_store()
+        bucket = args.bucket or settings.BACKUP_EXTERNAL_BUCKET
+        if not bucket:
+            print(
+                "No external backup store configured. Set BACKUP_EXTERNAL_BUCKET "
+                "or pass --bucket.",
+                file=sys.stderr,
+            )
+            return 2
+        target = download_backup_from_external_store(
+            bucket=bucket,
+            endpoint=args.endpoint or settings.BACKUP_EXTERNAL_ENDPOINT,
+            region=args.region or settings.BACKUP_EXTERNAL_REGION,
+            access_key_id=settings.BACKUP_EXTERNAL_ACCESS_KEY_ID,
+            secret_access_key=settings.BACKUP_EXTERNAL_SECRET_ACCESS_KEY,
+            prefix=args.prefix or settings.BACKUP_EXTERNAL_PREFIX,
+            directory=Path(args.directory),
+        )
+        print(json.dumps({"downloaded": str(target)}, indent=2))
+        return 0
 
     return 1
 

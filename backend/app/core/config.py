@@ -52,6 +52,17 @@ class Settings(BaseSettings):
     EMAIL_MAX_ATTEMPTS: int = Field(default=3, ge=1, le=5)
     EMAIL_RETRY_DELAY_SECONDS: float = Field(default=1.0, ge=0.0, le=30.0)
     PUBLIC_APP_URL: str = "http://localhost:5173"
+    # Off-application-server backup store (N3-160). Any S3-compatible bucket
+    # works: AWS S3, Backblaze B2, Cloudflare R2, MinIO. When the bucket name
+    # is empty the nightly job only keeps the dump in the CI artifact, which
+    # is not a place to recover from after the artifact expires.
+    BACKUP_EXTERNAL_BUCKET: str = ""
+    BACKUP_EXTERNAL_ENDPOINT: str = ""
+    BACKUP_EXTERNAL_REGION: str = "auto"
+    BACKUP_EXTERNAL_ACCESS_KEY_ID: str = ""
+    BACKUP_EXTERNAL_SECRET_ACCESS_KEY: str = ""
+    BACKUP_EXTERNAL_PREFIX: str = "agrochain"
+    BACKUP_EXTERNAL_RETENTION_DAYS: int = Field(default=90, ge=1, le=3650)
     ALLOWED_ORIGINS: list[str] | str = [
         "http://localhost:5173",
         "http://localhost:3000",
@@ -74,6 +85,41 @@ class Settings(BaseSettings):
         if self.DB_USER == self.DB_ADMIN_USER:
             raise ValueError("DB_USER and DB_ADMIN_USER must be different")
         return self
+
+    @property
+    def smtp_configured(self) -> bool:
+        """Tell whether a real transport is configured for outbound e-mail.
+
+        Without a host the messages only reach the outbox table, so the
+        staging environment cannot claim to have sent anything (N3-160).
+        """
+        return bool(self.SMTP_HOST.strip())
+
+    @property
+    def backup_external_store_configured(self) -> bool:
+        """Tell whether dumps can leave the CI artifact store."""
+        return bool(self.BACKUP_EXTERNAL_BUCKET.strip())
+
+    def validate_backup_external_store(self) -> None:
+        """Fail when the external backup store is only half configured.
+
+        A bucket without credentials silently drops every dump, so the
+        misconfiguration has to be loud instead of quiet.
+        """
+        if not self.backup_external_store_configured:
+            return
+        missing = [
+            name
+            for name in (
+                "BACKUP_EXTERNAL_ACCESS_KEY_ID",
+                "BACKUP_EXTERNAL_SECRET_ACCESS_KEY",
+            )
+            if not getattr(self, name).strip()
+        ]
+        if missing:
+            raise ValueError(
+                "Thiếu cấu hình kho bản sao lưu ngoài: " + ", ".join(missing)
+            )
 
     def validate_runtime(self, *, migrate: bool = False) -> None:
         """Fail before serving traffic, without including credential values."""
