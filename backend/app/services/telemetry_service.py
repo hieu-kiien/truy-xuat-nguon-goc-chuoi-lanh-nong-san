@@ -1,7 +1,7 @@
 """Business service for cold chain telemetry ingestion and violation inspection (N3-59, N3-60, N3-61, N3-62, N3-63)."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -24,6 +24,9 @@ from app.services import cold_chain_config_service, event_service
 from app.services.cold_chain_detector import detect_temperature_violations
 
 logger = logging.getLogger(__name__)
+
+# A sensor clock can be a little ahead, so a small margin is accepted.
+FUTURE_TOLERANCE = timedelta(minutes=5)
 
 
 def _can_access_shipment(db: Session, principal: Principal, shipment: Shipment) -> bool:
@@ -248,11 +251,23 @@ def ingest_telemetry_readings(
 
     values_to_insert = []
     duplicate_count = 0
+    now = datetime.now(UTC)
 
     for item in sorted_items:
         rec_at = item.recorded_at
         if rec_at.tzinfo is None:
             rec_at = rec_at.replace(tzinfo=UTC)
+
+        # A reading from the future cannot come from a sensor. Accepting it
+        # would break the order of the series and the violation detection.
+        if rec_at > now + FUTURE_TOLERANCE:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    "Thoi diem ghi nhan nam o tuong lai. "
+                    "Chi nhan cac so do da ghi nhan trong qua."
+                ),
+            )
 
         if rec_at in existing_timestamps:
             duplicate_count += 1

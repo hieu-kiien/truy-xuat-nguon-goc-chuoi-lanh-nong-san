@@ -175,6 +175,38 @@ def test_n3_152_the_raw_series_can_be_narrowed_to_a_time_window(
     assert window[0].recorded_at == inside
 
 
+def test_n3_64_a_late_reading_does_not_break_the_next_run(
+    admin_session: Session, identity_factory
+):
+    """A reading that lands in an hour already summarised is folded in."""
+    carrier = identity_factory(role="transporter", organization_type="transport")
+    shipment = _seed_shipment(admin_session, carrier, completed=True)
+    old = NOW - timedelta(days=45)
+    _add_reading(admin_session, shipment, old, "4.00")
+
+    telemetry_compactor.compact_old_readings(admin_session, retention_days=30, now=NOW)
+
+    # A sensor sends a late reading for the hour that was already summarised.
+    _add_reading(admin_session, shipment, old + timedelta(minutes=10), "8.00")
+
+    summary = telemetry_compactor.compact_old_readings(
+        admin_session, retention_days=30, now=NOW
+    )
+    assert summary["compacted_readings"] == 1
+
+    rows = list(
+        admin_session.scalars(
+            select(TemperatureHourlyAggregate)
+            .where(TemperatureHourlyAggregate.shipment_id == shipment.id)
+            .order_by(TemperatureHourlyAggregate.bucket_start.asc())
+        ).all()
+    )
+    assert len(rows) == 1
+    assert rows[0].reading_count == 2
+    assert rows[0].min_temperature_celsius == Decimal("4.00")
+    assert rows[0].max_temperature_celsius == Decimal("8.00")
+
+
 def test_n3_64_a_running_shipment_is_never_compacted(
     admin_session: Session, identity_factory
 ):

@@ -47,4 +47,6 @@ def test_legacy_revision_08_precedes_harvest_schema_and_handover_migrations():
     assert public_route.down_revision == "20261021_38"
     aggregates = script.get_revision("20261021_40")
     assert aggregates.down_revision == "20261021_39"
-    assert script.get_current_head() == "20261021_40"
+    deactivate_guard = script.get_revision("20261021_41")
+    assert deactivate_guard.down_revision == "20261021_40"
+    assert script.get_current_head() == "20261021_41"

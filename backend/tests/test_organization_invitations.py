@@ -269,6 +269,62 @@ async def test_n3_30_the_single_use_link_is_returned_only_once(
 
 
 @pytest.mark.asyncio
+async def test_n3_30_an_administrator_cannot_lock_the_organization_out(
+    admin_session: Session, identity_factory
+):
+    """The last administrator of an organization cannot be switched off."""
+    admin = identity_factory(role="organization_admin", organization_type="cooperative")
+
+    async with _client() as admin_client:
+        await _login(admin_client, admin)
+
+        # Switching off your own account is refused.
+        own = await admin_client.post(
+            f"/api/v1/organizations/members/{admin.user_id}/deactivate"
+        )
+        assert own.status_code == 409, own.text
+        assert "chính tài khoản" in own.json()["detail"]
+
+        # A second administrator can be switched off while another one stays.
+        second_email = "second.admin@example.com"
+        created = await admin_client.post(
+            "/api/v1/organizations/invitations",
+            json={"email": second_email, "role_code": "organization_admin"},
+        )
+        assert created.status_code == 201, created.text
+        token = _token_for(admin_session, second_email)
+
+    async with _client() as public_client:
+        accepted = await public_client.post(
+            f"/api/v1/public/invitations/{token}/accept",
+            json={"password": PASSWORD, "full_name": "Quản trị thứ hai"},
+        )
+        assert accepted.status_code == 200, accepted.text
+        second_admin_id = accepted.json()["user_id"]
+
+    async with _client() as admin_client:
+        await _login(admin_client, admin)
+
+        # One administrator is still active, so the second one may leave.
+        first = await admin_client.post(
+            f"/api/v1/organizations/members/{second_admin_id}/deactivate"
+        )
+        assert first.status_code == 200, first.text
+
+        # Now the caller is the only active administrator, so the organization
+        # would be left without anybody who can manage it.
+        again = await admin_client.post(
+            f"/api/v1/organizations/members/{second_admin_id}/deactivate"
+        )
+        assert again.status_code == 409, again.text
+        assert "quản trị" in again.json()["detail"]
+
+    member = admin_session.get(User, second_admin_id)
+    assert member is not None
+    assert member.is_active is False
+
+
+@pytest.mark.asyncio
 async def test_n3_30_administrator_deactivates_a_member(
     admin_session: Session, identity_factory
 ):

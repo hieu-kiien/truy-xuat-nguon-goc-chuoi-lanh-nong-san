@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ingestTelemetryReadings, getShipments } from '../services/api'
+import { readingError } from '../utils/validation'
 import type { Shipment, TelemetryIngestResult } from '../types'
 
 function nowLocalInput(): string {
@@ -8,6 +9,7 @@ function nowLocalInput(): string {
   return new Date(now.getTime() - offset).toISOString().slice(0, 16)
 }
 
+/** Check one reading before it is sent to the server. */
 export function ShipmentReadingForm() {
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [shipmentId, setShipmentId] = useState('')
@@ -48,11 +50,12 @@ export function ShipmentReadingForm() {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (saving || !shipment) return
-    const value = Number(temperature)
-    if (!Number.isFinite(value) || temperature.trim() === '') {
-      setError('Vui lòng nhập nhiệt độ.')
+    const problem = readingError(temperature, recordedAt)
+    if (problem) {
+      setError(problem)
       return
     }
+    const moment = new Date(recordedAt)
     setSaving(true)
     setError(null)
     setResult(null)
@@ -61,8 +64,8 @@ export function ShipmentReadingForm() {
         container_code: shipment.container_code,
         readings: [
           {
-            recorded_at: new Date(recordedAt).toISOString(),
-            temperature_celsius: String(value),
+            recorded_at: moment.toISOString(),
+            temperature_celsius: String(Number(temperature)),
           },
         ],
       })
@@ -151,6 +154,7 @@ export function ShipmentReadingForm() {
             id="reading-recorded-at"
             type="datetime-local"
             required
+            max={nowLocalInput()}
             value={recordedAt}
             onChange={(event) => setRecordedAt(event.target.value)}
           />

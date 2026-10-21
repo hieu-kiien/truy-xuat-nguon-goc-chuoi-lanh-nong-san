@@ -103,6 +103,55 @@ async def test_n3_59_ingestion_deduplication_and_last_reading(request, admin_ses
 
 
 @pytest.mark.asyncio
+async def test_n3_59_a_reading_from_the_future_is_refused(request, admin_session):
+    """A sensor cannot report a moment that has not happened yet."""
+    products = request.getfixturevalue("lineage_products")
+    identities = request.getfixturevalue("identity_factory")
+
+    transporter = identities(role="transporter", organization_type="transport")
+    lot = add_lot(admin_session, transporter, products[0])
+    container_code = f"RF-FUTURE-{uuid4().hex[:6].upper()}"
+
+    async with client() as api:
+        await login(api, transporter)
+        await _open_test_shipment(api, container_code, [str(lot.id)])
+
+        future = datetime.now(UTC) + timedelta(hours=2)
+        refused = await api.post(
+            "/api/v1/telemetry/readings",
+            json={
+                "container_code": container_code,
+                "readings": [
+                    {
+                        "recorded_at": future.isoformat(),
+                        "temperature_celsius": 4.0,
+                    }
+                ],
+            },
+        )
+        assert refused.status_code == 422, refused.text
+        assert "tuong lai" in refused.json()["detail"]
+
+        # A reading taken a moment ago is still accepted.
+        accepted = await api.post(
+            "/api/v1/telemetry/readings",
+            json={
+                "container_code": container_code,
+                "readings": [
+                    {
+                        "recorded_at": (
+                            datetime.now(UTC) - timedelta(minutes=1)
+                        ).isoformat(),
+                        "temperature_celsius": 4.0,
+                    }
+                ],
+            },
+        )
+        assert accepted.status_code == 201, accepted.text
+        assert accepted.json()["ingested_count"] == 1
+
+
+@pytest.mark.asyncio
 async def test_n3_61_sliding_window_delay_and_gap_merging(request, admin_session):
     """N3-61: Violations require >= 30 min duration. Gaps <= 5 min are merged, gaps > 5 min are separate."""
     products = request.getfixturevalue("lineage_products")
