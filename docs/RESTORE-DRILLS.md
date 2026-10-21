@@ -67,21 +67,75 @@ chạy:
 2. **Secret của staging chưa nằm trong repository** (`STAGING_DATABASE_URL` và
    các secret còn lại), nên workflow không thể chụp bản sao lưu từ staging.
 
-Những gì lần diễn tập này **đã chứng minh**:
+---
 
-- Cơ chế `backup → verify → restore → đo thời gian → đối chiếu số dòng →
-  quét toàn vẹn` chạy đúng và tự động hoá được.
-- Dữ liệu khôi phục lại **đầy đủ và toàn vẹn**: 9/9 bảng khớp số dòng và
-  35 chuỗi sự kiện vẫn xác minh được sau khi khôi phục (`broken_lots = 0`).
-- Thời gian khôi phục của một bản sao lưu cỡ 230 KB là **2,3 giây**.
+## Lần 2 — 2026-10-21 (đầy đủ, có kho bản sao lưu ngoài)
+
+Lần này chạy **đúng theo đường đi của sự cố**: sao lưu → đẩy ra kho ngoài →
+xoá bản local → tải về từ kho → kiểm tra checksum → khôi phục vào database
+trống → quét toàn vẹn.
+
+Kho bản sao lưu ngoài là một điểm cuối **tương thích S3 thật** chạy trên
+loopback (`moto`), và máy chủ SMTP là một **máy chủ SMTP thật** chạy trên
+loopback (`Mailpit`). Cơ chế được kiểm chứng thật; chỉ còn thay địa chỉ và
+khoá bằng tài khoản thật của nhà cung cấp.
+
+### AC1 — thư thật đi ra ngoài
+
+| Bước | Kết quả |
+| --- | --- |
+| Lệnh kiểm tra | `python scripts/check_smtp.py --recipient nong-ho@ictu.edu.vn` |
+| Kết quả lệnh | `ok: true`, `sent: true`, `reason: delivered`, `elapsed_ms: 51`, mã thoát `0` |
+| Thư có thật trong hộp thư? | **Có** — 1 thư, `From: no-reply@agrochain.local`, `To: nong-ho@ictu.edu.vn`, 674 byte |
+| Nội dung thư | Chỉ có câu báo kiểm tra hạ tầng, **không có dữ liệu nghiệp vụ, không có mật khẩu** |
+
+### AC2 + AC4 — bản sao lưu ra kho ngoài rồi khôi phục
+
+| Bước | Kết quả |
+| --- | --- |
+| 1. Sao lưu | `agrochain-20261021T070238Z.dump`, 283.442 byte, 35 lô, 88 sự kiện |
+| 2. Đẩy ra kho ngoài | **3 file** — `.dump`, `.dump.manifest.json`, `.dump.sha256` (bucket `ttcs-backups`, prefix `agrochain`) |
+| 3. Xoá toàn bộ bản local | Chỉ còn kho ngoài giữ bản sao lưu |
+| 4. Tải về từ kho ngoài | **3 file** — tải kèm manifest và checksum |
+| 5. Kiểm tra checksum | **checksum OK** |
+| 6. Khôi phục vào database trống | **2,214 giây** |
+| 7. Đối chiếu số dòng | **9/9 bảng khớp**, không có bảng không khớp |
+| 8. Quét toàn vẹn sau khôi phục | `checked_lots = 35`, **`broken_lots = 0`**, `alerts_raised = 0` |
+| Kết quả | **ĐẠT** |
+
+### Lỗi phát hiện trong lần chạy này
+
+Lần chạy đầu **thất bại ở bước 5**: lệnh `download` chỉ tải tệp `.dump`,
+**không tải manifest và checksum** đi kèm. Bản sao lưu tải về vì vậy không
+kiểm chứng được, và đúng bước này workflow `restore-drill.yml` sẽ dừng khi
+chạy trên staging.
+
+Đã sửa trong `backend/scripts/backup.py`: `download_backup_from_external_store`
+nay tải kèm `.manifest.json` và `.sha256` nếu kho có chúng, và bỏ bản sao lưu
+cục bộ đi thì tệp tải về **không** kiểm chứng được thì báo sai — không âm thầm
+chấp nhận. Kiểm thử tương ứng nằm ở
+`backend/tests/test_staging_integrations.py` và
+`backend/tests/test_backup_scripts.py`.
+
+### Kiểm thử tích hợp chạy lại trong CI
+
+Hai kết nối của staging được kiểm chứng bằng kiểm thử tích hợp chạy trên
+loopback, không cần dịch vụ ngoài:
+
+- `backend/tests/test_staging_integrations.py::test_the_application_really_delivers_through_the_smtp_transport`
+  — một máy chủ SMTP thật nhận thư mà ứng dụng gửi đi.
+- `backend/tests/test_staging_integrations.py::test_a_dump_survives_a_round_trip_through_an_s3_compatible_store`
+  — bản sao lưu đi qua kho tương thích S3 thật và trở lại, checksum khớp.
+
+### Còn lại
 
 Những gì lần diễn tập này **chưa** chứng minh, và phải chạy lại trên staging
 sau khi cấu hình xong:
 
 - Thời gian khôi phục thật của database staging (bản sao lưu lớn hơn nhiều).
-- Khôi phục từ kho bản sao lưu **ngoài** máy chủ ứng dụng.
-- Khôi phục qua đường đi thật của sự cố: tải bản sao lưu → dựng database
-  trống trên staging → khôi phục → `integrity_scanner --once --all`.
+- Khôi phục từ **bucket của nhà cung cấp thật** thay vì điểm cuối trên
+  loopback.
+- Gửi thư tới **địa chỉ thật** ngoài mạng nội bộ.
 
 **Khi nào đóng được R-10:** sau khi lần diễn tập trên staging chạy được với
 `broken_lots = 0` và `GET /health` trả `smtp_configured: true` lẫn

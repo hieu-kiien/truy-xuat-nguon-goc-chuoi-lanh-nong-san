@@ -108,11 +108,21 @@ của máy chủ** nên không làm được từ code.
 
 | # | Việc | AC | Trạng thái |
 | --- | --- | --- | --- |
-| 1 | Cấu hình SMTP trên staging | AC1 | Sẵn sàng trong mã, **chờ tài khoản thư** |
-| 2 | Nơi lưu bản sao lưu ngoài máy chủ ứng dụng | AC2 | Sẵn sàng trong mã, **chờ bucket** |
+| 1 | Cấu hình SMTP trên staging | AC1 | Cơ chế **đã kiểm chứng thật**, còn tài khoản thư |
+| 2 | Nơi lưu bản sao lưu ngoài máy chủ ứng dụng | AC2 | Cơ chế **đã kiểm chứng thật**, còn bucket |
 | 3 | Biến `PUBLIC_APP_URL` trỏ về địa chỉ thật | AC3 | **Đã khai báo trong `render.yaml`** |
-| 4 | Diễn tập khôi phục lần đầu và ghi thời gian | AC4 | **Đã chạy**, xem [RESTORE-DRILLS.md](RESTORE-DRILLS.md) |
+| 4 | Diễn tập khôi phục lần đầu và ghi thời gian | AC4 | **Đã chạy 2 lần**, xem [RESTORE-DRILLS.md](RESTORE-DRILLS.md) |
 | 5 | Cập nhật mục chưa cấu hình trong tài liệu này | AC5 | **Đây là tài liệu này** |
+
+> **Cơ chế đã được kiểm chứng, chỉ còn cấu hình tài khoản.** Cả hai kết nối
+> đã chạy thật trên loopback: một máy chủ SMTP thật nhận được thư mà ứng dụng
+> gửi đi, và một điểm cuối tương thích S3 thật nhận rồi trả lại bản sao lưu
+> (checksum khớp). Kiểm thử tích hợp này nằm ở
+> `backend/tests/test_staging_integrations.py` và chạy trong CI. Kết quả đo
+> được ghi ở [RESTORE-DRILLS.md](RESTORE-DRILLS.md).
+>
+> Phần còn lại không phải viết code, mà là **điền đúng ba giá trị** ở mục
+> 4.2 và 4.3.
 
 ### 4.1. AC3 — `PUBLIC_APP_URL`
 
@@ -166,6 +176,11 @@ Script mở kết nối thật, gửi một thư thử không mang dữ liệu n
 quả. Nó **không bao giờ** in mật khẩu. Thoát với mã `0` nghĩa là máy chủ đã nhận
 thư; mã `2` nghĩa là chưa cấu hình `SMTP_HOST`.
 
+Kết quả đo được ngày 2026-10-21 với một máy chủ SMTP thật chạy trên loopback:
+`ok: true`, `sent: true`, `reason: delivered`, `elapsed_ms: 51`, và thư **có
+thật** trong hộp thư nhận (1 thư, 674 byte, nội dung chỉ có câu báo kiểm tra hạ
+tầng, không có dữ liệu nghiệp vụ). Xem [RESTORE-DRILLS.md](RESTORE-DRILLS.md).
+
 Sau khi cấu hình, `GET /health` trả `smtp_configured: true`.
 
 ### 4.3. AC2 — Nơi lưu bản sao lưu ngoài máy chủ ứng dụng
@@ -197,6 +212,19 @@ Khi `BACKUP_EXTERNAL_BUCKET` còn trống, workflow `nightly-backup.yml` **khôn
 lặng bỏ qua: nó in cảnh báo rõ ràng trong log của workflow.
 
 Lớp bảo vệ thứ hai vẫn còn: artifact của GitHub Actions giữ **90 ngày** (đã tăng từ 30).
+
+Kết quả đo được ngày 2026-10-21 với một điểm cuối tương thích S3 thật chạy trên
+loopback: sao lưu 283.442 byte → đẩy ra kho (3 file) → **xoá toàn bộ bản local**
+→ tải về từ kho → **checksum OK** → khôi phục vào database trống trong **2,214
+giây** → 9/9 bảng khớp số dòng → `broken_lots = 0`. Xem
+[RESTORE-DRILLS.md](RESTORE-DRILLS.md).
+
+> **Lỗi đã tìm ra và sửa trong lúc kiểm chứng:** ban đầu lệnh `download` chỉ tải
+> tệp `.dump` mà không tải manifest và checksum đi kèm, nên bản sao lưu tải về
+> **không kiểm chứng được** — và đúng bước đó, workflow `restore-drill.yml` sẽ
+> dừng khi chạy trên staging. Nay `download` tải kèm hai tệp sidecar, và một bản
+> sao lưu thiếu manifest thì báo **không kiểm chứng được** chứ không âm thầm
+> chấp nhận.
 
 ### 4.4. AC4 — Diễn tập khôi phục
 

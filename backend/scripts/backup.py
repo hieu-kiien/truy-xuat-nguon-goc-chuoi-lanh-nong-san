@@ -525,7 +525,12 @@ def download_backup_from_external_store(
     directory: Path,
     client: Any | None = None,
 ) -> Path:
-    """Fetch the newest dump from the external store into a local directory."""
+    """Fetch the newest dump from the external store into a local directory.
+
+    The manifest and the checksum travel with the dump. Without them the
+    downloaded copy cannot be verified, and a copy that cannot be verified
+    cannot be trusted during a restore.
+    """
     if client is None:
         client = build_backup_client(
             endpoint=endpoint,
@@ -546,8 +551,22 @@ def download_backup_from_external_store(
     newest = max(objects, key=lambda item: item["Key"])
     target = Path(directory) / Path(newest["Key"]).name
     Path(directory).mkdir(parents=True, exist_ok=True)
-    client.download_file(bucket, newest["Key"], str(target))
-    logger.info("Downloaded %s from %s", target.name, bucket)
+
+    keys = [newest["Key"]]
+    for suffix in (MANIFEST_SUFFIX, CHECKSUM_SUFFIX):
+        sidecar_key = newest["Key"] + suffix
+        if any(item["Key"] == sidecar_key for item in listing.get("Contents", [])):
+            keys.append(sidecar_key)
+
+    for key in keys:
+        client.download_file(bucket, key, str(Path(directory) / Path(key).name))
+
+    logger.info(
+        "Downloaded %s (%d file(s)) from %s",
+        target.name,
+        len(keys),
+        bucket,
+    )
     return target
 
 

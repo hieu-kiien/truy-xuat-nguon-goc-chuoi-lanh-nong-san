@@ -303,6 +303,48 @@ def test_downloading_picks_the_newest_dump_from_the_store(tmp_path):
     ]
 
 
+def test_downloading_brings_the_manifest_and_the_checksum_too(tmp_path):
+    """A downloaded dump that cannot be verified cannot be used to restore."""
+    client = FakeS3Client(
+        objects=[
+            "agrochain/agrochain-20261022T021500Z.dump",
+            "agrochain/agrochain-20261022T021500Z.dump.manifest.json",
+            "agrochain/agrochain-20261022T021500Z.dump.sha256",
+        ]
+    )
+
+    target = download_backup_from_external_store(
+        bucket="ttcs-backups",
+        prefix="agrochain",
+        directory=tmp_path,
+        client=client,
+    )
+
+    downloaded = [key for _, key, _ in client.downloads]
+    assert downloaded == [
+        "agrochain/agrochain-20261022T021500Z.dump",
+        "agrochain/agrochain-20261022T021500Z.dump.manifest.json",
+        "agrochain/agrochain-20261022T021500Z.dump.sha256",
+    ]
+    assert (tmp_path / (target.name + ".manifest.json")).exists()
+    assert (tmp_path / (target.name + ".sha256")).exists()
+
+
+def test_downloading_skips_a_sidecar_that_is_not_in_the_store(tmp_path):
+    client = FakeS3Client(objects=["agrochain/agrochain-20261022T021500Z.dump"])
+
+    download_backup_from_external_store(
+        bucket="ttcs-backups",
+        prefix="agrochain",
+        directory=tmp_path,
+        client=client,
+    )
+
+    assert [key for _, key, _ in client.downloads] == [
+        "agrochain/agrochain-20261022T021500Z.dump"
+    ]
+
+
 def test_downloading_without_any_dump_fails_loudly(tmp_path):
     with pytest.raises(FileNotFoundError):
         download_backup_from_external_store(
