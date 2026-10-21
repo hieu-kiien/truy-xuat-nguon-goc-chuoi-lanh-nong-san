@@ -1,12 +1,14 @@
+from datetime import date
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.auth import Principal, get_current_principal
+from app.core.auth import Principal, extract_session_token, get_current_principal
 from app.core.authorization import require_permission
 from app.core.database import get_db
+from app.core.security import hash_session_token
 from app.models.lot import Lot
 from app.schemas.lineage import (
     LineageRead,
@@ -77,20 +79,42 @@ def create_lot(
 @router.get("/", response_model=LotListRead)
 @require_permission("lots:read")
 def list_lots(
+    request: Request,
     principal: Annotated[Principal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
-    q: Annotated[str | None, Query(max_length=100)] = None,
-    product_id: UUID | None = None,
+    q: Annotated[
+        str | None,
+        Query(
+            max_length=100, description="Tìm theo mã lô (không phân biệt hoa thường)"
+        ),
+    ] = None,
+    product_id: Annotated[UUID | None, Query(description="Lọc theo sản phẩm")] = None,
+    farm_id: Annotated[
+        UUID | None, Query(description="Lọc theo vùng trồng (mã trang trại)")
+    ] = None,
+    harvested_from: Annotated[
+        date | None, Query(description="Ngày thu hoạch bắt đầu (YYYY-MM-DD)")
+    ] = None,
+    harvested_to: Annotated[
+        date | None, Query(description="Ngày thu hoạch kết thúc (YYYY-MM-DD)")
+    ] = None,
     cursor: Annotated[str | None, Query(max_length=256)] = None,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> dict:
+    token = extract_session_token(request)
+    session_token_hash = hash_session_token(token) if token else ""
     return lot_service.list_lots(
         db,
         principal,
         query=q,
         product_id=product_id,
+        farm_id=farm_id,
+        harvested_from=harvested_from,
+        harvested_to=harvested_to,
         cursor=cursor,
         page_size=page_size,
+        client_ip=request.client.host if request.client else None,
+        session_token_hash=session_token_hash,
     )
 
 

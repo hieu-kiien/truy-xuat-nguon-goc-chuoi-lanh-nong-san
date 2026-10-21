@@ -7,7 +7,7 @@ Hợp đồng API hiện hành được sinh từ Pydantic/FastAPI tại `/opena
 - Browser đăng nhập bằng cookie HttpOnly, Secure, SameSite=None; không lưu session token vào localStorage.
 - Các route nghiệp vụ dưới `/api/v1` kiểm quyền ở máy chủ; dữ liệu ngoài phạm vi được từ chối.
 - `GET /health` kiểm readiness, không yêu cầu đăng nhập. `GET /version` chỉ trả commit SHA.
-- Danh sách lô dùng cursor, mặc định UI 20 dòng, lọc theo sản phẩm và tìm mã không phân biệt hoa/thường.
+- Danh sách lô/tra cứu lô dùng cursor, mặc định UI 20 dòng, lọc theo sản phẩm, vùng trồng và tìm mã không phân biệt hoa/thường; thêm khoảng ngày thu hoạch (`harvested_from`, `harvested_to`). Chỉ đọc; mỗi lượt tra cứu được ghi vào nhật ký theo dõi.
 - Lịch sử `/api/v1/events/lots/{lot_id}/history` nhận `after` (sequence) và `page_size` (1–500). Trả `events`, `next_cursor`, `total`, `integrity`. Toàn bộ chuỗi có quyền xem vẫn được kiểm tra, kể cả khi trang chỉ chứa 10 sự kiện.
 - Chi tiết lô trả `root_farms` để tổng quan hiển thị nguồn gốc; dữ liệu logistics của lô lịch sử bị ẩn.
 - **Hồ sơ truy xuất PDF (N3-72):** `GET /api/v1/lots/{lot_id}/report.pdf` (quyền `lots:read`) trả `application/pdf` với `Content-Disposition: attachment; filename="ho-so-truy-xuat-{mã lô}.pdf"`. Hồ sơ gồm thông tin lô, kết quả kiểm tra toàn vẹn chuỗi băm tại thời điểm xuất (số sự kiện, sự kiện sai lệch đầu tiên, danh sách lỗi) và toàn bộ sự kiện người gọi được phép xem; nội dung ngoài phạm vi bị ẩn như các API đọc khác. Endpoint chỉ đọc, không ghi thêm bản ghi `integrity_checks`, và trả `Cache-Control: no-store`.

@@ -304,6 +304,9 @@ export interface LotPayload {
 export interface LotListParams {
   q?: string
   product_id?: string
+  farm_id?: string
+  harvested_from?: string
+  harvested_to?: string
   cursor?: string
   page_size?: number
 }

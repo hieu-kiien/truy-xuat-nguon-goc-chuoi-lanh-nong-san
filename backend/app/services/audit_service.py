@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
 
+from app.core.database import SessionLocal, set_db_context
 from app.models.audit_log import AuditLog
 
 
@@ -44,3 +45,18 @@ def list_audit_page(db: Session, limit: int, cursor: str | None) -> dict:
             .rstrip("=")
         )
     return {"items": items, "next_cursor": next_cursor}
+
+
+def persist_audit_row(session_token_hash: str, row: AuditLog) -> None:
+    """Ghi một bản ghi nhật ký tra cứu vào session riêng biệt.
+
+    Dùng cho các thao tác chỉ đọc (ví dụ tra cứu lô) mà middleware nhật ký
+    không ghi (chỉ ghi POST/PUT/PATCH/DELETE). Session riêng biệt tránh làm
+    hết hạn (expire) các đối tượng ORM đang được dùng để serialize phản hồi
+    của session nghiệp vụ chính.
+    """
+    with SessionLocal() as db:
+        db.info["audit_fallback"] = True
+        set_db_context(db, session_token_hash=session_token_hash)
+        db.add(row)
+        db.commit()

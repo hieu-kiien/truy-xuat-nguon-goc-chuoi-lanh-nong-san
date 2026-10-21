@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getLots, getProducts } from '../services/api'
-import type { Lot, Product } from '../types'
+import { getFarms, getLots, getProducts } from '../services/api'
+import type { Farm, Lot, Product } from '../types'
 import { lotStatusLabel } from '../types'
 import { LotCreateForm } from './LotCreateForm'
 import { TaskLink } from './TaskLink'
@@ -14,11 +14,16 @@ export function LotsPanel({ canReadLots, canCreateLots, canReadEvents = true, ca
   const task = new URLSearchParams(window.location.search).get('task')
   const [lots, setLots] = useState<Lot[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [farms, setFarms] = useState<Farm[]>([])
   const [loading, setLoading] = useState(canReadLots)
   const [loadingProducts, setLoadingProducts] = useState(true)
+  const [loadingFarms, setLoadingFarms] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [productId, setProductId] = useState('')
+  const [farmId, setFarmId] = useState('')
+  const [harvestedFrom, setHarvestedFrom] = useState('')
+  const [harvestedTo, setHarvestedTo] = useState('')
   const [cursor, setCursor] = useState<string | undefined>()
   const [previousCursors, setPreviousCursors] = useState<Array<string | undefined>>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
@@ -30,6 +35,9 @@ export function LotsPanel({ canReadLots, canCreateLots, canReadEvents = true, ca
     getProducts().then(data => { if (active) setProducts(data) })
       .catch((err: unknown) => { if (active) setError(err instanceof Error ? err.message : 'Không tải được sản phẩm.') })
       .finally(() => { if (active) setLoadingProducts(false) })
+    getFarms().then(data => { if (active) setFarms(data) })
+      .catch((err: unknown) => { if (active) setError(err instanceof Error ? err.message : 'Không tải được danh sách vùng trồng.') })
+      .finally(() => { if (active) setLoadingFarms(false) })
     return () => { active = false }
   }, [])
 
@@ -37,13 +45,21 @@ export function LotsPanel({ canReadLots, canCreateLots, canReadEvents = true, ca
     if (!canReadLots || task === 'create') return
     let active = true
     const timer = window.setTimeout(() => {
-      getLots({ q: query.trim(), product_id: productId || undefined, cursor, page_size: 20 })
+      getLots({
+        q: query.trim(),
+        product_id: productId || undefined,
+        farm_id: farmId || undefined,
+        harvested_from: harvestedFrom || undefined,
+        harvested_to: harvestedTo || undefined,
+        cursor,
+        page_size: 20,
+      })
         .then(page => { if (active) { setLots(page.items); setNextCursor(page.next_cursor) } })
         .catch((err: unknown) => { if (active) setError(err instanceof Error ? err.message : 'Không tải được danh sách lô.') })
         .finally(() => { if (active) setLoading(false) })
     }, 250)
     return () => { active = false; window.clearTimeout(timer) }
-  }, [canReadLots, query, productId, cursor, refresh, task])
+  }, [canReadLots, query, productId, farmId, harvestedFrom, harvestedTo, cursor, refresh, task])
 
   const resetPage = () => { setLoading(true); setError(null); setCursor(undefined); setPreviousCursors([]) }
   if (!canReadLots) return <p role="status">Tài khoản này không có quyền xem danh sách lô.</p>
@@ -64,6 +80,9 @@ export function LotsPanel({ canReadLots, canCreateLots, canReadEvents = true, ca
     <div className="lot-filter-row">
       <label className="form-field">Tìm theo mã lô<input type="search" value={query} onChange={event => { resetPage(); setQuery(event.target.value) }} placeholder="Nhập mã lô cần tìm" /></label>
       <label className="form-field">Sản phẩm<select value={productId} disabled={loadingProducts} onChange={event => { resetPage(); setSelected([]); setProductId(event.target.value) }}><option value="">Tất cả sản phẩm</option>{products.map(product => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
+      <label className="form-field">Vùng trồng<select value={farmId} disabled={loadingFarms} onChange={event => { resetPage(); setSelected([]); setFarmId(event.target.value) }}><option value="">Tất cả vùng trồng</option>{farms.map(farm => <option key={farm.id} value={farm.id}>{farm.name}</option>)}</select></label>
+      <label className="form-field">Thu hoạch từ<input type="date" value={harvestedFrom} onChange={event => { resetPage(); setHarvestedFrom(event.target.value) }} /></label>
+      <label className="form-field">đến<input type="date" value={harvestedTo} onChange={event => { resetPage(); setHarvestedTo(event.target.value) }} /></label>
     </div>
     {canTransform && <div className="selection-bar">
       <p>{selected.length ? `Đã chọn ${selected.length} lô. Chỉ gộp lô cùng sản phẩm do đơn vị của bạn đang giữ.` : 'Để gộp lô, tích chọn ít nhất hai lô cùng sản phẩm.'}</p>

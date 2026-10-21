@@ -5,17 +5,18 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import and_, or_, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal
 from app.core.lot_codes import generate_lot_code
 from app.core.tenancy import get_tenant_record, tenant_select
+from app.models.audit_log import AuditLog
 from app.models.farm import Farm
 from app.models.lot import Lot
 from app.models.product import Product
 from app.schemas.lot import LotCreate
-from app.services import event_service
+from app.services import audit_service, event_service
 
 
 def create_harvest_lot(
@@ -116,9 +117,51 @@ def list_lots(
     *,
     query: str | None,
     product_id: UUID | None,
-    cursor: str | None,
-    page_size: int,
+    farm_id: UUID | None = None,
+    harvested_from: date | None = None,
+    harvested_to: date | None = None,
+    cursor: str | None = None,
+    page_size: int = 20,
+    client_ip: str | None = None,
+    session_token_hash: str = "",
 ) -> dict:
+    """Tra cứu lô thu hoạch chỉ đọc.
+
+    Hỗ trợ lọc theo mã lô (query), sản phẩm, vùng trồng (farm_id) và khoảng
+    ngày thu hoạch (harvested_from/harvested_to), kết hợp tự do. Dữ liệu được
+    lọc theo principal thông qua tenant_select: vai trò có lots:read_all (thanh
+    tra, quản trị hệ thống) xem toàn bộ, các đơn vị khác chỉ xem lô mình đang
+    giữ. Không có thao tác ghi dữ liệu nghiệp vụ; mỗi lượt tra cứu chỉ được
+    ghi nhật ký vào audit
+    log qua session riêng để không ảnh hưởng session đọc chính.
+    """
+    if (
+        harvested_from is not None
+        and harvested_to is not None
+        and harvested_from > harvested_to
+    ):
+        audit_service.persist_audit_row(
+            session_token_hash,
+            AuditLog(
+                actor_user_id=principal.user_id,
+                actor_name=principal.full_name,
+                actor_authenticated=True,
+                organization_id=principal.organization_id,
+                organization_name=principal.organization_name,
+                client_ip=client_ip,
+                action="lots.search",
+                object_type="lot",
+                object_id=None,
+                outcome="denied",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                reason="validation_failed",
+            ),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Khoảng ngày thu hoạch không hợp lệ: ngày bắt đầu không được sau ngày kết thúc.",
+        )
+
     statement = tenant_select(Lot, principal)
     if query:
         escaped_query = (
@@ -129,6 +172,12 @@ def list_lots(
         )
     if product_id:
         statement = statement.where(Lot.product_id == product_id)
+    if farm_id is not None:
+        statement = statement.where(Lot.farm_id == farm_id)
+    if harvested_from is not None:
+        statement = statement.where(Lot.harvested_on >= harvested_from)
+    if harvested_to is not None:
+        statement = statement.where(Lot.harvested_on <= harvested_to)
 
     if cursor:
         cursor_date, cursor_id = _decode_cursor(cursor)
@@ -152,12 +201,54 @@ def list_lots(
         .cte("lot_page")
         .prefix_with("MATERIALIZED")
     )
-    fetched = list(
-        db.scalars(
-            select(Lot)
-            .join(page, page.c.id == Lot.id)
-            .order_by(Lot.harvested_on.desc().nulls_last(), Lot.id.desc())
-        ).all()
+    try:
+        fetched = list(
+            db.scalars(
+                select(Lot)
+                .join(page, page.c.id == Lot.id)
+                .order_by(Lot.harvested_on.desc().nulls_last(), Lot.id.desc())
+            ).all()
+        )
+    except SQLAlchemyError:
+        db.rollback()
+        audit_service.persist_audit_row(
+            session_token_hash,
+            AuditLog(
+                actor_user_id=principal.user_id,
+                actor_name=principal.full_name,
+                actor_authenticated=True,
+                organization_id=principal.organization_id,
+                organization_name=principal.organization_name,
+                client_ip=client_ip,
+                action="lots.search",
+                object_type="lot",
+                object_id=None,
+                outcome="error",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                reason="internal_error",
+            ),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Không thể thực hiện tra cứu lúc này. Vui lòng thử lại sau.",
+        ) from None
+
+    audit_service.persist_audit_row(
+        session_token_hash,
+        AuditLog(
+            actor_user_id=principal.user_id,
+            actor_name=principal.full_name,
+            actor_authenticated=True,
+            organization_id=principal.organization_id,
+            organization_name=principal.organization_name,
+            client_ip=client_ip,
+            action="lots.search",
+            object_type="lot",
+            object_id=None,
+            outcome="success",
+            status_code=status.HTTP_200_OK,
+            reason=None,
+        ),
     )
     has_more = len(fetched) > page_size
     items = fetched[:page_size]
