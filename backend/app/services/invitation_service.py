@@ -333,6 +333,19 @@ def deactivate_member(db: Session, principal: Principal, user_id: UUID) -> Membe
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Thành viên thuộc tổ chức khác.",
             ) from error
+        if "your own account" in message:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Bạn không thể vô hiệu hoá chính tài khoản của mình.",
+            ) from error
+        if "at least one active administrator" in message:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Tổ chức phải còn ít nhất một quản trị đang hoạt động, "
+                    "nếu không sẽ không còn ai quản lý được tổ chức."
+                ),
+            ) from error
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Chỉ quản trị tổ chức mới được vô hiệu hoá thành viên.",

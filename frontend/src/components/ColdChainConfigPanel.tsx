@@ -5,8 +5,10 @@ import {
   updateProductColdChainConfig,
 } from '../services/api'
 import { ApiError } from '../services/api'
+import { validateColdChainConfig } from '../utils/validation'
 import type { Product, ProductColdChainConfig } from '../types'
 
+/** Check the three thresholds before sending them to the server. */
 export function ColdChainConfigPanel({
   canWrite,
 }: {
@@ -84,13 +86,14 @@ export function ColdChainConfigPanel({
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (saving || !productId) return
+    const problem = validateColdChainConfig(minTemp, maxTemp, delay)
+    if (problem) {
+      setError(problem)
+      return
+    }
     const min = Number(minTemp)
     const max = Number(maxTemp)
     const minutes = Number(delay)
-    if (!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(minutes)) {
-      setError('Các ô cấu hình phải là số.')
-      return
-    }
     if (min >= max) {
       setError('Ngưỡng dưới phải nhỏ hơn ngưỡng trên.')
       return

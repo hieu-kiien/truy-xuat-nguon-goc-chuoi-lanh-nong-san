@@ -14,9 +14,10 @@ import logging
 import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from sqlalchemy import func, select, text
+from sqlalchemy import case, func, select, text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -73,6 +74,66 @@ def _gap_buckets(
     return gaps
 
 
+def _upsert_aggregate(
+    db: Session,
+    shipment_id: UUID,
+    container_code: str,
+    bucket: datetime,
+    reading_count: int,
+    minimum: Decimal | None,
+    maximum: Decimal | None,
+    average: Decimal | None,
+) -> None:
+    """Write one hourly row, replacing a row of an earlier run if needed.
+
+    A reading that arrives late can land in an hour that was already
+    summarised. Replacing the row keeps the job from failing on the unique
+    constraint instead of quietly keeping a stale summary.
+    """
+    insert_stmt = pg_insert(TemperatureHourlyAggregate).values(
+        id=uuid4(),
+        shipment_id=shipment_id,
+        container_code=container_code,
+        bucket_start=bucket,
+        reading_count=reading_count,
+        min_temperature_celsius=minimum,
+        max_temperature_celsius=maximum,
+        avg_temperature_celsius=average,
+        created_at=datetime.now(UTC),
+    )
+    # The hour is merged with the summary of an earlier run, not replaced:
+    # the raw readings of that hour were already dropped, so the new run only
+    # knows about the readings that arrived late.
+    merged_count = text(
+        "temperature_hourly_aggregates.reading_count + excluded.reading_count"
+    )
+    statement = insert_stmt.on_conflict_do_update(
+        constraint="uq_temperature_hourly_aggregates_shipment_bucket",
+        set_={
+            "reading_count": merged_count,
+            "min_temperature_celsius": func.least(
+                TemperatureHourlyAggregate.min_temperature_celsius,
+                insert_stmt.excluded.min_temperature_celsius,
+            ),
+            "max_temperature_celsius": func.greatest(
+                TemperatureHourlyAggregate.max_temperature_celsius,
+                insert_stmt.excluded.max_temperature_celsius,
+            ),
+            "avg_temperature_celsius": case(
+                (merged_count == 0, None),
+                else_=(
+                    func.coalesce(TemperatureHourlyAggregate.avg_temperature_celsius, 0)
+                    * TemperatureHourlyAggregate.reading_count
+                    + func.coalesce(insert_stmt.excluded.avg_temperature_celsius, 0)
+                    * insert_stmt.excluded.reading_count
+                )
+                / merged_count,
+            ),
+        },
+    )
+    db.execute(statement)
+
+
 def compact_shipment(
     db: Session, shipment: Shipment, *, cutoff: datetime
 ) -> dict[str, int]:
@@ -90,16 +151,15 @@ def compact_shipment(
 
     aggregate_rows = 0
     for bucket, reading_count, minimum, maximum, average in grouped:
-        db.add(
-            TemperatureHourlyAggregate(
-                shipment_id=shipment.id,
-                container_code=container_code or "",
-                bucket_start=bucket,
-                reading_count=reading_count,
-                min_temperature_celsius=minimum,
-                max_temperature_celsius=maximum,
-                avg_temperature_celsius=average,
-            )
+        _upsert_aggregate(
+            db,
+            shipment.id,
+            container_code or "",
+            bucket,
+            reading_count,
+            minimum,
+            maximum,
+            average,
         )
         aggregate_rows += 1
 
@@ -107,16 +167,15 @@ def compact_shipment(
     last = grouped[-1][0]
     gap_rows = 0
     for bucket in _gap_buckets(first, last, existing_buckets):
-        db.add(
-            TemperatureHourlyAggregate(
-                shipment_id=shipment.id,
-                container_code=container_code or "",
-                bucket_start=bucket,
-                reading_count=0,
-                min_temperature_celsius=None,
-                max_temperature_celsius=None,
-                avg_temperature_celsius=None,
-            )
+        _upsert_aggregate(
+            db,
+            shipment.id,
+            container_code or "",
+            bucket,
+            0,
+            None,
+            None,
+            None,
         )
         gap_rows += 1
 
@@ -137,12 +196,18 @@ def compact_old_readings(
     """Compact the readings of every closed shipment older than the window.
 
     The raw rows are removed only after the hourly rows are written, so a
-    crash in between leaves the raw data in place.
+    crash in between leaves the raw data in place. Every shipment is
+    committed on its own, because dropping the raw rows needs a short
+    exclusive lock on the readings table.
     """
     if not 1 <= retention_days <= 3650:
         raise ValueError("retention_days must be between 1 and 3650")
     now = now or datetime.now(UTC)
     cutoff = now - timedelta(days=retention_days)
+
+    # The hourly buckets are cut on the UTC hour, whatever the time zone of
+    # the database session is.
+    db.execute(text("SET TIME ZONE 'UTC'"))
 
     shipments = list(
         db.scalars(
@@ -166,6 +231,9 @@ def compact_old_readings(
             continue
         db.flush()
         removed = _delete_raw_readings(db, shipment.id, cutoff)
+        # Commit per shipment so the exclusive lock on the readings table is
+        # held for one shipment only, not for the whole run.
+        db.commit()
         totals["shipments"] += 1
         totals["compacted_readings"] += summary["compacted_readings"]
         totals["aggregate_rows"] += summary["aggregate_rows"]

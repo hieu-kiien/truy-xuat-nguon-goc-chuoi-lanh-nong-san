@@ -205,6 +205,28 @@ test('shipment violation list announces the loading state', async () => {
   assert.match(output, /Đang tải vi phạm chuỗi lạnh/)
 })
 
+test('an empty threshold is not read as zero', async () => {
+  const {validateColdChainConfig} = await server.ssrLoadModule('/src/utils/validation.ts')
+  assert.match(validateColdChainConfig('', '8', '30'), /đều phải có số/)
+  assert.match(validateColdChainConfig('2', '', '30'), /đều phải có số/)
+  assert.match(validateColdChainConfig('2', '8', ''), /đều phải có số/)
+  assert.equal(validateColdChainConfig('2', '8', '30'), null)
+})
+
+test('the thresholds are checked against each other', async () => {
+  const {validateColdChainConfig} = await server.ssrLoadModule('/src/utils/validation.ts')
+  assert.match(validateColdChainConfig('8', '2', '30'), /nhỏ hơn/)
+  assert.match(validateColdChainConfig('2', '8', '0'), /1 đến 1440/)
+  assert.match(validateColdChainConfig('abc', '8', '30'), /phải là số/)
+})
+
+test('a broken reading is refused before it is sent', async () => {
+  const {readingError} = await server.ssrLoadModule('/src/utils/validation.ts')
+  assert.match(readingError('', '2026-10-21T10:00'), /nhập nhiệt độ/)
+  assert.match(readingError('4.5', 'khong-phai-ngay'), /không hợp lệ/)
+  assert.equal(readingError('4.5', '2026-10-21T10:00'), null)
+})
+
 test('sidebar shows the organization entry for every member', async () => {
   assert.match(await sidebar('grower'), /Quản trị tổ chức/)
   assert.match(await sidebar('organization_admin'), /Quản trị tổ chức/)
