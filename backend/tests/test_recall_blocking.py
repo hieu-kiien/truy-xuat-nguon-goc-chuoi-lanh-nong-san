@@ -13,13 +13,21 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal
+from app.models.email_outbox import EmailOutbox
+from app.models.event import Event
 from app.models.identity import Organization, User
 from app.models.lot import Lot
+from app.models.lot_relation import LotRelation
 from app.models.product import Product, ProductUnit
-from app.models.recall import RecallOrder, RecallOrderLot
+from app.models.recall import (
+    RecallConfirmation,
+    RecallOrder,
+    RecallOrderLot,
+)
 from app.schemas.handover import HandoverCreate
 from app.schemas.lineage import LotMerge, LotSplit, MergeParent, SplitChild
 from app.schemas.recall import RecallOrderCreate
@@ -112,6 +120,43 @@ def _make_org_and_user(db: Session) -> tuple[Organization, User]:
     db.add(user)
     db.flush()
     return org, user
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_recall_fixtures(admin_session: Session):
+    """Remove the fixtures this module creates, so the suite can run twice.
+
+    Without the cleanup the recall codes stay in the database and the next
+    run fails with a duplicate key.
+    """
+    yield
+    db = admin_session
+    orders = select(RecallOrder.id).where(RecallOrder.recall_code.like("RC-%"))
+    org_ids = select(Organization.id).where(Organization.name.like("Recall-Org-%"))
+    lot_ids = select(Lot.id).where(Lot.organization_id.in_(org_ids))
+
+    for table in ("recall_confirmations", "events", "lot_relations"):
+        db.execute(text(f"ALTER TABLE {table} DISABLE TRIGGER USER"))
+    db.execute(
+        delete(RecallConfirmation).where(RecallConfirmation.recall_order_id.in_(orders))
+    )
+    db.execute(delete(RecallOrderLot).where(RecallOrderLot.recall_order_id.in_(orders)))
+    db.execute(delete(RecallOrder).where(RecallOrder.recall_code.like("RC-%")))
+    db.execute(delete(Event).where(Event.lot_id.in_(lot_ids)))
+    db.execute(
+        delete(LotRelation).where(
+            LotRelation.parent_lot_id.in_(lot_ids)
+            | LotRelation.child_lot_id.in_(lot_ids)
+        )
+    )
+    db.execute(delete(Lot).where(Lot.id.in_(lot_ids)))
+    db.execute(delete(EmailOutbox).where(EmailOutbox.organization_id.in_(org_ids)))
+    db.execute(delete(User).where(User.full_name == "Recall Tester"))
+    db.execute(delete(Product).where(Product.name.like("Product-%")))
+    db.execute(delete(Organization).where(Organization.name.like("Recall-Org-%")))
+    for table in ("recall_confirmations", "events", "lot_relations"):
+        db.execute(text(f"ALTER TABLE {table} ENABLE TRIGGER USER"))
+    db.commit()
 
 
 def test_open_recall_blocks_handover(

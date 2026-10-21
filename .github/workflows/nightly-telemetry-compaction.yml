@@ -1,0 +1,66 @@
+name: Nightly Telemetry Compaction
+
+# N3-154: chay dinh ky job nen du lieu nhiet do cu thanh gia tri tong hop theo gio.
+# The job runs with the privileged maintenance role because it folds the raw
+# readings of every organization into hourly rows and then drops them.
+
+on:
+  schedule:
+    # 02:40 every day (UTC), after the nightly backup at 02:15
+    - cron: "40 2 * * *"
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: "Readings older than this many days are compacted"
+        default: "30"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-telemetry-compaction
+  cancel-in-progress: false
+
+jobs:
+  compact:
+    name: 🧊 Compact old temperature readings
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          cd backend
+          pip install -r requirements-dev.txt
+
+      - name: Run the compaction
+        env:
+          DATABASE_URL_ENV: ${{ secrets.STAGING_DATABASE_URL }}
+          MIGRATION_DATABASE_URL_ENV: ${{ secrets.STAGING_DATABASE_URL }}
+          DB_USER: ${{ secrets.STAGING_DB_USER }}
+          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          DB_ADMIN_USER: ${{ secrets.STAGING_DB_ADMIN_USER }}
+          DB_ADMIN_PASSWORD: ${{ secrets.STAGING_DB_ADMIN_PASSWORD }}
+        run: |
+          cd backend
+          python -m app.jobs.telemetry_compactor \
+            --once \
+            --retention-days "${{ inputs.retention_days || '30' }}" \
+            2>&1 | tee telemetry-compaction.log
+
+      - name: Publish the compaction summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: telemetry-compaction-log
+          path: ${{ github.workspace }}/backend/telemetry-compaction.log
+          if-no-files-found: ignore

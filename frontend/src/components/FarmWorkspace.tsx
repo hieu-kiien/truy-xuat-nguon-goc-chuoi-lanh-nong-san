@@ -13,6 +13,12 @@ import {
   type SessionUser,
 } from '../types'
 import { FarmFormPanel } from './FarmFormPanel'
+import { ColdChainConfigPanel } from './ColdChainConfigPanel'
+import { ColdChainStatsPanel } from './ColdChainStatsPanel'
+import { OrganizationAdminPanel } from './OrganizationAdminPanel'
+import { ShipmentCreateForm } from './ShipmentCreateForm'
+import { ShipmentReadingForm } from './ShipmentReadingForm'
+import { ShipmentTemperaturePanel } from './ShipmentTemperaturePanel'
 import { IntegrityPanel } from './IntegrityPanel'
 import { HandoversPanel } from './HandoversPanel'
 import { LotsPanel } from './LotsPanel'
@@ -33,6 +39,10 @@ export type WorkspaceTab =
   | 'overview'
   | 'security'
   | 'integrity'
+  | 'cold-chain-stats'
+  | 'cold-chain'
+  | 'cold-chain-ops'
+  | 'organization'
 
 interface FarmWorkspaceProps {
   user: SessionUser
@@ -350,6 +360,10 @@ export function FarmWorkspace({
                   canCreateEvents={hasPermission(user.role, 'events:create')}
                   canCreateHandover={hasPermission(user.role, 'handovers:create')}
                   canResolveHandover={canResolveHandovers}
+                  canReadInputLots={hasPermission(user.role, 'input_lots:read')}
+                  canDeclareInputLots={hasPermission(user.role, 'input_lots:create')}
+                  canReadProcessingSteps={hasPermission(user.role, 'processing_steps:read')}
+                  canRecordProcessingSteps={hasPermission(user.role, 'processing_steps:create')}
                   onBack={onBackToLots}
                 />
               ) : (
@@ -370,7 +384,12 @@ export function FarmWorkspace({
 
             {activeTab === 'products' && (
               hasPermission(user.role, 'products:read') ? (
-                <ProductManager user={user} />
+                <>
+                  <ProductManager user={user} />
+                  <ColdChainConfigPanel
+                    canWrite={hasPermission(user.role, 'products:write')}
+                  />
+                </>
               ) : (
                 <section className="panel-card panel-box" role="status">
                   Bạn không có quyền xem danh mục sản phẩm.
@@ -577,6 +596,33 @@ export function FarmWorkspace({
 
               <IntegrityPanel canReadLots={canReadLots} canVerify={canVerifyEvents} />
 
+            )}
+
+            {activeTab === 'cold-chain-stats' && (
+              <ErrorBoundary fallbackTitle="Không thể tải thống kê vi phạm chuỗi lạnh">
+                <ColdChainStatsPanel />
+              </ErrorBoundary>
+            )}
+
+            {activeTab === 'cold-chain' && (
+              <ErrorBoundary fallbackTitle="Không thể tải chuỗi nhiệt độ của chuyến vận chuyển">
+                <ShipmentTemperaturePanel />
+              </ErrorBoundary>
+            )}
+
+            {activeTab === 'cold-chain-ops' && (
+              <ErrorBoundary fallbackTitle="Không thể tải thao tác chuỗi lạnh">
+                <ShipmentCreateForm />
+                <ShipmentReadingForm />
+              </ErrorBoundary>
+            )}
+
+            {activeTab === 'organization' && (
+              <ErrorBoundary fallbackTitle="Không thể tải thông tin quản trị tổ chức">
+                <OrganizationAdminPanel
+                  canManage={hasPermission(user.role, 'organizations:manage')}
+                />
+              </ErrorBoundary>
             )}
           </main>
         </div>

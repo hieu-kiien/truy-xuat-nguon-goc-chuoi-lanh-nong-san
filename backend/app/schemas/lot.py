@@ -8,6 +8,35 @@ from app.schemas.location import LocationRead
 from app.schemas.product import ProductRead
 
 
+class InputLotItemCreate(BaseModel):
+    """One input material used for a lot, with the date and the amount."""
+
+    product_id: UUID
+    quantity: Decimal = Field(gt=0, max_digits=14, decimal_places=3)
+    used_on: date
+
+
+class InputLotCreate(BaseModel):
+    """Declaration of the input materials used for one lot."""
+
+    items: list[InputLotItemCreate] = Field(..., min_length=1, max_length=50)
+
+
+class InputLotRead(BaseModel):
+    """One recorded input material declaration."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    lot_id: UUID
+    product_id: UUID
+    product_name: str = ""
+    quantity: Decimal
+    used_on: date
+    organization_id: UUID
+    created_at: datetime
+
+
 class LotCreate(BaseModel):
     farm_id: UUID
     product_id: UUID

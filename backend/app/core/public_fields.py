@@ -18,6 +18,7 @@ PUBLIC_TRACE_FIELDS = frozenset(
         "status",
         "recall_active",
         "cold_chain_violation",
+        "processing_summary",
     }
 )
 
@@ -55,5 +56,6 @@ def build_public_trace(row: dict[str, Any]) -> dict[str, Any]:
         "status": LOT_STATUS_LABELS.get(row.get("status"), "Không xác định"),
         "recall_active": bool(row.get("recall_active")),
         "cold_chain_violation": bool(row.get("cold_chain_violation")),
+        "processing_summary": row.get("processing_summary") or None,
     }
     return {field: raw[field] for field in PUBLIC_TRACE_FIELDS if field in raw}

@@ -123,6 +123,7 @@ def test_grant_existing_table_permissions():
             ("shipments",),
             ("product_cold_chain_configs",),
         ],
+        [("contact_email",)],
         [
             ("current_holder_organization_id",),
             ("status",),
@@ -152,6 +153,10 @@ def test_grant_existing_table_permissions():
         "GRANT UPDATE (cold_chain_min_temp_celsius" in query
         for query in executed_queries
     ), "N3-62 shipment snapshot columns must be updatable by the app role"
+    assert any(
+        "GRANT UPDATE (contact_email) ON organizations" in query
+        for query in executed_queries
+    ), "N3-57 contact address must be updatable by the app role"
 
 
 def test_grant_existing_table_permissions_shipments_without_last_reading_at():

@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { ApiError, getPublicTrace } from '../services/api'
-import type { PublicTraceResponse, PublicTraceWarning } from '../types'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { ApiError, getPublicRoute, getPublicTrace } from '../services/api'
+import type { PublicRoute, PublicTraceResponse, PublicTraceWarning } from '../types'
+
+const RouteMap = lazy(() => import('./RouteMap').then((module) => ({ default: module.RouteMap })))
 
 const LOT_CODE_PATTERN = /^[A-Za-z0-9-]{4,32}$/
 
@@ -49,6 +51,7 @@ export function PublicTracePage() {
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [result, setResult] = useState<PublicTraceResponse | null>(null)
+  const [route, setRoute] = useState<PublicRoute | null>(null)
   const autoLookupDone = useRef(false)
 
   const lookup = useCallback(async (rawCode: string) => {
@@ -56,6 +59,7 @@ export function PublicTracePage() {
     if (!LOT_CODE_PATTERN.test(normalized)) {
       setErrorMessage('Mã lô gồm 4–12 ký tự chữ và số, không có ký tự đặc biệt.')
       setResult(null)
+      setRoute(null)
       return
     }
 
@@ -63,6 +67,7 @@ export function PublicTracePage() {
     setLoading(true)
     setErrorMessage(null)
     setResult(null)
+    setRoute(null)
     try {
       const payload = await getPublicTrace(normalized)
       setResult(payload)
@@ -78,6 +83,13 @@ export function PublicTracePage() {
       }
     } finally {
       setLoading(false)
+    }
+
+    // Bản đồ hành trình là phần bổ sung: lô vẫn tra cứu được khi không có tuyến đường.
+    try {
+      setRoute(await getPublicRoute(normalized))
+    } catch {
+      setRoute(null)
     }
   }, [])
 
@@ -311,6 +323,20 @@ export function PublicTracePage() {
                   </div>
                 </div>
               </div>
+
+              {trace.processing_summary ? (
+                <div className="trace-field-tile">
+                  <span className="trace-field-icon" aria-hidden="true">&#9881;</span>
+                  <div>
+                    <span className="trace-field-lbl">Công đoạn chế biến</span>
+                    <span className="trace-field-val">{trace.processing_summary}</span>
+                  </div>
+                </div>
+              ) : null}
+
+              <Suspense fallback={<div className="route-map" aria-busy="true" />}>
+                <RouteMap route={route} lotCode={trace.lot_code ?? ''} />
+              </Suspense>
 
               <p className="public-trace-note">
                 🔒 Trang chỉ hiển thị các trường công khai nhằm bảo vệ thông tin kinh doanh

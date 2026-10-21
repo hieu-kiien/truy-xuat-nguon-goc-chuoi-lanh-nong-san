@@ -118,6 +118,51 @@ export function WorkspaceSidebar({
                   <span>Tính toàn vẹn</span>
                 </button>
               </li>}
+              {hasPermission(user.role, 'telemetry:read') && <li>
+                <button
+                  type="button"
+                  onClick={() => selectTab('cold-chain-stats')}
+                  className={`dashboard-nav-item ${
+                    activeTab === 'cold-chain-stats' ? 'dashboard-nav-item-active' : ''
+                  }`}
+                >
+                  <span>Thống kê chuỗi lạnh</span>
+                </button>
+              </li>}
+              {hasPermission(user.role, 'shipments:read') && <li>
+                <button
+                  type="button"
+                  onClick={() => selectTab('cold-chain')}
+                  className={`dashboard-nav-item ${
+                    activeTab === 'cold-chain' ? 'dashboard-nav-item-active' : ''
+                  }`}
+                >
+                  <span>Chuỗi nhiệt độ</span>
+                </button>
+              </li>}
+              {(hasPermission(user.role, 'shipments:create') ||
+                hasPermission(user.role, 'telemetry:ingest')) && <li>
+                <button
+                  type="button"
+                  onClick={() => selectTab('cold-chain-ops')}
+                  className={`dashboard-nav-item ${
+                    activeTab === 'cold-chain-ops' ? 'dashboard-nav-item-active' : ''
+                  }`}
+                >
+                  <span>Thao tác chuỗi lạnh</span>
+                </button>
+              </li>}
+              {hasPermission(user.role, 'organizations:read') && <li>
+                <button
+                  type="button"
+                  onClick={() => selectTab('organization')}
+                  className={`dashboard-nav-item ${
+                    activeTab === 'organization' ? 'dashboard-nav-item-active' : ''
+                  }`}
+                >
+                  <span>Quản trị tổ chức</span>
+                </button>
+              </li>}
             </ul>
           </div>
 

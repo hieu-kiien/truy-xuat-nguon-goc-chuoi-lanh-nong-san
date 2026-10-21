@@ -11,13 +11,18 @@ from app.bootstrap_db_role import bootstrap_database_role
 from app.core.config import settings
 from app.core.security import hash_password, hash_session_token
 from app.models.cold_chain_config import ProductColdChainConfig
+from app.models.email_outbox import EmailOutbox
 from app.models.event import Event
 from app.models.farm import Farm
 from app.models.handover import Handover
 from app.models.identity import AuthSession, Organization, Role, User
+from app.models.integrity_alert import IntegrityAlert
 from app.models.integrity_check import IntegrityCheck
 from app.models.lot import Lot
+from app.models.lot_input import LotInputLot
 from app.models.lot_relation import LotRelation
+from app.models.organization_invitation import OrganizationInvitation
+from app.models.processing_step import LotProcessingStep
 from app.models.recall_order import RecallConfirmation, RecallOrder
 from app.models.shipment import Shipment, ShipmentLot
 from app.models.telemetry import ColdChainViolation, TemperatureReading
@@ -157,7 +162,21 @@ def identity_factory(
                     text("ALTER TABLE integrity_checks DISABLE TRIGGER USER")
                 )
                 admin_session.execute(
+                    text("ALTER TABLE integrity_alerts DISABLE TRIGGER USER")
+                )
+                admin_session.execute(
                     delete(Handover).where(Handover.lot_id.in_(lot_ids))
+                )
+                admin_session.execute(
+                    delete(LotInputLot).where(LotInputLot.lot_id.in_(lot_ids))
+                )
+                admin_session.execute(
+                    delete(LotProcessingStep).where(
+                        LotProcessingStep.lot_id.in_(lot_ids)
+                    )
+                )
+                admin_session.execute(
+                    delete(IntegrityAlert).where(IntegrityAlert.lot_id.in_(lot_ids))
                 )
                 admin_session.execute(
                     delete(IntegrityCheck).where(IntegrityCheck.lot_id.in_(lot_ids))
@@ -179,6 +198,9 @@ def identity_factory(
                     delete(ShipmentLot).where(ShipmentLot.lot_id.in_(lot_ids))
                 )
                 admin_session.execute(delete(Lot).where(Lot.id.in_(lot_ids)))
+                admin_session.execute(
+                    text("ALTER TABLE integrity_alerts ENABLE TRIGGER USER")
+                )
                 admin_session.execute(
                     text("ALTER TABLE integrity_checks ENABLE TRIGGER USER")
                 )
@@ -231,6 +253,18 @@ def identity_factory(
         admin_session.execute(
             delete(Farm).where(Farm.organization_id.in_(created_organizations))
         )
+    if created_organizations:
+        admin_session.execute(
+            delete(EmailOutbox).where(
+                EmailOutbox.organization_id.in_(created_organizations)
+            )
+        )
+        # Invitations reference the inviting user, so they go first.
+        admin_session.execute(
+            delete(OrganizationInvitation).where(
+                OrganizationInvitation.organization_id.in_(created_organizations)
+            )
+        )
     if created_users:
         admin_session.execute(
             delete(ProductColdChainConfig).where(
@@ -242,6 +276,10 @@ def identity_factory(
         )
         admin_session.execute(delete(User).where(User.id.in_(created_users)))
     if created_organizations:
+        # Members accepted through an invitation are not created by the fixture.
+        admin_session.execute(
+            delete(User).where(User.organization_id.in_(created_organizations))
+        )
         admin_session.execute(
             delete(Organization).where(Organization.id.in_(created_organizations))
         )

@@ -1,0 +1,79 @@
+name: Nightly Database Backup
+
+# N3-76: sao luu co so du lieu hang dem va giu 14 ban ghi moi nhat.
+# The dump is written outside the application container and uploaded as a
+# workflow artifact so a redeploy never destroys the backups.
+
+on:
+  schedule:
+    # 02:15 every day (UTC)
+    - cron: "15 2 * * *"
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: "How many dumps to keep"
+        default: "14"
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: 💾 Nightly backup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          cd backend
+          pip install -r requirements-dev.txt
+
+      - name: Install PostgreSQL client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Take the backup
+        env:
+          DATABASE_URL_ENV: ${{ secrets.STAGING_DATABASE_URL }}
+          MIGRATION_DATABASE_URL_ENV: ${{ secrets.STAGING_DATABASE_URL }}
+          DB_USER: ${{ secrets.STAGING_DB_USER }}
+          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          DB_ADMIN_USER: ${{ secrets.STAGING_DB_ADMIN_USER }}
+          DB_ADMIN_PASSWORD: ${{ secrets.STAGING_DB_ADMIN_PASSWORD }}
+          BACKUP_DIR: ${{ github.workspace }}/backups
+        run: |
+          cd backend
+          python scripts/backup.py backup \
+            --directory "${BACKUP_DIR}" \
+            --keep "${{ inputs.keep || '14' }}"
+
+      - name: Verify the newest dump
+        env:
+          DATABASE_URL_ENV: ${{ secrets.STAGING_DATABASE_URL }}
+          MIGRATION_DATABASE_URL_ENV: ${{ secrets.STAGING_DATABASE_URL }}
+          DB_USER: ${{ secrets.STAGING_DB_USER }}
+          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          DB_ADMIN_USER: ${{ secrets.STAGING_DB_ADMIN_USER }}
+          DB_ADMIN_PASSWORD: ${{ secrets.STAGING_DB_ADMIN_PASSWORD }}
+        run: |
+          cd backend
+          NEWEST=$(ls -1t "${GITHUB_WORKSPACE}"/backups/agrochain-*.dump | head -n 1)
+          python scripts/backup.py verify --dump "${NEWEST}"
+
+      - name: Upload the dumps
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backups
+          path: ${{ github.workspace }}/backups/
+          retention-days: 30

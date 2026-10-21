@@ -15,6 +15,7 @@ import type {
   ProductPayload,
   SessionUser,
   IntegrityCheckRecord,
+  IntegrityScanSummary,
   EventHistory,
   Handover,
   HandoverPayload,
@@ -24,6 +25,25 @@ import type {
   RecallOrder,
   RecallNotification,
   PublicTraceResponse,
+  ColdChainViolationStats,
+  LotInputLot,
+  LotInputLotPayload,
+  NotificationList,
+  NotificationItem,
+  PublicRoute,
+  ProcessingStep,
+  ProcessingStepRecord,
+  Shipment,
+  ShipmentHourlyAggregate,
+  ShipmentTemperatureReading,
+  OrganizationProfile,
+  OrganizationInvitation,
+  OrganizationInvitationCreated,
+  OrganizationMember,
+  ShipmentColdChainLimits,
+  ProductColdChainConfig,
+  ShipmentViolation,
+  TelemetryIngestResult,
 } from '../types'
 
 
@@ -111,6 +131,28 @@ async function parseApiError(response: Response): Promise<ApiError> {
     `Lỗi HTTP ${response.status}: ${response.statusText || 'Yêu cầu thất bại'}`,
   )
 }
+
+export const getPublicRoute = (code: string): Promise<PublicRoute> => {
+  const normalized = code.trim().toUpperCase()
+  return request<PublicRoute>(
+    `/api/v1/public/trace/${encodeURIComponent(normalized)}/route`
+  )
+}
+
+export const getProcessingStepCatalogue = () =>
+  request<ProcessingStep[]>('/api/v1/processing-steps/')
+
+export const getLotProcessingSteps = (lotId: string) =>
+  request<ProcessingStepRecord[]>(`/api/v1/lots/${lotId}/processing-steps`)
+
+export const recordLotProcessingStep = (
+  lotId: string,
+  payload: { processing_step_id: string; parameters: Record<string, unknown> },
+) =>
+  request<ProcessingStepRecord>(`/api/v1/lots/${lotId}/processing-steps`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 
 export async function getPublicTrace(code: string): Promise<PublicTraceResponse> {
   const normalized = code.trim().toUpperCase()
@@ -373,6 +415,46 @@ export const verifyLotIntegrity = (lotId: string) =>
 export const getIntegrityCheckHistory = (lotId: string) =>
   request<IntegrityCheckRecord[]>(`/api/v1/events/lots/${lotId}/integrity-checks`)
 
+export const getIntegrityScanSummary = () =>
+  request<IntegrityScanSummary>('/api/v1/events/integrity/summary')
+
+export const getLotInputLots = (lotId: string) =>
+  request<LotInputLot[]>(`/api/v1/lots/${lotId}/input-lots`)
+
+export const createLotInputLots = (
+  lotId: string,
+  items: LotInputLotPayload[],
+) =>
+  request<LotInputLot[]>(`/api/v1/lots/${lotId}/input-lots`, {
+    method: 'POST',
+    body: JSON.stringify({ items }),
+  })
+
+export const getColdChainViolationStats = (
+  params: { from?: string; to?: string } = {},
+): Promise<ColdChainViolationStats> => {
+  const query = new URLSearchParams()
+  if (params.from) query.set('from', params.from)
+  if (params.to) query.set('to', params.to)
+  const suffix = query.toString() ? `?${query.toString()}` : ''
+  return request<ColdChainViolationStats>(
+    `/api/v1/telemetry/violations/stats${suffix}`,
+  )
+}
+
+export const getNotifications = () =>
+  request<NotificationList>('/api/v1/notifications')
+export const markNotificationRead = (notificationId: string) =>
+  request<NotificationItem>(
+    `/api/v1/notifications/${notificationId}/read`,
+    { method: 'POST' },
+  )
+
+export const markAllNotificationsRead = () =>
+  request<{ updated: number }>('/api/v1/notifications/read-all', {
+    method: 'POST',
+  })
+
 export const getLotHistory = (lotId: string, after = 0) =>
   request<EventHistory>(`/api/v1/events/lots/${lotId}/history?page_size=10&after=${after}`)
 
@@ -416,3 +498,103 @@ export async function downloadLotReport(lotId: string): Promise<Blob> {
 // ARCHITECTURAL GUARANTEE (N3-21):
 // There are NO updateEvent or deleteEvent functions.
 // Events are strictly append-only.
+
+export const getShipments = () => request<Shipment[]>('/api/v1/shipments')
+
+export const getShipmentReadings = (
+  shipmentId: string,
+  params: { from?: string; to?: string } = {},
+) => {
+  const query = new URLSearchParams()
+  if (params.from) query.set('from', params.from)
+  if (params.to) query.set('to', params.to)
+  const suffix = query.toString() ? `?${query.toString()}` : ''
+  return request<ShipmentTemperatureReading[]>(
+    `/api/v1/telemetry/shipments/${shipmentId}/readings${suffix}`,
+  )
+}
+
+export const getShipmentColdChainLimits = (shipmentId: string) =>
+  request<ShipmentColdChainLimits>(
+    `/api/v1/telemetry/shipments/${shipmentId}/cold-chain-limits`,
+  )
+
+export const getShipmentViolations = (shipmentId: string) =>
+  request<ShipmentViolation[]>(
+    `/api/v1/telemetry/shipments/${shipmentId}/violations`,
+  )
+
+export const createShipment = (payload: {
+  container_code: string
+  lot_ids: string[]
+  notes?: string | null
+  shipment_code?: string | null
+}) =>
+  request<Shipment>('/api/v1/shipments', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const ingestTelemetryReadings = (payload: {
+  container_code: string
+  readings: { recorded_at: string; temperature_celsius: string }[]
+}) =>
+  request<TelemetryIngestResult>('/api/v1/telemetry/readings', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const getShipmentHourlyAggregates = (shipmentId: string) =>
+  request<ShipmentHourlyAggregate[]>(
+    `/api/v1/telemetry/shipments/${shipmentId}/readings/hourly`,
+  )
+
+export const getMyOrganization = () =>
+  request<OrganizationProfile>('/api/v1/organizations/me')
+
+export const updateContactEmail = (contactEmail: string) =>
+  request<OrganizationProfile>('/api/v1/organizations/me/contact-email', {
+    method: 'PUT',
+    body: JSON.stringify({ contact_email: contactEmail }),
+  })
+
+export const getOrganizationInvitations = () =>
+  request<OrganizationInvitation[]>('/api/v1/organizations/invitations')
+
+export const createOrganizationInvitation = (payload: {
+  email: string
+  role_code: string
+}) =>
+  request<OrganizationInvitationCreated>('/api/v1/organizations/invitations', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const revokeOrganizationInvitation = (invitationId: string) =>
+  request<OrganizationInvitation>(
+    `/api/v1/organizations/invitations/${invitationId}/revoke`,
+    { method: 'POST' },
+  )
+
+export const getOrganizationMembers = () =>
+  request<OrganizationMember[]>('/api/v1/organizations/members')
+
+export const deactivateOrganizationMember = (userId: string) =>
+  request<OrganizationMember>(
+    `/api/v1/organizations/members/${userId}/deactivate`,
+    { method: 'POST' },
+  )
+
+export const getProductColdChainConfig = (productId: string) =>
+  request<ProductColdChainConfig>(
+    `/api/v1/products/${productId}/cold-chain-config`,
+  )
+
+export const updateProductColdChainConfig = (
+  productId: string,
+  payload: { min_temp_celsius: string; max_temp_celsius: string; delay_minutes: number },
+) =>
+  request<ProductColdChainConfig>(
+    `/api/v1/products/${productId}/cold-chain-config`,
+    { method: 'PUT', body: JSON.stringify(payload) },
+  )

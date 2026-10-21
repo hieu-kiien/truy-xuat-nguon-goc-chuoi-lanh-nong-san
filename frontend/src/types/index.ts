@@ -374,7 +374,13 @@ export const ORG_TYPE_LABELS: Record<OrganizationType, string> = {
 
 export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
   grower: [
+    'organizations:read',
+
     'auth:session',
+    'processing_steps:read',
+    'input_lots:create',
+    'input_lots:read',
+    'notifications:read',
     'farms:read',
     'farms:write',
     'products:read',
@@ -388,8 +394,15 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'recalls:confirm',
   ],
   cooperative: [
+    'organizations:read',
+
     'lots:transform',
     'auth:session',
+    'processing_steps:read',
+    'processing_steps:create',
+    'input_lots:create',
+    'input_lots:read',
+    'notifications:read',
     'products:read',
     'lots:read',
     'events:read',
@@ -405,7 +418,11 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'telemetry:read',
   ],
   transporter: [
+    'organizations:read',
+
     'auth:session',
+    'processing_steps:read',
+    'notifications:read',
     'products:read',
     'lots:read',
     'events:read',
@@ -421,10 +438,15 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'telemetry:read',
   ],
   distributor: [
+    'organizations:read',
+
     'locations:manage',
     'lots:consume',
     'lots:transform',
     'auth:session',
+    'processing_steps:read',
+    'processing_steps:create',
+    'notifications:read',
     'products:read',
     'lots:read',
     'events:read',
@@ -440,7 +462,12 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'telemetry:read',
   ],
   inspector: [
+    'organizations:read',
+
     'auth:session',
+    'processing_steps:read',
+    'input_lots:read',
+    'notifications:read',
     'products:read',
     'lots:read_all',
     'events:read_all',
@@ -455,10 +482,18 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'telemetry:read_all',
   ],
   organization_admin: [
+    'organizations:manage',
+    'organizations:read',
+
     'locations:manage',
     'lots:consume',
     'lots:transform',
     'auth:session',
+    'processing_steps:read',
+    'processing_steps:create',
+    'input_lots:create',
+    'input_lots:read',
+    'notifications:read',
     'farms:read',
     'farms:write',
     'products:read',
@@ -479,7 +514,15 @@ export const ROLE_PERMISSIONS: Record<RoleCode, string[]> = {
     'telemetry:read',
   ],
   system_admin: [
+    'organizations:manage',
+    'organizations:read',
+
     'auth:session',
+    'processing_steps:read',
+    'processing_steps:create',
+    'processing_steps:manage',
+    'input_lots:read',
+    'notifications:read',
     'farms:read',
     'farms:write',
     'farms:read_all',
@@ -537,6 +580,7 @@ export function hasPermission(role: RoleCode, permission: string): boolean {
 }
 
 export interface PublicTrace {
+  processing_summary?: string | null
   lot_code: string | null
   product_name: string | null
   product_unit: string | null
@@ -557,4 +601,245 @@ export interface PublicTraceWarning {
 export interface PublicTraceResponse {
   trace: PublicTrace
   warnings: PublicTraceWarning[]
+}
+
+export interface RoutePoint {
+  order: number
+  name: string
+  kind: 'origin' | 'stop'
+  latitude: number
+  longitude: number
+}
+
+export interface PublicRoute {
+  points: RoutePoint[]
+  precision_note: string
+}
+
+export interface ProcessingStep {
+  id: string
+  code: string
+  name: string
+  parameter_schema: Record<string, { type?: string; label?: string }>
+}
+
+export interface ProcessingStepRecord {
+  id: string
+  lot_id: string
+  processing_step_id: string
+  processing_step_code: string
+  processing_step_name: string
+  parameters: Record<string, unknown>
+  occurred_at: string
+  organization_id: string
+  created_at: string
+}
+
+export interface CarrierViolationStats {
+  carrier_organization_id: string
+  carrier_organization_name: string
+  carrier_organization_type: string
+  shipment_count: number
+  shipment_with_violation_count: number
+  violation_count: number
+  high_temp_violation_count: number
+  low_temp_violation_count: number
+  total_violation_minutes: number
+  violation_shipment_rate: number
+}
+
+export interface ColdChainViolationStats {
+  period_start: string | null
+  period_end: string
+  carriers: CarrierViolationStats[]
+  total_shipment_count: number
+  total_shipment_with_violation_count: number
+  total_violation_count: number
+  total_violation_minutes: number
+  violation_shipment_rate: number
+}
+
+export interface IntegrityAlert {
+  id: string
+  lot_id: string
+  lot_code: string | null
+  organization_id: string
+  detected_at: string
+  first_invalid_sequence: number | null
+  issue_count: number
+  checked_events: number
+}
+
+export interface IntegrityScanSummary {
+  generated_at: string
+  last_checked_at: string | null
+  checked_lot_count: number
+  broken_lot_count: number
+  broken_lots: IntegrityAlert[]
+  recent_alerts: IntegrityAlert[]
+}
+
+export interface NotificationItem {
+  id: string
+  kind: 'handover_pending' | 'recall_affected' | 'cold_chain_violation'
+  title: string
+  body: string
+  link_path: string
+  lot_id: string | null
+  lot_code: string | null
+  created_at: string
+  read_at: string | null
+}
+
+export interface NotificationList {
+  items: NotificationItem[]
+  unread_count: number
+  generated_at: string
+}
+
+export interface LotInputLot {
+  id: string
+  lot_id: string
+  product_id: string
+  product_name: string
+  quantity: string
+  used_on: string
+  organization_id: string
+  created_at: string
+}
+
+export interface LotInputLotPayload {
+  product_id: string
+  quantity: string
+  used_on: string
+}
+
+export interface Shipment {
+  id: string
+  shipment_code: string
+  organization_id: string
+  created_by_user_id: string
+  container_code: string
+  status: string
+  notes: string | null
+  created_at: string
+  completed_at: string | null
+  lot_count: number
+}
+
+export interface ShipmentTemperatureReading {
+  id: string
+  shipment_id: string
+  container_code: string
+  temperature_celsius: string
+  recorded_at: string
+  ingested_at: string
+}
+
+export interface ShipmentHourlyAggregate {
+  id: string
+  shipment_id: string
+  container_code: string
+  bucket_start: string
+  reading_count: number
+  min_temperature_celsius: string | null
+  max_temperature_celsius: string | null
+  avg_temperature_celsius: string | null
+  is_gap: boolean
+}
+
+export interface OrganizationProfile {
+  id: string
+  name: string
+  organization_type: string
+  contact_email: string | null
+}
+
+export interface OrganizationInvitation {
+  id: string
+  organization_id: string
+  organization_name: string
+  email: string
+  role_code: string
+  status: string
+  created_at: string
+  expires_at: string
+  accepted_at: string | null
+  revoked_at: string | null
+}
+
+export interface OrganizationMember {
+  id: string
+  email: string
+  full_name: string
+  role_code: string
+  is_active: boolean
+  locked_until: string | null
+}
+
+export interface OrganizationInvitationCreated extends OrganizationInvitation {
+  /** The single-use link, handed over only when the invitation is made. */
+  invitation_url: string
+}
+
+export interface ShipmentColdChainLimits {
+  shipment_id: string
+  shipment_code: string
+  min_temp_celsius: string
+  max_temp_celsius: string
+  delay_minutes: number
+  from_snapshot: boolean
+  config_resolved_at: string | null
+  sources: ProductColdChainLimitSource[]
+}
+
+export interface ProductColdChainLimitSource {
+  product_id: string | null
+  product_name: string | null
+  configured: boolean
+  min_temp_celsius: string
+  max_temp_celsius: string
+  delay_minutes: number
+}
+
+export interface ProductColdChainConfig {
+  id: string
+  product_id: string
+  product_name: string
+  min_temp_celsius: string
+  max_temp_celsius: string
+  delay_minutes: number
+  updated_by_user_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ShipmentViolation {
+  id: string | null
+  shipment_id: string | null
+  violation_type: string
+  started_at: string
+  ended_at: string
+  duration_minutes: number
+  peak_temperature_celsius: number
+  is_settled: boolean
+}
+
+export interface TelemetryIngestResult {
+  container_code: string
+  shipment_id: string
+  shipment_code: string
+  ingested_count: number
+  duplicate_count: number
+  total_readings: number
+  violations_detected: number
+  violations: ShipmentViolation[]
+  applied_limits: AppliedColdChainLimits
+}
+
+export interface AppliedColdChainLimits {
+  min_temp_celsius: string
+  max_temp_celsius: string
+  delay_minutes: number
+  from_snapshot: boolean
 }

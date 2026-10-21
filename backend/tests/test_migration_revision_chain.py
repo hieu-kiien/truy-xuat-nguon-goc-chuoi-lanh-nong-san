@@ -33,4 +33,18 @@ def test_legacy_revision_08_precedes_harvest_schema_and_handover_migrations():
     assert public_trace.down_revision == "20261020_30"
     product_cold_chain_config = script.get_revision("20261020_32")
     assert product_cold_chain_config.down_revision == "20261020_31"
-    assert script.get_current_head() == "20261020_32"
+    integrity_scanner = script.get_revision("20261021_33")
+    assert integrity_scanner.down_revision == "20261020_32"
+    notifications = script.get_revision("20261021_34")
+    assert notifications.down_revision == "20261021_33"
+    invitations = script.get_revision("20261021_36")
+    assert invitations.down_revision == "20261021_35"
+    input_lots = script.get_revision("20261021_37")
+    assert input_lots.down_revision == "20261021_36"
+    processing_steps = script.get_revision("20261021_38")
+    assert processing_steps.down_revision == "20261021_37"
+    public_route = script.get_revision("20261021_39")
+    assert public_route.down_revision == "20261021_38"
+    aggregates = script.get_revision("20261021_40")
+    assert aggregates.down_revision == "20261021_39"
+    assert script.get_current_head() == "20261021_40"

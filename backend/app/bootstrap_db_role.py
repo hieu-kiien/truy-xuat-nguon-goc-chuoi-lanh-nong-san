@@ -30,6 +30,12 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
         cursor.execute(
             sql.SQL("GRANT SELECT ON organizations TO {}").format(role_ident)
         )
+        if "contact_email" in _table_columns(cursor, "organizations"):
+            cursor.execute(
+                sql.SQL("GRANT UPDATE (contact_email) ON organizations TO {}").format(
+                    role_ident
+                )
+            )
     if "roles" in tables:
         cursor.execute(sql.SQL("GRANT SELECT ON roles TO {}").format(role_ident))
     if "users" in tables:
@@ -232,6 +238,25 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
         )
         cursor.execute(
             sql.SQL("REVOKE DELETE ON cold_chain_violations FROM {}").format(role_ident)
+        )
+    if "integrity_alerts" in tables:
+        # Alerts are written by the privileged maintenance scanner only.
+        cursor.execute(
+            sql.SQL("GRANT SELECT ON integrity_alerts TO {}").format(role_ident)
+        )
+        cursor.execute(
+            sql.SQL("REVOKE INSERT, UPDATE, DELETE ON integrity_alerts FROM {}").format(
+                role_ident
+            )
+        )
+    if "notifications" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT, UPDATE ON notifications TO {}").format(
+                role_ident
+            )
+        )
+        cursor.execute(
+            sql.SQL("REVOKE DELETE ON notifications FROM {}").format(role_ident)
         )
 
     cursor.execute(

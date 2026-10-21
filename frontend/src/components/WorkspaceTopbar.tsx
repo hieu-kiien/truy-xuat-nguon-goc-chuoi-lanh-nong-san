@@ -1,4 +1,5 @@
-import { ORG_TYPE_LABELS, type SessionUser } from '../types'
+import { hasPermission, ORG_TYPE_LABELS, type SessionUser } from '../types'
+import { NotificationBell } from './NotificationBell'
 import type { WorkspaceTab } from './FarmWorkspace'
 
 interface WorkspaceTopbarProps {
@@ -20,6 +21,10 @@ const TAB_TITLES: Record<WorkspaceTab, string> = {
   overview: 'Vùng trồng',
   security: 'Nhật ký thao tác',
   integrity: 'Kiểm tra tính toàn vẹn',
+  'cold-chain-stats': 'Thống kê chuỗi lạnh',
+  'cold-chain': 'Chuỗi nhiệt độ',
+  'cold-chain-ops': 'Thao tác chuỗi lạnh',
+  organization: 'Quản trị tổ chức',
 }
 
 export function WorkspaceTopbar({
@@ -82,6 +87,10 @@ export function WorkspaceTopbar({
         >
           {isDark ? 'Sáng' : 'Tối'}
         </button>
+
+        <NotificationBell
+          canRead={hasPermission(user.role, 'notifications:read')}
+        />
       </div>
     </header>
   )

@@ -2,10 +2,14 @@
 
 Ưu tiên đọc:
 1. [Hướng dẫn chạy](../README.md)
-2. [Nghiệm thu Sprint 1–4 và quyết định thiết kế](ACCEPTANCE.md)
-3. [API](api.md), [quyền DB](database.md), [chuỗi hash](N3-4-INTEGRITY.md), [báo cáo PDF](N3-72-PDF.md)
-4. [Mẫu phả hệ và oracle](LINEAGE-ACCEPTANCE.md)
-5. [Quyết định xoá dữ liệu định danh (R-06)](N3-141-RISK-R06.md)
+2. [Demo từng vai trò](UX-DEMO.md)
+3. [Nghiệm thu Sprint 1–4 và quyết định thiết kế](ACCEPTANCE.md)
+4. [API](api.md), [quyền DB](database.md), [chuỗi hash](N3-4-INTEGRITY.md), [báo cáo PDF](N3-72-PDF.md)
+5. [Mẫu phả hệ và oracle](LINEAGE-ACCEPTANCE.md)
+6. [Quyết định xoá dữ liệu định danh (R-06)](N3-141-RISK-R06.md)
+7. [Sao lưu cơ sở dữ liệu và khôi phục](BACKUP-RECOVERY.md)
+8. [Vận hành hệ thống](OPERATIONS.md)
+9. [Rà soát rủi ro dự án](RISK-REVIEW.md)
 
 Không xóa migrations hoặc oracle để giảm số file: chúng vẫn cần cho nâng cấp DB và kiểm chứng.
 

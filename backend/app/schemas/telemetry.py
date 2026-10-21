@@ -60,6 +60,22 @@ class TelemetryViolationRead(BaseModel):
     is_settled: bool = False
 
 
+class TelemetryHourlyAggregateRead(BaseModel):
+    """One hour of an old temperature series, summarised (N3-64)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    shipment_id: UUID
+    container_code: str
+    bucket_start: datetime
+    reading_count: int
+    min_temperature_celsius: Decimal | None = None
+    max_temperature_celsius: Decimal | None = None
+    avg_temperature_celsius: Decimal | None = None
+    is_gap: bool = False
+
+
 class TelemetryIngestResponse(BaseModel):
     """Response returned upon ingesting telemetry readings."""
 

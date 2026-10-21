@@ -17,6 +17,8 @@ import { TaskLink } from './TaskLink'
 import { EventCreateForm } from './EventCreateForm'
 import { RecallPanel } from './RecallPanel'
 import { LotQrPanel } from './LotQrPanel'
+import { LotInputLotsPanel } from './LotInputLotsPanel'
+import { ProcessingStepsPanel } from './ProcessingStepsPanel'
 import { EditDialog } from './EditDialog'
 import { displayLotCode } from '../utils/qr'
 import { lotReportFileName } from '../utils/report'
@@ -34,6 +36,10 @@ interface LotDetailPanelProps {
   canCreateEvents: boolean
   canCreateHandover: boolean
   canResolveHandover: boolean
+  canReadInputLots?: boolean
+  canDeclareInputLots?: boolean
+  canReadProcessingSteps?: boolean
+  canRecordProcessingSteps?: boolean
   onBack: () => void
 }
 
@@ -59,6 +65,10 @@ export function LotDetailPanel({
   canCreateEvents,
   canCreateHandover,
   canResolveHandover,
+  canReadInputLots = false,
+  canDeclareInputLots = false,
+  canReadProcessingSteps = false,
+  canRecordProcessingSteps = false,
   onBack,
 }: LotDetailPanelProps) {
   const [lot, setLot] = useState<LotDetail | null>(null)
@@ -225,8 +235,8 @@ export function LotDetailPanel({
               const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length
               tabs[next]?.click(); tabs[next]?.focus()
             }}>
-              {(['overview', ...(canReadEvents ? ['history'] : []), 'origins'] as const).map(tab => <button key={tab} id={`tab-${tab}`} type="button" role="tab" aria-selected={view === tab} aria-controls="lot-tab-content" tabIndex={view === tab ? 0 : -1} onClick={() => setView(tab)}>
-                {tab === 'overview' ? 'Tổng quan' : tab === 'history' ? 'Lịch sử sự kiện' : 'Nguồn gốc'}
+              {(['overview', ...(canReadEvents ? ['history'] : []), 'origins', ...(canReadInputLots ? ['inputs'] : []), ...(canReadProcessingSteps ? ['steps'] : [])] as const).map(tab => <button key={tab} id={`tab-${tab}`} type="button" role="tab" aria-selected={view === tab} aria-controls="lot-tab-content" tabIndex={view === tab ? 0 : -1} onClick={() => setView(tab)}>
+                {tab === 'overview' ? 'Tổng quan' : tab === 'history' ? 'Lịch sử sự kiện' : tab === 'inputs' ? 'Vật tư đã dùng' : tab === 'steps' ? 'Công đoạn chế biến' : 'Nguồn gốc'}
               </button>)}
             </nav>
             <div id="lot-tab-content" role="tabpanel" aria-labelledby={`tab-${view}`} className="info-stack">
@@ -247,6 +257,20 @@ export function LotDetailPanel({
                 {handover && <p>Bàn giao gần nhất: {handoverLabel(handover.status)} · {handover.from_organization_name} → {handover.to_organization_name}{handover.overdue_at && handover.status === 'pending' ? ' · Quá hạn xác nhận' : ''}</p>}
               </section>}
               {view === 'history' && history && <section className="panel-card panel-box"><EventTimeline key={lot.id} lotId={lot.id} nextCursor={history.next_cursor} events={history.events} lotName={displayLotCode(lot)} loading={false} integrity={history.integrity} /></section>}
+              {view === 'steps' && (
+                <ProcessingStepsPanel
+                  key={lot.id}
+                  lotId={lot.id}
+                  canRecord={canRecordProcessingSteps}
+                />
+              )}
+              {view === 'inputs' && (
+                <LotInputLotsPanel
+                  key={lot.id}
+                  lotId={lot.id}
+                  canDeclare={canDeclareInputLots}
+                />
+              )}
               {view === 'origins' && <>
           <section className="panel-card panel-box" aria-label="Nguồn gốc và quan hệ trực tiếp">
             <h2>Nguồn gốc và quan hệ</h2>
