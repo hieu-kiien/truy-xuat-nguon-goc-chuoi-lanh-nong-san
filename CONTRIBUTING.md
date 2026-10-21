@@ -2,6 +2,12 @@
 
 Tài liệu này quy định quy trình quản lý mã nguồn, tiêu chuẩn chất lượng và cách thức phối hợp giữa các thành viên trong dự án.
 
+Tài liệu liên quan:
+
+- [Definition of Done và Definition of Ready](docs/DOD-DOR.md) — điều kiện trước khi nhận việc và trước khi chuyển trạng thái.
+- [Cách dùng Jira của nhóm](docs/JIRA-GUIDE.md) — cách cập nhật bình luận, chuyển trạng thái và vai trò từng thành viên.
+- [Vận hành hệ thống](docs/OPERATIONS.md) — kiểm tra sau triển khai, job bảo trì và cấu hình hạ tầng staging.
+
 ## 1. Quy trình quản lý nhánh (Git Branching)
 
 Nhánh `main` là nhánh chính thức, luôn đảm bảo trạng thái ổn định và đã được bảo vệ. Thành viên không đẩy (push) trực tiếp mã nguồn lên `main` mà thực hiện qua nhánh riêng theo định dạng:

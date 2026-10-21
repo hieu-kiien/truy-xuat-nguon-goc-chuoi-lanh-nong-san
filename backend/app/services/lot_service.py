@@ -123,7 +123,7 @@ def list_lots(
     cursor: str | None = None,
     page_size: int = 20,
     client_ip: str | None = None,
-    session_token_hash: str = "",
+    session_token_hash: str,
 ) -> dict:
     """Tra cứu lô thu hoạch chỉ đọc.
 

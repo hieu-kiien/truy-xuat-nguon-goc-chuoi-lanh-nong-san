@@ -7,3 +7,8 @@ pip-audit>=2.9.0
 httpx>=0.28.0
 ruff>=0.7.0
 pypdf>=5.0
+boto3>=1.34.0
+# Kiểm thử tích hợp cho hai kết nối của staging (N3-160): một máy chủ SMTP
+# thật và một điểm cuối tương thích S3 thật, cả hai chạy trên loopback.
+aiosmtpd>=1.4.6
+moto>=5.0.0
