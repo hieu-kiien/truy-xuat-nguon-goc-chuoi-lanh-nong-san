@@ -21,6 +21,7 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal
@@ -193,19 +194,26 @@ def sync_notifications(
         if item.source_key in known:
             continue
         known.add(item.source_key)
-        db.add(
-            Notification(
-                organization_id=principal.organization_id,
-                recipient_user_id=principal.user_id,
-                kind=item.kind,
-                source_key=item.source_key,
-                title=item.title,
-                body=item.body,
-                link_path=item.link_path,
-                lot_id=item.lot_id,
-                created_at=item.created_at,
-            )
-        )
+        try:
+            # Two tabs polling at the same time must not fail. The unique
+            # constraint on (recipient, source_key) is the real guard, so a
+            # conflicting insert is rolled back to its savepoint and skipped.
+            with db.begin_nested():
+                db.add(
+                    Notification(
+                        organization_id=principal.organization_id,
+                        recipient_user_id=principal.user_id,
+                        kind=item.kind,
+                        source_key=item.source_key,
+                        title=item.title,
+                        body=item.body,
+                        link_path=item.link_path,
+                        lot_id=item.lot_id,
+                        created_at=item.created_at,
+                    )
+                )
+        except IntegrityError:
+            continue
         added = True
     if added:
         db.flush()

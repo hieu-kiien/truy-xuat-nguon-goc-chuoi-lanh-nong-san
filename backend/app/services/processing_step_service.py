@@ -63,10 +63,24 @@ def create_catalogue_entry(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Công đoạn '{code}' đã có trong danh mục.",
         )
+    schema = payload.parameter_schema or {}
+    malformed = sorted(
+        name
+        for name, rule in schema.items()
+        if not isinstance(rule, dict) or not isinstance(rule.get("type"), str)
+    )
+    if malformed:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=(
+                "Khai báo tham số của công đoạn phải là "
+                '{"type": "number"} hoặc {"type": "string"}: ' + ", ".join(malformed)
+            ),
+        )
     step = ProcessingStep(
         code=code,
         name=payload.name.strip(),
-        parameter_schema=payload.parameter_schema or {},
+        parameter_schema=schema,
         is_active=True,
         created_at=datetime.now(UTC),
     )
@@ -97,6 +111,8 @@ def _check_parameters(step: ProcessingStep, parameters: dict[str, Any]) -> None:
         )
     for name, rule in schema.items():
         if name not in parameters:
+            continue
+        if not isinstance(rule, dict):
             continue
         expected = rule.get("type")
         value = parameters[name]

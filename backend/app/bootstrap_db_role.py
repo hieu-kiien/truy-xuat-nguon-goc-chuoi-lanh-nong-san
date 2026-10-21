@@ -258,6 +258,64 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
         cursor.execute(
             sql.SQL("REVOKE DELETE ON notifications FROM {}").format(role_ident)
         )
+    if "pii_anonymization_requests" in tables:
+        cursor.execute(
+            sql.SQL(
+                "GRANT SELECT, INSERT, UPDATE ON pii_anonymization_requests TO {}"
+            ).format(role_ident)
+        )
+        cursor.execute(
+            sql.SQL("REVOKE DELETE ON pii_anonymization_requests FROM {}").format(
+                role_ident
+            )
+        )
+    # The following tables are granted by their own migration. The bootstrap
+    # runs on every start, so it has to repeat them: when the application role
+    # does not exist yet the migration skips every GRANT and the role would
+    # end up without any privilege on these tables.
+    if "integrity_checks" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT ON integrity_checks TO {}").format(role_ident)
+        )
+        cursor.execute(
+            sql.SQL("REVOKE UPDATE, DELETE ON integrity_checks FROM {}").format(
+                role_ident
+            )
+        )
+    if "processing_steps" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT, UPDATE ON processing_steps TO {}").format(
+                role_ident
+            )
+        )
+    if "lot_processing_steps" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT ON lot_processing_steps TO {}").format(
+                role_ident
+            )
+        )
+    if "lot_input_lots" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT ON lot_input_lots TO {}").format(role_ident)
+        )
+    if "email_outbox" in tables:
+        cursor.execute(
+            sql.SQL("GRANT SELECT, INSERT, UPDATE ON email_outbox TO {}").format(
+                role_ident
+            )
+        )
+    if "organization_invitations" in tables:
+        cursor.execute(
+            sql.SQL(
+                "GRANT SELECT, INSERT, UPDATE ON organization_invitations TO {}"
+            ).format(role_ident)
+        )
+    if "temperature_hourly_aggregates" in tables:
+        cursor.execute(
+            sql.SQL(
+                "GRANT SELECT, INSERT ON temperature_hourly_aggregates TO {}"
+            ).format(role_ident)
+        )
 
     cursor.execute(
         "SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public'"
@@ -290,6 +348,27 @@ def _grant_existing_table_permissions(cursor, app_role: str) -> None:
                 "GRANT EXECUTE ON FUNCTION public.app_mark_overdue_handovers(integer) TO {}"
             ).format(role_ident)
         )
+
+    # Same reason as the tables above: these functions are granted by their own
+    # migration, so the bootstrap has to repeat the grant or the application
+    # role cannot call them after a restart.
+    for function, signature in (
+        ("app_public_lot_trace", "text"),
+        ("app_public_lot_route", "text"),
+        ("app_read_invitation", "text"),
+        ("app_accept_invitation", "text, text, text"),
+        ("app_deactivate_member", "uuid"),
+        ("app_anonymize_organization", "uuid, uuid"),
+        ("app_shipment_carries_lot_of", "uuid"),
+    ):
+        if function in routines:
+            cursor.execute(
+                sql.SQL("GRANT EXECUTE ON FUNCTION public.{}({}) TO {}").format(
+                    sql.SQL(function),
+                    sql.SQL(signature),
+                    role_ident,
+                )
+            )
 
 
 def bootstrap_database_role() -> None:

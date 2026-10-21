@@ -103,7 +103,14 @@ def delete_product(product_id: UUID, db: Annotated[Session, Depends(get_db)]) ->
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
         )
     db.delete(product)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Sản phẩm đang được dùng bởi lô hàng nên không thể xoá.",
+        ) from error
 
 
 @router.get(

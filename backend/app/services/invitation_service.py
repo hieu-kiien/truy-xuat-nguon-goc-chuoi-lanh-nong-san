@@ -13,7 +13,7 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, text
-from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.exc import IntegrityError, ProgrammingError
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal
@@ -32,6 +32,18 @@ from app.schemas.organization import (
 from app.services import email_service
 
 MIN_PASSWORD_LENGTH = 12
+# Vai trò mà quản trị tổ chức được phép cấp. `inspector` và `system_admin`
+# vượt ranh giới tổ chức (đọc được mọi tổ chức, mở và quản lý lệnh thu hồi)
+# nên không được cấp qua lời mời của tổ chức.
+INVITABLE_ROLE_CODES = frozenset(
+    {
+        "grower",
+        "cooperative",
+        "transporter",
+        "distributor",
+        "organization_admin",
+    }
+)
 
 
 def _token_hash(token: str) -> str:
@@ -55,10 +67,10 @@ def create_invitation(
     email = payload.email.strip().lower()
     _assert_role_known(db, payload.role_code)
 
-    if payload.role_code == "system_admin" and principal.role != "system_admin":
+    if payload.role_code not in INVITABLE_ROLE_CODES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Chỉ quản trị hệ thống mới được gán vai trò quản trị hệ thống.",
+            detail="Chỉ quản trị hệ thống mới được gán vai trò này.",
         )
 
     existing_user = db.scalar(select(User.id).where(User.email == email))
@@ -262,14 +274,14 @@ def accept_invitation(
                 "full_name": full_name.strip(),
             },
         ).first()
-    except ProgrammingError as error:
+    except (ProgrammingError, IntegrityError) as error:
         message = str(error.orig) if getattr(error, "orig", None) else str(error)
         if "expired" in message:
             raise HTTPException(
                 status_code=status.HTTP_410_GONE,
                 detail="Lời mời không tồn tại hoặc đã hết hạn.",
             ) from error
-        if "already has an account" in message:
+        if "already has an account" in message or "unique_violation" in message:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Địa chỉ email này đã có tài khoản.",
