@@ -197,6 +197,7 @@ def test_five_thousand_lots_filtered_cursor_page_under_300ms(
                 product_id=product.id,
                 page_size=20,
                 cursor=None,
+                session_token_hash=owner.session_token_hash,
             )
             elapsed = perf_counter() - started
             event.remove(connection, "before_cursor_execute", capture)
@@ -233,6 +234,7 @@ def test_five_thousand_lots_filtered_cursor_page_under_300ms(
                 product_id=product.id,
                 page_size=20,
                 cursor=page["next_cursor"],
+                session_token_hash=owner.session_token_hash,
             )
             assert not {r.id for r in page["items"]}.intersection(
                 r.id for r in following["items"]
