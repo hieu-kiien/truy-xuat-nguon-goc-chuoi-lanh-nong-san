@@ -315,3 +315,89 @@ def test_bootstrap_grants_the_public_and_invitation_functions():
         assert any(
             "GRANT EXECUTE" in query and function in query for query in executed
         ), f"{function} must be executable by the application role"
+
+
+def test_the_maintenance_role_may_read_the_previous_checks(admin_session: Session):
+    """The scanner must see the earlier checks of every lot.
+
+    ``integrity_checks`` has FORCE ROW LEVEL SECURITY, so on a managed
+    PostgreSQL where the migration role is not a superuser the policy applies
+    to it as well. Without a policy for the maintenance role the scanner reads
+    no earlier check: the rotation never ends and every run raises a new
+    alert for a chain that was already broken.
+    """
+    policies = list(
+        admin_session.execute(
+            text(
+                "SELECT policyname FROM pg_policies "
+                "WHERE tablename = 'integrity_checks' AND policyname = "
+                "'integrity_checks_read_maintenance'"
+            )
+        ).all()
+    )
+    assert policies, "the maintenance role needs a policy to read the checks"
+
+    definition = admin_session.execute(
+        text(
+            "SELECT qual FROM pg_policies WHERE policyname = "
+            "'integrity_checks_read_maintenance'"
+        )
+    ).scalar()
+    assert definition is not None
+    assert "current_user" in definition.lower()
+
+
+def test_a_maintenance_role_that_is_not_a_superuser_reads_the_checks(
+    admin_session: Session,
+):
+    """The policy really lets a non superuser owner read the checks."""
+    role_name = "ttcs_maintenance_probe"
+    probe = admin_session.execute(
+        text(
+            "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = "
+            f"'{role_name}') THEN CREATE ROLE {role_name} NOLOGIN NOSUPERUSER; END IF; END $$;"
+        )
+    )
+    assert probe is not None
+    try:
+        admin_session.execute(text(f"GRANT USAGE ON SCHEMA public TO {role_name}"))
+        admin_session.execute(
+            text(
+                "GRANT EXECUTE ON FUNCTION public.app_current_organization_id() "
+                f"TO {role_name}"
+            )
+        )
+        admin_session.execute(
+            text(f"GRANT EXECUTE ON FUNCTION public.app_current_role() TO {role_name}")
+        )
+        admin_session.execute(text(f"GRANT SELECT ON integrity_checks TO {role_name}"))
+        admin_session.commit()
+        visible = admin_session.execute(
+            text("SELECT count(*) FROM integrity_checks")
+        ).scalar()
+        admin_session.execute(text(f"SET ROLE {role_name}"))
+        try:
+            readable = admin_session.execute(
+                text("SELECT count(*) FROM integrity_checks")
+            ).scalar()
+        finally:
+            admin_session.execute(text("RESET ROLE"))
+        admin_session.commit()
+    finally:
+        admin_session.execute(text(f"REVOKE ALL ON integrity_checks FROM {role_name}"))
+        admin_session.execute(
+            text(
+                f"REVOKE ALL ON FUNCTION public.app_current_organization_id() FROM {role_name}"
+            )
+        )
+        admin_session.execute(
+            text(f"REVOKE ALL ON FUNCTION public.app_current_role() FROM {role_name}")
+        )
+        admin_session.execute(text(f"REVOKE ALL ON SCHEMA public FROM {role_name}"))
+        admin_session.execute(text(f"DROP OWNED BY {role_name}"))
+        admin_session.execute(text(f"DROP ROLE {role_name}"))
+        admin_session.commit()
+
+    assert readable == visible, (
+        "a role that is not the application role must be able to read the checks"
+    )

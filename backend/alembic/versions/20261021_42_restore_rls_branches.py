@@ -46,6 +46,11 @@ def _application_role() -> str | None:
     return bind.dialect.identifier_preparer.quote(settings.DB_USER)
 
 
+def _application_role_literal() -> str:
+    """Return the application role name as a SQL string literal."""
+    return "'" + settings.DB_USER.replace("'", "''") + "'"
+
+
 def upgrade() -> None:
     # 0. A helper that answers "does this shipment still carry a lot of the
     #    caller?" without touching the RLS of shipments and shipment_lots.
@@ -171,7 +176,23 @@ def upgrade() -> None:
         """
     )
 
-    # 5. Repeat the privileges of the migrations. When the application role
+    # 5. The scanner needs the earlier checks of every lot. It runs on the
+    #    migration connection, and on a managed PostgreSQL that role is not a
+    #    superuser, so FORCE ROW LEVEL SECURITY of integrity_checks applies to
+    #    it as well. Without a policy for the maintenance role the scanner
+    #    reads no earlier check: the rotation never ends and every run raises
+    #    a new alert for a chain that was already broken.
+    op.execute(
+        """
+        CREATE POLICY integrity_checks_read_maintenance ON integrity_checks
+        FOR SELECT
+        USING (current_user <> """
+        + _application_role_literal()
+        + """)
+        """
+    )
+
+    # 6. Repeat the privileges of the migrations. When the application role
     #    did not exist while the migrations ran, no GRANT was applied at all.
     role = _application_role()
     if role:
@@ -190,6 +211,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute(
+        "DROP POLICY IF EXISTS integrity_checks_read_maintenance ON integrity_checks"
+    )
+
     # The policies are restored to the state of revision 20261020_30 and
     # 20261019_29, which is what the application code already expected. The
     # helper can only be dropped at the very end, because the policies that
