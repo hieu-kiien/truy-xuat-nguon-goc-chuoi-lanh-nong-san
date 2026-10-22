@@ -9,7 +9,7 @@ interface RecallAlertBannerProps {
   initialNotifications?: RecallNotification[]
 }
 
-const CACHE_TTL_MS = 120_000
+const CACHE_TTL_MS = 3_000
 const cachedByOrg = new Map<string, RecallNotification[]>()
 const lastFetchedAtByOrg = new Map<string, number>()
 const inFlightByOrg = new Map<string, Promise<RecallNotification[]>>()
