@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import select, tuple_
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal, set_db_context
@@ -64,4 +65,10 @@ def persist_audit_row(session_token_hash: str, row: AuditLog) -> None:
         db.info["audit_fallback"] = True
         set_db_context(db, session_token_hash=session_token_hash)
         db.add(row)
-        db.commit()
+        try:
+            db.commit()
+        except ProgrammingError:
+            # Phiên đăng nhập vừa bị thu hồi đồng thời (ví dụ người dùng bấm
+            # đăng xuất trong khi truy vấn danh sách lô đang chạy); bỏ qua ghi
+            # nhật ký của phiên đã đóng thay vì trả lỗi 500.
+            db.rollback()

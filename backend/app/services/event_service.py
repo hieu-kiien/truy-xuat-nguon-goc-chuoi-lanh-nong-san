@@ -30,6 +30,9 @@ FORBIDDEN_PAYLOAD_KEYS = frozenset(
         "location_address",
         "full_name",
         "email",
+        "actor_email",
+        "contact_email",
+        "farm_name",
         "phone",
         "address",
         "actor_name",
@@ -37,9 +40,22 @@ FORBIDDEN_PAYLOAD_KEYS = frozenset(
 )
 
 
+def _payload_keys(value) -> set[str]:
+    keys: set[str] = set()
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if isinstance(key, str):
+                keys.add(key)
+            keys.update(_payload_keys(item))
+    elif isinstance(value, list):
+        for item in value:
+            keys.update(_payload_keys(item))
+    return keys
+
+
 def assert_payload_has_no_identity(payload: dict) -> None:
     """Reject a payload that would hash identifying data into the chain."""
-    offending = sorted(FORBIDDEN_PAYLOAD_KEYS.intersection(payload))
+    offending = sorted(FORBIDDEN_PAYLOAD_KEYS.intersection(_payload_keys(payload)))
     if offending:
         raise HTTPException(
             400,

@@ -3,7 +3,7 @@ import { hasPermission, type SessionUser, type Product, type ProductPayload, typ
 import { CsvImportPanel } from './CsvImportPanel'
 import { TaskLink } from './TaskLink'
 import { EditDialog } from './EditDialog'
-import { getProducts, createProduct, updateProduct } from '../services/api'
+import { getProducts, createProduct, updateProduct, deleteProduct } from '../services/api'
 
 const PRODUCT_UNITS: { value: ProductUnit; label: string }[] = [
   { value: 'kg', label: 'Kilôgam (kg)' },
@@ -319,7 +319,33 @@ export function ProductManager({ user }: ProductManagerProps) {
                     <td>{product.quantity ?? 0}</td>
                     {canWriteProducts && (
                       <td>
-                        <button type="button" className="ds-button ds-button-secondary" onClick={() => openForm(product)}>Sửa<span className="sr-only"> {product.name}</span></button>
+                        <div className="action-row">
+                          <button type="button" className="ds-button ds-button-secondary" onClick={() => openForm(product)}>Sửa<span className="sr-only"> {product.name}</span></button>
+                          <button
+                            type="button"
+                            className="ds-button ds-button-secondary"
+                            onClick={() => {
+                              setFeedback(null)
+                              deleteProduct(product.id)
+                                .then(() => {
+                                  setProducts((current) => current.filter((item) => item.id !== product.id))
+                                  setFeedback({
+                                    type: 'success',
+                                    message: `Đã xóa sản phẩm "${product.name}".`,
+                                  })
+                                })
+                                .catch((error: unknown) => {
+                                  setFeedback({
+                                    type: 'error',
+                                    message:
+                                      error instanceof Error ? error.message : 'Không thể xóa sản phẩm.',
+                                  })
+                                })
+                            }}
+                          >
+                            Xóa<span className="sr-only"> {product.name}</span>
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>

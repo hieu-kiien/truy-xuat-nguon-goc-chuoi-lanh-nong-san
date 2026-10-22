@@ -1,10 +1,12 @@
 import { useEffect, useState, useMemo, useCallback, type FormEvent } from 'react'
 import {
+  completeRecallOrder,
   confirmRecallHandling,
   getLotRecall,
   getRecallOrder,
   getRecalls,
   openRecallOrder,
+  updateRecallLotFlag,
 } from '../services/api'
 import type { RecallReport, RecallLotItem, RecallOrder } from '../types'
 import { lotStatusLabel } from '../types'
@@ -13,6 +15,7 @@ interface RecallPanelProps {
   lotId: string
   onOpenLot: (lotId: string) => void
   canOpenRecall?: boolean
+  canManageRecall?: boolean
   canConfirmRecall?: boolean
   organizationId?: string
 }
@@ -21,6 +24,7 @@ export function RecallPanel({
   lotId,
   onOpenLot,
   canOpenRecall = false,
+  canManageRecall = false,
   canConfirmRecall = false,
   organizationId,
 }: RecallPanelProps) {
@@ -37,6 +41,8 @@ export function RecallPanel({
   const [openingOrder, setOpeningOrder] = useState(false)
   const [confirmNote, setConfirmNote] = useState('')
   const [confirming, setConfirming] = useState(false)
+  const [completingOrder, setCompletingOrder] = useState(false)
+  const [updatingLotId, setUpdatingLotId] = useState<string | null>(null)
 
   const loadData = useCallback(async (targetLotId: string) => {
     const [reportData, orders] = await Promise.all([
@@ -315,6 +321,33 @@ export function RecallPanel({
               >
                 {recallOrder.status === 'completed' ? 'Hoàn tất' : 'Đang mở thu hồi'}
               </span>
+              {canManageRecall && recallOrder.status === 'open' && (
+                <button
+                  type="button"
+                  className="ds-button ds-button-secondary ds-button-sm"
+                  disabled={completingOrder}
+                  onClick={() => {
+                    setCompletingOrder(true)
+                    setError(null)
+                    setNotice(null)
+                    completeRecallOrder(recallOrder.id)
+                      .then((updated) => {
+                        setRecallOrder(updated)
+                        setNotice(`Đã đóng và hoàn tất lệnh thu hồi ${updated.recall_code}.`)
+                      })
+                      .catch((err: unknown) => {
+                        setError(
+                          err instanceof Error
+                            ? err.message
+                            : 'Không thể hoàn tất lệnh thu hồi.',
+                        )
+                      })
+                      .finally(() => setCompletingOrder(false))
+                  }}
+                >
+                  {completingOrder ? 'Đang hoàn tất…' : 'Hoàn tất lệnh thu hồi'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -557,10 +590,16 @@ export function RecallPanel({
               <th>Đã bán bao nhiêu (Tiêu thụ)</th>
               <th>Trạng thái</th>
               <th>Pha trộn</th>
+              {canManageRecall && recallOrder && recallOrder.status === 'open' && (
+                <th>Phạm vi thu hồi</th>
+              )}
             </tr>
           </thead>
           <tbody>
-            {filteredLots.map((item: RecallLotItem) => (
+            {filteredLots.map((item: RecallLotItem) => {
+              const orderLotEntry = recallOrder?.lots?.find((entry) => entry.lot_id === item.id)
+              const isFlagged = orderLotEntry ? orderLotEntry.incident_flag : true
+              return (
               <tr key={item.id} style={{ backgroundColor: item.status === 'consumed' ? 'rgba(239, 68, 68, 0.08)' : undefined }}>
                 <td>
                   <button
@@ -611,8 +650,39 @@ export function RecallPanel({
                     <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>Đơn nguồn</span>
                   )}
                 </td>
+                {canManageRecall && recallOrder && recallOrder.status === 'open' && (
+                  <td>
+                    <button
+                      type="button"
+                      className="ds-button ds-button-secondary ds-button-sm"
+                      disabled={updatingLotId === item.id || item.id === root_lot.id}
+                      onClick={() => {
+                        setUpdatingLotId(item.id)
+                        setError(null)
+                        setNotice(null)
+                        updateRecallLotFlag(recallOrder.id, item.id, !isFlagged)
+                          .then((updated) => {
+                            setRecallOrder(updated)
+                            setNotice(
+                              `Đã cập nhật phạm vi thu hồi cho lô ${item.lot_code ?? item.name}.`,
+                            )
+                          })
+                          .catch((err: unknown) => {
+                            setError(
+                              err instanceof Error
+                                ? err.message
+                                : 'Không thể cập nhật cờ ảnh hưởng của lô.',
+                            )
+                          })
+                          .finally(() => setUpdatingLotId(null))
+                      }}
+                    >
+                      {isFlagged ? 'Đang thu hồi (Loại trừ)' : 'Đã loại trừ (Đưa lại)'}
+                    </button>
+                  </td>
+                )}
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>

@@ -160,7 +160,11 @@ export function NotificationBell({ canRead }: NotificationBellProps) {
                 className={item.read_at ? 'notification-item is-read' : 'notification-item'}
               >
                 <a
-                  href={item.link_path}
+                  href={
+                    item.kind === 'recall_affected' && !item.link_path.includes('?')
+                      ? `${item.link_path}?view=recall`
+                      : item.link_path
+                  }
                   onClick={() => {
                     void openItem(item)
                   }}

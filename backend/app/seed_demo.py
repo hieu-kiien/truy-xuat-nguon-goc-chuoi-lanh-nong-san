@@ -11,11 +11,15 @@ from sqlalchemy.orm import Session
 from app.core.auth import Principal
 from app.core.config import settings
 from app.core.security import hash_password
+from app.models.cold_chain_config import ProductColdChainConfig
 from app.models.farm import Farm
 from app.models.handover import Handover
 from app.models.identity import Organization, Role, User
 from app.models.lot import Lot
+from app.models.processing_step import ProcessingStep
 from app.models.product import Product
+from app.models.shipment import Shipment, ShipmentLot
+from app.models.telemetry import ColdChainViolation, TemperatureReading
 from app.schemas.handover import HandoverCreate
 from app.schemas.location import LocationCreate, LotConsume, LotMove
 from app.schemas.lot import LotCreate
@@ -36,12 +40,14 @@ COOP_ORG_ID = UUID("22222222-2222-4222-8222-222222222222")
 INSPECT_ORG_ID = UUID("33333333-3333-4333-8333-333333333333")
 ADMIN_ORG_ID = UUID("44444444-4444-4444-8444-444444444444")
 DIST_ORG_ID = UUID("55555555-5555-4555-8555-555555555555")
+TRANSPORT_ORG_ID = UUID("66666666-6666-4666-8666-666666666666")
 
 GROWER_USER_ID = UUID("aaaa1111-1111-4111-8111-111111111111")
 COOP_USER_ID = UUID("bbbb2222-2222-4222-8222-222222222222")
 INSPECT_USER_ID = UUID("cccc3333-3333-4333-8333-333333333333")
 ADMIN_USER_ID = UUID("dddd4444-4444-4444-8444-444444444444")
 DIST_USER_ID = UUID("eeee5555-5555-4555-8555-555555555555")
+TRANSPORT_USER_ID = UUID("ffff6666-6666-4666-8666-666666666666")
 
 FARM_A1_ID = UUID("f1111111-1111-4111-8111-111111111111")
 FARM_B2_ID = UUID("f2222222-2222-4222-8222-222222222222")
@@ -50,6 +56,8 @@ FARM_C1_ID = UUID("f3333333-3333-4333-8333-333333333333")
 STRAWBERRY_PRODUCT_ID = UUID("66666666-6666-4666-8666-666666666601")
 HYDRO_VEG_PRODUCT_ID = UUID("66666666-6666-4666-8666-666666666602")
 SHAN_TEA_PRODUCT_ID = UUID("66666666-6666-4666-8666-666666666603")
+
+DEMO_SHIPMENT_ID = UUID("77777777-7777-4777-8777-777777777701")
 
 DEMO_ORGANIZATIONS = [
     {
@@ -76,6 +84,11 @@ DEMO_ORGANIZATIONS = [
         "id": DIST_ORG_ID,
         "name": "Trung tâm Phân phối Chuỗi lạnh Việt",
         "organization_type": "distribution",
+    },
+    {
+        "id": TRANSPORT_ORG_ID,
+        "name": "Công ty Vận tải Chuỗi lạnh TransViet",
+        "organization_type": "transport",
     },
 ]
 
@@ -114,6 +127,13 @@ DEMO_USERS = [
         "role_code": "distributor",
         "email": "distributor@phanphoi.vn",
         "full_name": "Phạm Quốc Bảo (Nhà phân phối Chuỗi lạnh)",
+    },
+    {
+        "id": TRANSPORT_USER_ID,
+        "organization_id": TRANSPORT_ORG_ID,
+        "role_code": "transporter",
+        "email": "transporter@vantai.vn",
+        "full_name": "Đặng Quốc Tuấn (Vận tải Chuỗi lạnh)",
     },
 ]
 
@@ -185,6 +205,36 @@ DEMO_LOCATIONS = [
     {
         "name": "Cửa hàng Rau sạch Quận 1",
         "address": "125 Nguyễn Thị Minh Khai, Phường Bến Thành, Quận 1, TP.HCM",
+    },
+]
+
+DEMO_PROCESSING_STEPS = [
+    {
+        "code": "WASH-STD",
+        "name": "Rửa ozone & làm mát nước lạnh",
+        "parameter_schema": {
+            "water_temp_c": {"type": "number", "label": "Nhiệt độ nước (°C)"},
+            "duration_minutes": {"type": "number", "label": "Thời gian rửa (phút)"},
+        },
+    },
+    {
+        "code": "SORT-GRADE",
+        "name": "Phân loại kích cỡ & kiểm định ngoại quan",
+        "parameter_schema": {
+            "grade": {"type": "string", "label": "Hạng phân loại (A/B)"},
+            "defect_rate_pct": {"type": "number", "label": "Tỷ lệ loại bỏ (%)"},
+        },
+    },
+    {
+        "code": "PACK-MAP",
+        "name": "Đóng gói khay khí quyển biến đổi (MAP)",
+        "parameter_schema": {
+            "pack_type": {"type": "string", "label": "Quy cách đóng gói"},
+            "chill_room_temp_c": {
+                "type": "number",
+                "label": "Nhiệt độ phòng đóng gói (°C)",
+            },
+        },
     },
 ]
 
@@ -314,6 +364,114 @@ def _seed_operational_demo_lots(
         session.commit()
 
 
+def _seed_sprint5_to_8_demo_extras(
+    session: Session,
+    strawberry_product_id: UUID,
+) -> None:
+    """Seed processing steps catalogue, cold chain configs, and demo shipment telemetry."""
+    for step_data in DEMO_PROCESSING_STEPS:
+        existing_step = session.scalar(
+            select(ProcessingStep).where(ProcessingStep.code == step_data["code"])
+        )
+        if existing_step is None:
+            session.add(
+                ProcessingStep(
+                    code=step_data["code"],
+                    name=step_data["name"],
+                    parameter_schema=step_data["parameter_schema"],
+                    is_active=True,
+                )
+            )
+    session.commit()
+
+    # Seed cold chain config for the 3 demo products if not already configured
+    for prod_id, min_t, max_t, delay_m in (
+        (strawberry_product_id, Decimal("2.00"), Decimal("4.00"), 30),
+        (HYDRO_VEG_PRODUCT_ID, Decimal("4.00"), Decimal("8.00"), 30),
+        (SHAN_TEA_PRODUCT_ID, Decimal("2.00"), Decimal("8.00"), 30),
+    ):
+        if session.get(Product, prod_id) is None:
+            continue
+        existing_cfg = session.scalar(
+            select(ProductColdChainConfig).where(
+                ProductColdChainConfig.product_id == prod_id
+            )
+        )
+        if existing_cfg is None:
+            session.add(
+                ProductColdChainConfig(
+                    product_id=prod_id,
+                    min_temp_celsius=min_t,
+                    max_temp_celsius=max_t,
+                    delay_minutes=delay_m,
+                    updated_by_user_id=ADMIN_USER_ID,
+                )
+            )
+    session.commit()
+
+    # Seed one demo shipment with readings & violation for TransViet if not present
+    if session.get(Shipment, DEMO_SHIPMENT_ID) is None:
+        any_coop_lot = session.scalar(
+            select(Lot)
+            .where(Lot.current_holder_organization_id == COOP_ORG_ID)
+            .limit(1)
+        )
+        started = datetime(2026, 10, 15, 8, 0, 0, tzinfo=UTC)
+        shipment = Shipment(
+            id=DEMO_SHIPMENT_ID,
+            shipment_code="SH-DEMO-001",
+            organization_id=TRANSPORT_ORG_ID,
+            created_by_user_id=TRANSPORT_USER_ID,
+            container_code="RF-DEMO-01",
+            status="in_transit",
+            notes="Chuyến xe lạnh mẫu vận chuyển nông sản Đà Lạt – TP.HCM",
+            created_at=started,
+            last_reading_at=started + timedelta(minutes=50),
+            cold_chain_min_temp_celsius=Decimal("2.00"),
+            cold_chain_max_temp_celsius=Decimal("8.00"),
+            cold_chain_delay_minutes=30,
+            cold_chain_config_resolved_at=started,
+        )
+        session.add(shipment)
+        session.flush()
+        if any_coop_lot is not None:
+            session.add(
+                ShipmentLot(
+                    shipment_id=shipment.id,
+                    lot_id=any_coop_lot.id,
+                    loaded_at=started,
+                )
+            )
+        for offset_min, temp in (
+            (0, Decimal("3.40")),
+            (10, Decimal("9.50")),
+            (20, Decimal("10.80")),
+            (30, Decimal("11.40")),
+            (40, Decimal("10.20")),
+            (50, Decimal("3.60")),
+        ):
+            session.add(
+                TemperatureReading(
+                    shipment_id=shipment.id,
+                    container_code="RF-DEMO-01",
+                    temperature_celsius=temp,
+                    recorded_at=started + timedelta(minutes=offset_min),
+                )
+            )
+        session.add(
+            ColdChainViolation(
+                shipment_id=shipment.id,
+                violation_type="high_temp",
+                started_at=started + timedelta(minutes=10),
+                ended_at=started + timedelta(minutes=40),
+                duration_minutes=Decimal("30.00"),
+                peak_temperature_celsius=Decimal("11.40"),
+                is_settled=True,
+            )
+        )
+        session.commit()
+
+
 def seed_demo_data() -> None:
     if settings.APP_ENV not in ("development", "staging"):
         return
@@ -340,16 +498,19 @@ def seed_demo_data() -> None:
                         )
                     )
                 else:
-                    org.name = org_data["name"]
+                    if not (org.name or "").startswith("Tổ chức ẩn danh"):
+                        org.name = org_data["name"]
                     org.organization_type = org_data["organization_type"]
                     org.is_active = True
 
             session.flush()
 
             for user_data in DEMO_USERS:
-                existing_user = session.scalar(
-                    select(User).where(User.email == user_data["email"])
-                )
+                existing_user = session.get(User, user_data["id"])
+                if existing_user is None:
+                    existing_user = session.scalar(
+                        select(User).where(User.email == user_data["email"])
+                    )
                 if existing_user is None:
                     session.add(
                         User(
@@ -367,7 +528,9 @@ def seed_demo_data() -> None:
                 else:
                     existing_user.organization_id = user_data["organization_id"]
                     existing_user.role_code = user_data["role_code"]
-                    existing_user.full_name = user_data["full_name"]
+                    if not (existing_user.email or "").endswith("@anonymized.invalid"):
+                        existing_user.full_name = user_data["full_name"]
+                        existing_user.email = user_data["email"]
                     existing_user.password_hash = password_hash
                     existing_user.failed_login_attempts = 0
                     existing_user.locked_until = None
@@ -535,6 +698,12 @@ def seed_demo_data() -> None:
             except Exception:
                 session.rollback()
                 logger.exception("Failed seeding operational demo lots.")
+
+            try:
+                _seed_sprint5_to_8_demo_extras(session, strawberry_product_id)
+            except Exception:
+                session.rollback()
+                logger.exception("Failed seeding Sprint 5-8 demo extras.")
     finally:
         engine.dispose()
 

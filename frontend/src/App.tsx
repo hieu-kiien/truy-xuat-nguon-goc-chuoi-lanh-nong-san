@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { FarmWorkspace, type WorkspaceTab } from './components/FarmWorkspace'
 import { LoginView } from './components/LoginView'
+import { PublicInvitationView } from './components/PublicInvitationView'
 import { PublicTracePage } from './components/PublicTracePage'
 import { ApiError, checkHealth, getCurrentUser, logout } from './services/api'
 import type { SessionUser } from './types'
@@ -14,14 +15,27 @@ const WORKSPACE_PATHS = new Set([
   '/security',
   '/audit',
   '/integrity',
+  '/cold-chain-stats',
+  '/cold-chain',
+  '/cold-chain-ops',
+  '/organization',
 ])
-// Trang công khai: ai cũng xem được, không yêu cầu đăng nhập (S-48, N3-65).
+// Trang công khai: ai cũng xem được, không yêu cầu đăng nhập (S-48, N3-65, N3-30).
 const PUBLIC_PATHS = new Set(['/truy-xuat', '/trace'])
+const PUBLIC_INVITATION_PATHS = new Set(['/moi-dai-nhiep', '/invitations/accept'])
 const PUBLIC_TRACE_CODE_PATH = /^\/(?:trace|truy-xuat)\/([^/?#]+)\/?$/i
 const LOT_DETAIL_PATH = /^\/lots\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i
 
+function isPublicInvitationPath(pathname: string): boolean {
+  return PUBLIC_INVITATION_PATHS.has(pathname)
+}
+
 function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATHS.has(pathname) || PUBLIC_TRACE_CODE_PATH.test(pathname)
+  return (
+    PUBLIC_PATHS.has(pathname) ||
+    PUBLIC_TRACE_CODE_PATH.test(pathname) ||
+    isPublicInvitationPath(pathname)
+  )
 }
 
 function isWorkspacePath(pathname: string): boolean {
@@ -58,6 +72,10 @@ function routeForTab(tab: WorkspaceTab): string {
   if (tab === 'products') return '/products'
   if (tab === 'security') return '/audit'
   if (tab === 'integrity') return '/integrity'
+  if (tab === 'cold-chain-stats') return '/cold-chain-stats'
+  if (tab === 'cold-chain') return '/cold-chain'
+  if (tab === 'cold-chain-ops') return '/cold-chain-ops'
+  if (tab === 'organization') return '/organization'
   return '/lots'
 }
 
@@ -67,6 +85,10 @@ function tabForPath(pathname: string): WorkspaceTab {
   if (pathname === '/products') return 'products'
   if (pathname === '/security' || pathname === '/audit') return 'security'
   if (pathname === '/integrity') return 'integrity'
+  if (pathname === '/cold-chain-stats') return 'cold-chain-stats'
+  if (pathname === '/cold-chain') return 'cold-chain'
+  if (pathname === '/cold-chain-ops') return 'cold-chain-ops'
+  if (pathname === '/organization') return 'organization'
   return 'lots'
 }
 
@@ -206,6 +228,10 @@ export default function App() {
 
     async function bootstrap() {
       const startsOnPublicPage = isPublicPath(initialLocation.pathname)
+      if (startsOnPublicPage) {
+        if (active) setInitializing(false)
+        return
+      }
       try {
         await checkHealth()
         if (active) setBackendOnline(true)
@@ -306,6 +332,8 @@ export default function App() {
             </p>
           </div>
         </div>
+      ) : isPublicInvitationPath(location.pathname) ? (
+        <PublicInvitationView />
       ) : isPublicPath(location.pathname) ? (
         // Trang công khai luôn hiển thị bản công khai, kể cả khi đang đăng nhập:
         // nhân viên mở link trên tem QR sẽ thấy đúng trải nghiệm của người tiêu dùng.

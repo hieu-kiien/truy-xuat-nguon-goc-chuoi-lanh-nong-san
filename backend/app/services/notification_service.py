@@ -21,7 +21,7 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, ProgrammingError
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal
@@ -29,6 +29,7 @@ from app.models.event import Event
 from app.models.handover import Handover
 from app.models.lot import Lot
 from app.models.notification import Notification
+from app.models.recall_order import RecallOrder
 from app.schemas.notification import NotificationListRead, NotificationRead
 from app.services import recall_service
 
@@ -90,20 +91,29 @@ def _pending_handover_items(db: Session, principal: Principal) -> list[Actionabl
 
 def _recall_items(db: Session, principal: Principal) -> list[ActionableItem]:
     """Open recall orders that affect lots of the caller's organization."""
+    rows = db.execute(
+        select(RecallOrder, Lot.lot_code, Lot.name)
+        .outerjoin(Lot, Lot.id == RecallOrder.root_lot_id)
+        .where(RecallOrder.status == "open")
+        .order_by(RecallOrder.created_at.desc())
+    ).all()
     items: list[ActionableItem] = []
-    for order in recall_service.list_recall_notifications(db, principal):
-        if order.status != "open":
-            continue
-        lot_label = order.root_lot_code or order.root_lot_name or "lô gốc"
+    for order, root_lot_code, root_lot_name in rows:
+        if principal.role not in {"inspector", "system_admin"}:
+            if not recall_service._is_org_involved_in_order(
+                db, principal.organization_id, order
+            ):
+                continue
+        lot_label = root_lot_code or root_lot_name or "lô gốc"
         items.append(
             ActionableItem(
                 kind=RECALL_KIND,
-                source_key=f"recall:{order.recall_id}",
+                source_key=f"recall:{order.id}",
                 title="Lệnh thu hồi liên quan",
                 body=f"Lệnh {order.recall_code} đang mở và ảnh hưởng lô {lot_label}.",
                 link_path=f"/lots/{order.root_lot_id}",
                 lot_id=order.root_lot_id,
-                lot_code=order.root_lot_code,
+                lot_code=root_lot_code,
                 created_at=order.created_at,
             )
         )
@@ -214,6 +224,11 @@ def sync_notifications(
                 )
         except IntegrityError:
             continue
+        except ProgrammingError:
+            # Session was concurrently revoked (e.g. logout while polling);
+            # abort projecting new notifications for the closed session.
+            added = False
+            break
         added = True
     if added:
         db.flush()

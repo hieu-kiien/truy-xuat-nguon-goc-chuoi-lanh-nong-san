@@ -224,7 +224,7 @@ def ingest_telemetry_readings(
         )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Kh?ng t?m th?y chuy?n xe ?ang v?n chuy?n (in_transit) g?n v?i th?ng l?nh '{container_code}'.",
+            detail=f"Không tìm thấy chuyến xe đang vận chuyển (in_transit) gắn với thùng lạnh '{container_code}'.",
         )
 
     # 2. Authorization: carrier organization or system_admin
@@ -234,7 +234,7 @@ def ingest_telemetry_readings(
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Ch? ??n v? v?n chuy?n c?a chuy?n xe m?i ???c n?p d? li?u c?m bi?n.",
+            detail="Chỉ đơn vị vận chuyển của chuyến xe mới được nạp dữ liệu cảm biến.",
         )
 
     # 3. Sort readings chronologically
@@ -365,13 +365,13 @@ def list_shipment_readings(
     if not shipment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Kh?ng t?m th?y chuy?n v?n chuy?n.",
+            detail="Không tìm thấy chuyến vận chuyển.",
         )
 
     if not _can_access_shipment(db, principal, shipment):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="B?n kh?ng c? quy?n xem d? li?u ?o c?a chuy?n xe n?y.",
+            detail="Bạn không có quyền xem dữ liệu đo của chuyến xe này.",
         )
 
     query = select(TemperatureReading).where(
@@ -439,13 +439,13 @@ def get_shipment_violations(
     if not shipment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Kh?ng t?m th?y chuy?n v?n chuy?n.",
+            detail="Không tìm thấy chuyến vận chuyển.",
         )
 
     if not _can_access_shipment(db, principal, shipment):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="B?n kh?ng c? quy?n xem d? li?u ?o c?a chuy?n xe n?y.",
+            detail="Bạn không có quyền xem dữ liệu đo của chuyến xe này.",
         )
 
     records = list(

@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
 import {
   createFarm,
   createPiiAnonymizationRequest,
+  executePiiAnonymizationRequest,
   getFarms,
   getIncomingHandovers,
+  getPiiAnonymizationRequests,
   updateFarm,
 } from '../services/api'
 import {
@@ -11,6 +13,7 @@ import {
   canManageDistribution,
   ROLE_LABELS,
   type Farm,
+  type PiiAnonymizationRequest,
   type SessionUser,
 } from '../types'
 import { FarmFormPanel } from './FarmFormPanel'
@@ -83,10 +86,14 @@ export function FarmWorkspace({
   const canResolveHandovers = hasPermission(user.role, 'handovers:resolve')
   const canVerifyEvents = hasPermission(user.role, 'events:verify')
   const canRequestPii = hasPermission(user.role, 'pii:request')
+  const canAnonymizePii = hasPermission(user.role, 'pii:anonymize')
   const [piiFarm, setPiiFarm] = useState<Farm | null>(null)
   const [piiReason, setPiiReason] = useState('')
   const [piiBusy, setPiiBusy] = useState(false)
   const [piiFeedback, setPiiFeedback] = useState<string | null>(null)
+  const [piiRequests, setPiiRequests] = useState<PiiAnonymizationRequest[]>([])
+  const [loadingPiiRequests, setLoadingPiiRequests] = useState(false)
+  const [executingPiiId, setExecutingPiiId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -154,6 +161,29 @@ export function FarmWorkspace({
     }
   }, [canReadFarms])
 
+  const refreshPiiRequests = useCallback(async () => {
+    if (!canRequestPii && !canAnonymizePii) return
+    setLoadingPiiRequests(true)
+    try {
+      const items = await getPiiAnonymizationRequests()
+      setPiiRequests(items)
+    } catch {
+      // Ignore background fetch error for PII requests
+    } finally {
+      setLoadingPiiRequests(false)
+    }
+  }, [canRequestPii, canAnonymizePii])
+
+  useEffect(() => {
+    if (activeTab !== 'overview') return
+    const timer = window.setTimeout(() => {
+      void refreshPiiRequests()
+    }, 150)
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [activeTab, refreshPiiRequests])
+
   useEffect(() => {
     if (!canReadFarms) return
     let cancelled = false
@@ -164,7 +194,13 @@ export function FarmWorkspace({
           setFarms(data)
           if (task === 'edit') {
             const farm = data.find(item => item.id === editId)
-            if (farm) { setEditingFarm(farm); setName(farm.name); setAreaHa(String(farm.area_ha)); setLatitude(String(farm.latitude)); setLongitude(String(farm.longitude)) }
+            if (farm) {
+              setEditingFarm(farm)
+              setName(farm.name)
+              setAreaHa(String(farm.area_ha))
+              setLatitude(farm.latitude === null || farm.latitude === undefined ? '' : String(farm.latitude))
+              setLongitude(farm.longitude === null || farm.longitude === undefined ? '' : String(farm.longitude))
+            }
             else setListError('Không tìm thấy vùng trồng cần sửa.')
           }
           setLoadingFarms(false)
@@ -308,6 +344,7 @@ export function FarmWorkspace({
           <main id="main-content" tabIndex={-1} ref={contentRef} className="dashboard-content">
             {hasPermission(user.role, 'recalls:read') && (
               <RecallAlertBanner
+                organizationId={user.organization_id}
                 onOpenLot={onOpenLot}
                 onNotify={onNotify}
               />
@@ -358,7 +395,9 @@ export function FarmWorkspace({
                     canManageDistribution={canManageDistribution(user)}
                     canTransform={hasPermission(user.role, 'lots:transform')}
                     canOpenRecall={hasPermission(user.role, 'recalls:open')}
+                    canManageRecall={hasPermission(user.role, 'recalls:manage')}
                     canConfirmRecall={hasPermission(user.role, 'recalls:confirm')}
+                    isSystemAdmin={user.role === 'system_admin'}
                     organizationId={user.organization_id}
                     onOpenLot={onOpenLot}
                   lotId={selectedLotId}
@@ -379,6 +418,7 @@ export function FarmWorkspace({
                 {task !== 'locations' && <LotsPanel
                   canReadLots={canReadLots}
                   canCreateLots={canCreateLots}
+                  canReadFarms={canReadFarms}
                   canTransform={hasPermission(user.role, 'lots:transform')}
                   organizationId={user.organization_id}
                   canReadEvents={canReadEvents}
@@ -544,7 +584,7 @@ export function FarmWorkspace({
                                       {canWriteFarms && (
                                         <button type="button" className="ds-button ds-button-secondary" onClick={() => { setEditingFarm(farm); setName(farm.name); setAreaHa(String(farm.area_ha)); setLatitude(farm.latitude === null || farm.latitude === undefined ? '' : String(farm.latitude)); setLongitude(farm.longitude === null || farm.longitude === undefined ? '' : String(farm.longitude)); setFormFeedback(null); setFarmFormOpen(true) }}>Sửa<span className="sr-only"> {farm.name}</span></button>
                                       )}
-                                      {canRequestPii && (
+                                      {canRequestPii && farm.latitude !== null && farm.longitude !== null && (
                                         <button type="button" className="ds-button ds-button-secondary" onClick={() => { setPiiFarm(farm); setPiiReason(''); setPiiFeedback(null) }}>Ẩn danh<span className="sr-only"> dữ liệu định danh của {farm.name}</span></button>
                                       )}
                                     </td>
@@ -557,6 +597,15 @@ export function FarmWorkspace({
                       </div>
                     </section>
                   ))}
+
+                  {!piiFarm && piiFeedback && (
+                    <div
+                      className={piiFeedback.startsWith('Đã') ? 'alert-box alert-success' : 'alert-box alert-error'}
+                      role="status"
+                    >
+                      {piiFeedback}
+                    </div>
+                  )}
 
                   {piiFarm && (
                     <section className="panel-card" aria-label="Yêu cầu ẩn danh dữ liệu định danh">
@@ -590,6 +639,7 @@ export function FarmWorkspace({
                               .then(() => {
                                 setPiiFeedback('Đã gửi yêu cầu ẩn danh. Quản trị hệ thống sẽ xác nhận phạm vi dữ liệu cần xoá.')
                                 setPiiFarm(null)
+                                void refreshPiiRequests()
                               })
                               .catch((err: unknown) => {
                                 setPiiFeedback(err instanceof Error ? err.message : 'Không gửi được yêu cầu.')
@@ -602,6 +652,109 @@ export function FarmWorkspace({
                         <button type="button" className="ds-button ds-button-secondary" disabled={piiBusy} onClick={() => setPiiFarm(null)}>
                           Huỷ
                         </button>
+                      </div>
+                    </section>
+                  )}
+
+                  {(canRequestPii || canAnonymizePii) && (
+                    <section className="data-table-wrapper panel-card" aria-label="Danh sách yêu cầu ẩn danh dữ liệu định danh">
+                      <div className="data-table-header">
+                        <div>
+                          <h2 className="section-title">Yêu cầu ẩn danh dữ liệu định danh ({piiRequests.length})</h2>
+                          <p className="panel-sub">
+                            Theo dõi trạng thái yêu cầu xoá PII (N3-75) và kiểm chứng chuỗi hash sau khi thực hiện.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="ds-button ds-button-secondary"
+                          disabled={loadingPiiRequests}
+                          onClick={() => void refreshPiiRequests()}
+                        >
+                          Làm mới yêu cầu
+                        </button>
+                      </div>
+                      <div className="table-scroll">
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">Vùng trồng</th>
+                              <th scope="col">Lý do</th>
+                              <th scope="col">Trạng thái</th>
+                              <th scope="col">Thời điểm gửi</th>
+                              <th scope="col">Kết quả kiểm chứng</th>
+                              {canAnonymizePii && <th scope="col">Thao tác</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {loadingPiiRequests && piiRequests.length === 0 ? (
+                              <tr>
+                                <td colSpan={canAnonymizePii ? 6 : 5} className="cell-center">
+                                  Đang tải danh sách yêu cầu ẩn danh…
+                                </td>
+                              </tr>
+                            ) : piiRequests.length === 0 ? (
+                              <tr>
+                                <td colSpan={canAnonymizePii ? 6 : 5} className="cell-center">
+                                  Chưa có yêu cầu ẩn danh nào.
+                                </td>
+                              </tr>
+                            ) : (
+                              piiRequests.map((req) => {
+                                const farmName = farms.find((item) => item.id === req.farm_id)?.name ?? req.farm_id.slice(0, 8)
+                                return (
+                                  <tr key={req.id}>
+                                    <td>{farmName}</td>
+                                    <td>{req.reason ?? '—'}</td>
+                                    <td>
+                                      <span className={`status-badge ${req.status === 'completed' ? 'status-done' : 'status-warning'}`}>
+                                        {req.status === 'completed' ? 'Đã ẩn danh' : 'Chờ xử lý'}
+                                      </span>
+                                    </td>
+                                    <td>{new Date(req.requested_at).toLocaleString('vi-VN')}</td>
+                                    <td>
+                                      {req.executed_at
+                                        ? `Hoàn tất lúc ${new Date(req.executed_at).toLocaleString('vi-VN')} · Chuỗi hash hợp lệ`
+                                        : '—'}
+                                    </td>
+                                    {canAnonymizePii && (
+                                      <td>
+                                        {req.status === 'requested' && (
+                                          <button
+                                            type="button"
+                                            className="ds-button ds-button-brand ds-button-sm"
+                                            disabled={executingPiiId === req.id}
+                                            onClick={() => {
+                                              setExecutingPiiId(req.id)
+                                              setPiiFeedback(null)
+                                              executePiiAnonymizationRequest(req.id)
+                                                .then(() => {
+                                                  setPiiFeedback(
+                                                    'Đã thực hiện ẩn danh PII và kiểm chứng toàn vẹn chuỗi sự kiện của các lô.',
+                                                  )
+                                                  onNotify('Đã hoàn tất ẩn danh dữ liệu định danh.')
+                                                  void refreshPiiRequests()
+                                                  void refreshFarms()
+                                                })
+                                                .catch((err: unknown) => {
+                                                  setPiiFeedback(
+                                                    err instanceof Error ? err.message : 'Không thể thực hiện ẩn danh.',
+                                                  )
+                                                })
+                                                .finally(() => setExecutingPiiId(null))
+                                            }}
+                                          >
+                                            {executingPiiId === req.id ? 'Đang xử lý…' : 'Thực hiện ẩn danh'}
+                                          </button>
+                                        )}
+                                      </td>
+                                    )}
+                                  </tr>
+                                )
+                              })
+                            )}
+                          </tbody>
+                        </table>
                       </div>
                     </section>
                   )}

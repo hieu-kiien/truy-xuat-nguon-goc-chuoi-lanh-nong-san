@@ -215,6 +215,8 @@ def has_permission(role: str, permission: str) -> bool:
         return True
     if permission == "telemetry:read" and "telemetry:read_all" in permissions:
         return True
+    if permission == "pii:request" and "pii:anonymize" in permissions:
+        return True
     return False
 
 

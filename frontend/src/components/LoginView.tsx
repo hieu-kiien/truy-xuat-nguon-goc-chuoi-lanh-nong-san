@@ -36,6 +36,14 @@ const DEMO_PRESETS = [
     desc: 'Nhận bàn giao, tách lô, gộp lô và điều phối trong hợp tác xã',
   },
   {
+    roleName: 'Đơn vị Vận chuyển Lạnh',
+    badge: 'transporter',
+    email: 'transporter@vantai.vn',
+    password: 'Password123!',
+    icon: '❄️',
+    desc: 'Khai báo chuyến xe thùng lạnh, ghi số đo nhiệt độ và giám sát vi phạm',
+  },
+  {
     roleName: 'Nhà phân phối Chuỗi lạnh',
     badge: 'distributor',
     email: 'distributor@phanphoi.vn',

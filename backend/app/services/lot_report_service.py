@@ -63,6 +63,8 @@ EVENT_TYPE_LABELS: dict[str, str] = {
     "recall_opened": "Mở thu hồi",
     "recall_confirmed": "Xác nhận thu hồi",
     "recall_completed": "Hoàn tất thu hồi",
+    "input_lot_declared": "Khai báo nguyên liệu đầu vào",
+    "processing_step_recorded": "Ghi nhận bước sơ chế",
 }
 
 LOT_STATUS_LABELS: dict[str, str] = {

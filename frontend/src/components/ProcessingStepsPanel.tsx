@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  createProcessingStep,
   getLotProcessingSteps,
   getProcessingStepCatalogue,
   recordLotProcessingStep,
@@ -9,13 +10,21 @@ import type { ProcessingStep, ProcessingStepRecord } from '../types'
 interface ProcessingStepsPanelProps {
   lotId: string
   canRecord: boolean
+  canManageCatalog?: boolean
 }
 
-export function ProcessingStepsPanel({ lotId, canRecord }: ProcessingStepsPanelProps) {
+export function ProcessingStepsPanel({
+  lotId,
+  canRecord,
+  canManageCatalog = false,
+}: ProcessingStepsPanelProps) {
   const [records, setRecords] = useState<ProcessingStepRecord[]>([])
   const [catalogue, setCatalogue] = useState<ProcessingStep[]>([])
   const [stepId, setStepId] = useState('')
   const [parameters, setParameters] = useState('')
+  const [newStepCode, setNewStepCode] = useState('')
+  const [newStepName, setNewStepName] = useState('')
+  const [creatingStep, setCreatingStep] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -178,6 +187,68 @@ export function ProcessingStepsPanel({ lotId, canRecord }: ProcessingStepsPanelP
             disabled={saving || !stepId}
           >
             {saving ? 'Đang ghi…' : 'Ghi công đoạn'}
+          </button>
+        </form>
+      )}
+
+      {canManageCatalog && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (creatingStep || !newStepCode.trim() || !newStepName.trim()) return
+            setCreatingStep(true)
+            setError(null)
+            setNotice(null)
+            createProcessingStep({
+              code: newStepCode.trim(),
+              name: newStepName.trim(),
+              parameter_schema: {},
+            })
+              .then((created) => {
+                setCatalogue((prev) => [...prev, created])
+                setStepId(created.id)
+                setNewStepCode('')
+                setNewStepName('')
+                setNotice(`Đã thêm công đoạn "${created.name}" vào danh mục dùng chung.`)
+              })
+              .catch((err: unknown) => {
+                setError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Không thể thêm công đoạn vào danh mục.',
+                )
+              })
+              .finally(() => setCreatingStep(false))
+          }}
+          className="integrity-check-controls"
+          style={{ marginTop: '1rem' }}
+        >
+          <div className="form-field">
+            <label htmlFor="new-processing-step-code">Mã công đoạn mới</label>
+            <input
+              id="new-processing-step-code"
+              type="text"
+              value={newStepCode}
+              onChange={(event) => setNewStepCode(event.target.value)}
+              placeholder="cooling_pre"
+            />
+          </div>
+          <div className="form-field">
+            <label htmlFor="new-processing-step-name">Tên công đoạn mới</label>
+            <input
+              id="new-processing-step-name"
+              type="text"
+              value={newStepName}
+              onChange={(event) => setNewStepName(event.target.value)}
+              placeholder="Làm mát sơ bộ"
+            />
+          </div>
+          <button
+            type="submit"
+            className="ds-button ds-button-secondary"
+            disabled={creatingStep || !newStepCode.trim() || !newStepName.trim()}
+          >
+            {creatingStep ? 'Đang thêm…' : 'Thêm công đoạn vào danh mục'}
           </button>
         </form>
       )}

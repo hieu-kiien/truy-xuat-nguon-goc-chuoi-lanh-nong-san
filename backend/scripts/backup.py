@@ -66,6 +66,19 @@ COUNTED_TABLES = (
     "cold_chain_violations",
     "integrity_checks",
     "recall_orders",
+    "farms",
+    "products",
+    "handovers",
+    "lot_relations",
+    "lot_input_lots",
+    "processing_steps",
+    "lot_processing_steps",
+    "temperature_hourly_aggregates",
+    "notifications",
+    "organization_invitations",
+    "email_outbox",
+    "integrity_alerts",
+    "pii_anonymization_requests",
 )
 
 

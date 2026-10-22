@@ -45,6 +45,9 @@ import type {
   ProductColdChainConfig,
   ShipmentViolation,
   TelemetryIngestResult,
+  InvitationPreview,
+  InvitationAcceptedResponse,
+  ShipmentDetail,
 } from '../types'
 
 
@@ -222,6 +225,10 @@ export async function request<T>(
         '/farms',
         '/security',
         '/integrity',
+        '/cold-chain-stats',
+        '/cold-chain',
+        '/cold-chain-ops',
+        '/organization',
       ])
       const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
       const returnPath = protectedPaths.has(window.location.pathname)
@@ -608,3 +615,68 @@ export const updateProductColdChainConfig = (
     `/api/v1/products/${productId}/cold-chain-config`,
     { method: 'PUT', body: JSON.stringify(payload) },
   )
+
+
+export const getPiiAnonymizationRequests = () =>
+  request<PiiAnonymizationRequest[]>('/api/v1/pii/anonymization-requests')
+
+export const executePiiAnonymizationRequest = (requestId: string) =>
+  request<PiiAnonymizationRequest>(
+    `/api/v1/pii/anonymization-requests/${requestId}/execute`,
+    { method: 'POST' },
+  )
+
+export const getPublicInvitation = (token: string) =>
+  request<InvitationPreview>(
+    `/api/v1/public/invitations/${encodeURIComponent(token.trim())}`,
+  )
+
+export const acceptPublicInvitation = (
+  token: string,
+  payload: { full_name: string; password: string },
+) =>
+  request<InvitationAcceptedResponse>(
+    `/api/v1/public/invitations/${encodeURIComponent(token.trim())}/accept`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+  )
+
+export const createProcessingStep = (payload: {
+  code: string
+  name: string
+  parameter_schema?: Record<string, { type?: string; label?: string }>
+}) =>
+  request<ProcessingStep>('/api/v1/processing-steps/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const deleteProduct = (productId: string) =>
+  request<void>(`/api/v1/products/${productId}`, {
+    method: 'DELETE',
+  })
+
+export const getShipmentDetail = (shipmentId: string) =>
+  request<ShipmentDetail>(`/api/v1/shipments/${shipmentId}`)
+
+export const completeShipment = (shipmentId: string) =>
+  request<ShipmentDetail>(`/api/v1/shipments/${shipmentId}/complete`, {
+    method: 'POST',
+  })
+
+export const completeRecallOrder = (recallId: string) =>
+  request<RecallOrder>(`/api/v1/recalls/${recallId}/complete`, {
+    method: 'POST',
+  })
+
+export const updateRecallLotFlag = (
+  recallId: string,
+  lotId: string,
+  incidentFlag: boolean,
+) =>
+  request<RecallOrder>(`/api/v1/recalls/${recallId}/lots/${lotId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ incident_flag: incidentFlag }),
+  })

@@ -1093,18 +1093,6 @@ def update_incident_flag(
     incident_flag: bool,
 ) -> None:
     """Update the incident flag for a lot within a recall order."""
-    entry = db.scalar(
-        select(RecallOrderLot).where(
-            RecallOrderLot.recall_order_id == recall_order_id,
-            RecallOrderLot.lot_id == lot_id,
-        )
-    )
-    if entry is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Không tìm thấy lô trong lệnh thu hồi.",
-        )
-
     order = db.get(RecallOrder, recall_order_id)
     if order is None or (
         principal.role not in {"inspector", "system_admin"}
@@ -1112,11 +1100,40 @@ def update_incident_flag(
     ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Không tìm thấy lệnh thu hồi.",
+            detail="Kh?ng t?m th?y l?nh thu h?i.",
         )
 
-    entry.incident_flag = incident_flag
+    entry = db.scalar(
+        select(RecallOrderLot).where(
+            RecallOrderLot.recall_order_id == recall_order_id,
+            RecallOrderLot.lot_id == lot_id,
+        )
+    )
+    if entry is None:
+        report = _compute_lineage_report(
+            db, principal, order.root_lot_id, is_active_recall_view=True
+        )
+        matched_lot = next(
+            (item for item in report.affected_lots if item.id == lot_id),
+            None,
+        )
+        if matched_lot is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Kh?ng t?m th?y l? trong l?nh thu h?i.",
+            )
+        entry = RecallOrderLot(
+            recall_order_id=recall_order_id,
+            organization_id=order.opened_by_organization_id,
+            lot_id=lot_id,
+            incident_flag=incident_flag,
+        )
+        db.add(entry)
+    else:
+        entry.incident_flag = incident_flag
+
     db.commit()
+    db.refresh(order)
     public_trace_cache.invalidate_all()
 
 

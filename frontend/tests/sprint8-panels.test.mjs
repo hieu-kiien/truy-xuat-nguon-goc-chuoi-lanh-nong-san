@@ -231,3 +231,34 @@ test('sidebar shows the organization entry for every member', async () => {
   assert.match(await sidebar('grower'), /Quản trị tổ chức/)
   assert.match(await sidebar('organization_admin'), /Quản trị tổ chức/)
 })
+
+test('public invitation view renders the invitation acceptance page', async () => {
+  const output = html(await load('PublicInvitationView'), {})
+  assert.match(output, /Lời mời tham gia tổ chức/)
+})
+
+test('login view includes the transporter demo preset', async () => {
+  const output = html(await load('LoginView'), {
+    backendOnline: true,
+    isDark: false,
+    onToggleTheme: () => {},
+    onLoginSuccess: () => {},
+    onNotify: () => {},
+  })
+  assert.match(output, /transporter@vantai\.vn/)
+  assert.match(output, /Đơn vị Vận chuyển Lạnh/)
+})
+
+test('processing steps panel shows catalogue creation form for system admin', async () => {
+  const output = html(await load('ProcessingStepsPanel'), {
+    lotId: 'lot-1',
+    canRecord: true,
+    canManageCatalog: true,
+  })
+  assert.match(output, /Thêm công đoạn vào danh mục/)
+})
+
+test('organization admin panel does not offer non-invitable inspector role', async () => {
+  const output = html(await load('OrganizationAdminPanel'), {canManage: true})
+  assert.doesNotMatch(output, /value="inspector"/)
+})

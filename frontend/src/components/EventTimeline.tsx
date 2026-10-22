@@ -92,8 +92,14 @@ export function EventTimeline({
         return { label: 'Xuống xe hoàn tất chuyến', color: '#059669' }
       case 'recall_opened':
         return { label: 'Mở lệnh thu hồi', color: '#dc2626' }
+      case 'recall_confirmed':
+        return { label: 'Xác nhận xử lý thu hồi', color: '#d97706' }
       case 'recall_completed':
         return { label: 'Hoàn tất thu hồi', color: '#16a34a' }
+      case 'input_lot_declared':
+        return { label: 'Khai báo vật tư đầu vào', color: '#16a34a' }
+      case 'processing_step_recorded':
+        return { label: 'Ghi nhận công đoạn chế biến', color: '#0284c7' }
       case 'cold_chain_violation':
         return { label: 'Vi phạm nhiệt độ chuỗi lạnh', color: '#dc2626' }
       default:

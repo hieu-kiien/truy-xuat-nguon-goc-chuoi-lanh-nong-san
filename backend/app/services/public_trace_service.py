@@ -25,7 +25,8 @@ def trace_lot_route(db: Session, lot_code: str) -> dict:
     """Trả về bản đồ hành trình công khai của một lô (N3-70).
 
     Toạ độ được làm tròn về cấp xã hoặc huyện, nên toạ độ chính xác của thửa
-    không bao giờ ra ngoài hệ thống.
+    không bao giờ ra ngoài hệ thống. Nếu vùng trồng đã được ẩn danh (không còn
+    toạ độ), điểm đó không được phát ra bản đồ.
     """
     normalized = (lot_code or "").strip().upper()
     rows = (
@@ -51,10 +52,11 @@ def trace_lot_route(db: Session, lot_code: str) -> dict:
                 "order": int(row["point_order"]),
                 "name": row["point_name"] or "",
                 "kind": row["point_kind"] or "stop",
-                "latitude": float(row["point_latitude"] or 0),
-                "longitude": float(row["point_longitude"] or 0),
+                "latitude": float(row["point_latitude"]),
+                "longitude": float(row["point_longitude"]),
             }
             for row in rows
+            if row["point_latitude"] is not None and row["point_longitude"] is not None
         ]
     }
 

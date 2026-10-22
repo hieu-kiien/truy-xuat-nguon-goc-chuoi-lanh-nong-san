@@ -27,7 +27,6 @@ const INVITABLE_ROLES = [
   { code: 'cooperative', label: 'Hợp tác xã' },
   { code: 'transporter', label: 'Đơn vị vận chuyển' },
   { code: 'distributor', label: 'Nhà phân phối' },
-  { code: 'inspector', label: 'Cơ quan kiểm tra' },
   { code: 'organization_admin', label: 'Quản trị tổ chức' },
 ]
 

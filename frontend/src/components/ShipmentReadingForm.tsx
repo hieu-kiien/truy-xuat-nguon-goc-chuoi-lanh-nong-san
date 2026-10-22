@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ingestTelemetryReadings, getShipments } from '../services/api'
+import {
+  completeShipment,
+  getShipmentDetail,
+  getShipments,
+  ingestTelemetryReadings,
+} from '../services/api'
 import { readingError } from '../utils/validation'
-import type { Shipment, TelemetryIngestResult } from '../types'
+import type { Shipment, ShipmentDetail, TelemetryIngestResult } from '../types'
 
 function nowLocalInput(): string {
   const now = new Date()
@@ -13,6 +18,12 @@ function nowLocalInput(): string {
 export function ShipmentReadingForm() {
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [shipmentId, setShipmentId] = useState('')
+  const [detailState, setDetailState] = useState<{
+    id: string
+    payload: ShipmentDetail
+  } | null>(null)
+  const [completing, setCompleting] = useState(false)
+  const [completeNotice, setCompleteNotice] = useState<string | null>(null)
   const [temperature, setTemperature] = useState('')
   const [recordedAt, setRecordedAt] = useState(nowLocalInput)
   const [saving, setSaving] = useState(false)
@@ -45,7 +56,25 @@ export function ShipmentReadingForm() {
     }
   }, [load])
 
+  useEffect(() => {
+    if (!shipmentId) {
+      return
+    }
+    let active = true
+    getShipmentDetail(shipmentId)
+      .then((payload) => {
+        if (active) setDetailState({ id: shipmentId, payload })
+      })
+      .catch(() => {
+        if (active) setDetailState(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [shipmentId])
+
   const shipment = shipments.find((item) => item.id === shipmentId)
+  const detail = detailState?.id === shipmentId ? detailState.payload : null
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -167,6 +196,56 @@ export function ShipmentReadingForm() {
           {saving ? 'Đang ghi…' : 'Ghi số đo'}
         </button>
       </form>
+
+      {completeNotice && (
+        <div className="alert-box alert-success" role="status">
+          {completeNotice}
+        </div>
+      )}
+
+      {shipment && (
+        <div style={{ marginTop: '1rem' }}>
+          <div className="action-row" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
+            <p className="panel-sub" style={{ margin: 0 }}>
+              Chuyến <strong>{shipment.shipment_code}</strong> ({shipment.container_code}) · Trạng thái:{' '}
+              <strong>{shipment.status === 'completed' ? 'Đã hoàn tất' : 'Đang vận chuyển'}</strong>
+              {detail?.lots && detail.lots.length > 0
+                ? ` · Lô hàng: ${detail.lots.map((item) => item.lot_code ?? item.lot_name).join(', ')}`
+                : ''}
+            </p>
+            {shipment.status === 'in_transit' && (
+              <button
+                type="button"
+                className="ds-button ds-button-secondary"
+                disabled={completing}
+                onClick={() => {
+                  setCompleting(true)
+                  setError(null)
+                  setCompleteNotice(null)
+                  completeShipment(shipment.id)
+                    .then((updated) => {
+                      setDetailState({ id: shipment.id, payload: updated })
+                      setCompleteNotice(
+                        `Đã hoàn tất chuyến vận chuyển ${updated.shipment_code} và ghi nhận sự kiện dỡ hàng.`,
+                      )
+                      void load()
+                    })
+                    .catch((err: unknown) => {
+                      setError(
+                        err instanceof Error
+                          ? err.message
+                          : 'Không thể hoàn tất chuyến vận chuyển.',
+                      )
+                    })
+                    .finally(() => setCompleting(false))
+                }}
+              >
+                {completing ? 'Đang hoàn tất…' : 'Hoàn tất chuyến vận chuyển'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {loading && shipments.length === 0 && (
         <p role="status">Đang tải chuyến vận chuyển…</p>

@@ -6,18 +6,18 @@ import { LotCreateForm } from './LotCreateForm'
 import { TaskLink } from './TaskLink'
 
 interface Props {
-  canReadLots: boolean; canCreateLots: boolean; canReadEvents?: boolean
+  canReadLots: boolean; canCreateLots: boolean; canReadFarms?: boolean; canReadEvents?: boolean
   canTransform?: boolean; organizationId?: string; onOpenLot: (id: string) => void
 }
 
-export function LotsPanel({ canReadLots, canCreateLots, canReadEvents = true, canTransform, organizationId, onOpenLot }: Props) {
+export function LotsPanel({ canReadLots, canCreateLots, canReadFarms = true, canReadEvents = true, canTransform, organizationId, onOpenLot }: Props) {
   const task = new URLSearchParams(window.location.search).get('task')
   const [lots, setLots] = useState<Lot[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [farms, setFarms] = useState<Farm[]>([])
   const [loading, setLoading] = useState(canReadLots)
   const [loadingProducts, setLoadingProducts] = useState(true)
-  const [loadingFarms, setLoadingFarms] = useState(true)
+  const [loadingFarms, setLoadingFarms] = useState(canReadFarms)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [productId, setProductId] = useState('')
@@ -35,11 +35,15 @@ export function LotsPanel({ canReadLots, canCreateLots, canReadEvents = true, ca
     getProducts().then(data => { if (active) setProducts(data) })
       .catch((err: unknown) => { if (active) setError(err instanceof Error ? err.message : 'Không tải được sản phẩm.') })
       .finally(() => { if (active) setLoadingProducts(false) })
-    getFarms().then(data => { if (active) setFarms(data) })
-      .catch((err: unknown) => { if (active) setError(err instanceof Error ? err.message : 'Không tải được danh sách vùng trồng.') })
-      .finally(() => { if (active) setLoadingFarms(false) })
+    if (canReadFarms) {
+      getFarms().then(data => { if (active) setFarms(data) })
+        .catch(() => { if (active) setFarms([]) })
+        .finally(() => { if (active) setLoadingFarms(false) })
+    } else {
+      setLoadingFarms(false)
+    }
     return () => { active = false }
-  }, [])
+  }, [canReadFarms])
 
   useEffect(() => {
     if (!canReadLots || task === 'create') return

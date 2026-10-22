@@ -79,7 +79,7 @@ jobs:
           BACKUP_EXTERNAL_ACCESS_KEY_ID: ${{ secrets.BACKUP_EXTERNAL_ACCESS_KEY_ID }}
           BACKUP_EXTERNAL_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_EXTERNAL_SECRET_ACCESS_KEY }}
           BACKUP_EXTERNAL_PREFIX: ${{ secrets.BACKUP_EXTERNAL_PREFIX }}
-          USE_EXTERNAL_STORE: ${{ inputs.use_external_store }}
+          USE_EXTERNAL_STORE: ${{ inputs.use_external_store || 'true' }}
         run: |
           mkdir -p "${GITHUB_WORKSPACE}/drill"
           cd backend
@@ -112,7 +112,7 @@ jobs:
           DB_ADMIN_PASSWORD: postgres
         run: |
           cd backend
-          python -m app.jobs.integrity_scanner --once --all \
+          python -m app.jobs.integrity_scanner --once --all 2>&1 \
             | tee "${GITHUB_WORKSPACE}/drill/integrity-scan.log"
 
       - name: Record the drill minutes
@@ -141,7 +141,7 @@ jobs:
 
           seconds = report.get("duration_seconds", 0)
           minutes = round(seconds / 60, 2)
-          passed = report.get("passed") and (broken in (0, None))
+          passed = bool(report.get("passed")) and (broken == 0)
           now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
           body = (

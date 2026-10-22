@@ -3,18 +3,54 @@ import { confirmRecallHandling, getRecallNotifications } from '../services/api'
 import type { RecallNotification } from '../types'
 
 interface RecallAlertBannerProps {
+  organizationId?: string
   onOpenLot: (lotId: string) => void
   onNotify?: (message: string) => void
   initialNotifications?: RecallNotification[]
 }
 
+const CACHE_TTL_MS = 120_000
+const cachedByOrg = new Map<string, RecallNotification[]>()
+const lastFetchedAtByOrg = new Map<string, number>()
+const inFlightByOrg = new Map<string, Promise<RecallNotification[]>>()
+
+function fetchRecallNotificationsForOrg(
+  cacheKey: string,
+  force: boolean,
+): Promise<RecallNotification[]> {
+  const now = Date.now()
+  const lastFetched = lastFetchedAtByOrg.get(cacheKey) ?? 0
+  if (!force && cachedByOrg.has(cacheKey) && now - lastFetched < CACHE_TTL_MS) {
+    return Promise.resolve(cachedByOrg.get(cacheKey) ?? [])
+  }
+  const existing = inFlightByOrg.get(cacheKey)
+  if (existing && !force) {
+    return existing
+  }
+  const promise = getRecallNotifications(false)
+    .then((data) => {
+      cachedByOrg.set(cacheKey, data)
+      lastFetchedAtByOrg.set(cacheKey, Date.now())
+      return data
+    })
+    .finally(() => {
+      inFlightByOrg.delete(cacheKey)
+    })
+  inFlightByOrg.set(cacheKey, promise)
+  return promise
+}
+
 export function RecallAlertBanner({
+  organizationId,
   onOpenLot,
   onNotify,
   initialNotifications,
 }: RecallAlertBannerProps) {
+  const cacheKey = organizationId ?? '__default__'
   const [notifications, setNotifications] = useState<RecallNotification[]>(
-    initialNotifications ?? [],
+    () =>
+      initialNotifications ??
+      (organizationId ? (cachedByOrg.get(cacheKey) ?? []) : []),
   )
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [notes, setNotes] = useState<Record<string, string>>({})
@@ -22,17 +58,21 @@ export function RecallAlertBanner({
 
   const refresh = useCallback(async () => {
     try {
-      const data = await getRecallNotifications(false)
+      const data = await fetchRecallNotificationsForOrg(
+        cacheKey,
+        true,
+      )
       setNotifications(data)
     } catch {
       // Ignore background notification errors
     }
-  }, [])
+  }, [cacheKey])
 
   useEffect(() => {
     if (initialNotifications !== undefined) return
     let active = true
-    getRecallNotifications(false)
+    const force = !organizationId
+    fetchRecallNotificationsForOrg(cacheKey, force)
       .then((data) => {
         if (active) setNotifications(data)
       })
@@ -42,7 +82,7 @@ export function RecallAlertBanner({
     return () => {
       active = false
     }
-  }, [initialNotifications])
+  }, [cacheKey, initialNotifications, organizationId])
 
   const handleConfirm = async (
     event: FormEvent<HTMLFormElement>,

@@ -47,6 +47,22 @@ def request_anonymization(
 ) -> PiiAnonymizationRequest:
     """Record a request to erase the identifying data of a growing organization."""
     farm = get_tenant_record(db, Farm, farm_id, principal)
+    if farm.latitude is None and farm.longitude is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Vùng trồng này đã được ẩn danh trước đó.",
+        )
+    existing_open = db.scalar(
+        select(PiiAnonymizationRequest.id).where(
+            PiiAnonymizationRequest.farm_id == farm.id,
+            PiiAnonymizationRequest.status == STATUS_REQUESTED,
+        )
+    )
+    if existing_open is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Đã có yêu cầu ẩn danh đang chờ xử lý cho vùng trồng này.",
+        )
     request = PiiAnonymizationRequest(
         organization_id=principal.organization_id,
         farm_id=farm.id,
@@ -111,9 +127,10 @@ def execute_anonymization(
         {"organization": request.organization_id, "farm": request.farm_id},
     )
 
+    now = datetime.now(UTC)
     request.status = STATUS_COMPLETED
     request.decided_by_user_id = principal.user_id
-    request.executed_at = datetime.now(UTC)
+    request.executed_at = now
     db.commit()
     db.refresh(request)
     # The public trace of every lot of this farm changed, so the cached

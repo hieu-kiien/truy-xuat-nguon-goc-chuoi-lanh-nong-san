@@ -14,6 +14,7 @@ from app.models.event import Event
 from app.models.farm import Farm
 from app.models.identity import Organization, User
 from app.models.lot import Lot
+from app.models.lot_relation import LotRelation
 from app.services import event_service, pii_service
 from tests import test_sprint3_lineage as fixtures
 from tests.lineage_helpers import client, login
@@ -64,6 +65,11 @@ def test_a_payload_with_identity_data_is_rejected():
     with pytest.raises(HTTPException) as error:
         event_service.assert_payload_has_no_identity({"to_organization_name": "Acme"})
     assert error.value.status_code == 400
+    with pytest.raises(HTTPException) as nested_error:
+        event_service.assert_payload_has_no_identity(
+            {"details": [{"actor_email": "secret@example.com"}]}
+        )
+    assert nested_error.value.status_code == 400
 
 
 def test_the_guard_allows_reference_only_payloads():
@@ -239,3 +245,109 @@ async def test_the_public_trace_shows_the_anonymized_farm(
         body = response.json()
         assert body["trace"]["farm_name"].startswith("Vùng trồng ẩn danh")
         assert "Nguyễn" not in response.text
+
+        route_response = await api.get(f"/api/v1/public/trace/{lot.lot_code}/route")
+        assert route_response.status_code == 200, route_response.text
+        assert route_response.json()["points"] == []
+
+
+@pytest.mark.asyncio
+async def test_system_admin_can_list_requests_and_duplicate_requests_are_blocked(
+    request, admin_session: Session
+):
+    products = request.getfixturevalue("lineage_products")
+    factory = request.getfixturevalue("identity_factory")
+    grower = factory(role="grower")
+    admin = factory(role="system_admin", organization_type="inspection")
+    farm, _lot = _farm_with_lot(admin_session, grower, products[0])
+    org = admin_session.get(Organization, grower.organization_id)
+    org.contact_email = "contact@nongho.vn"
+    admin_session.commit()
+
+    async with client() as api:
+        await login(api, grower)
+        first = await api.post(
+            "/api/v1/pii/anonymization-requests",
+            json={"farm_id": str(farm.id), "reason": "Yêu cầu lần 1"},
+        )
+        assert first.status_code == 201, first.text
+        request_id = first.json()["id"]
+
+        duplicate = await api.post(
+            "/api/v1/pii/anonymization-requests",
+            json={"farm_id": str(farm.id), "reason": "Yêu cầu trùng"},
+        )
+        assert duplicate.status_code == 409, duplicate.text
+
+        async with client() as admin_api:
+            await login(admin_api, admin)
+            listed = await admin_api.get("/api/v1/pii/anonymization-requests")
+            assert listed.status_code == 200, listed.text
+            assert any(item["id"] == request_id for item in listed.json())
+
+            executed = await admin_api.post(
+                f"/api/v1/pii/anonymization-requests/{request_id}/execute"
+            )
+            assert executed.status_code == 200, executed.text
+
+        admin_session.expire_all()
+        assert (
+            admin_session.get(Organization, grower.organization_id).contact_email
+            is None
+        )
+
+        after_done = await api.post(
+            "/api/v1/pii/anonymization-requests",
+            json={"farm_id": str(farm.id), "reason": "Đã ẩn danh rồi"},
+        )
+        assert after_done.status_code == 409, after_done.text
+
+
+@pytest.mark.asyncio
+async def test_derived_lot_public_trace_and_route_resolve_ancestor_origin(
+    request, admin_session: Session
+):
+    products = request.getfixturevalue("lineage_products")
+    factory = request.getfixturevalue("identity_factory")
+    grower = factory(role="grower")
+    _farm, parent_lot = _farm_with_lot(admin_session, grower, products[0])
+
+    child_lot = Lot(
+        organization_id=grower.organization_id,
+        current_holder_organization_id=grower.organization_id,
+        farm_id=None,
+        product_id=products[0].id,
+        name="Child split lot",
+        lot_code=f"CHD{uuid4().hex[:8].upper()}",
+        harvested_on=None,
+        quantity=Decimal("5.000"),
+        remaining_quantity=Decimal("5.000"),
+        status="active",
+    )
+    admin_session.add(child_lot)
+    admin_session.flush()
+    admin_session.add(
+        LotRelation(
+            organization_id=grower.organization_id,
+            parent_lot_id=parent_lot.id,
+            child_lot_id=child_lot.id,
+            operation="split",
+            quantity=Decimal("5.000"),
+        )
+    )
+    admin_session.commit()
+
+    async with client() as api:
+        trace_resp = await api.get(f"/api/v1/public/trace/{child_lot.lot_code}")
+        assert trace_resp.status_code == 200, trace_resp.text
+        trace_data = trace_resp.json()["trace"]
+        assert trace_data["farm_name"] == "Nông hộ Nguyễn Văn Minh"
+        assert trace_data["harvested_on"] == str(parent_lot.harvested_on)
+        assert trace_data["origin_organization_type"] is not None
+
+        route_resp = await api.get(f"/api/v1/public/trace/{child_lot.lot_code}/route")
+        assert route_resp.status_code == 200, route_resp.text
+        points = route_resp.json()["points"]
+        assert len(points) == 1
+        assert points[0]["kind"] == "origin"
+        assert points[0]["name"] == "Nông hộ Nguyễn Văn Minh"

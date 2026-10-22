@@ -198,6 +198,7 @@ export interface RecallOrder {
   status: 'open' | 'completed'
   created_at: string
   completed_at: string | null
+  lots?: Array<{ id: string; lot_id: string; lot_code: string | null; lot_name: string; incident_flag: boolean }>
   root_lot: RecallLotItem | null
   summary: RecallSummary | null
   descendants: RecallLotItem[]
@@ -594,6 +595,9 @@ export function hasPermission(role: RoleCode, permission: string): boolean {
   if (permission === 'telemetry:read' && perms.includes('telemetry:read_all')) {
     return true
   }
+  if (permission === 'pii:request' && perms.includes('pii:anonymize')) {
+    return true
+  }
   return false
 }
 
@@ -742,7 +746,9 @@ export interface Shipment {
   notes: string | null
   created_at: string
   completed_at: string | null
+  lots?: ShipmentLotItem[]
   lot_count: number
+  shipment_lots?: ShipmentLotItem[]
 }
 
 export interface ShipmentTemperatureReading {
@@ -860,4 +866,35 @@ export interface AppliedColdChainLimits {
   max_temp_celsius: string
   delay_minutes: number
   from_snapshot: boolean
+}
+
+
+export interface InvitationPreview {
+  email: string
+  organization_name: string
+  role_code: RoleCode
+  expires_at: string
+  status: string
+}
+
+export interface InvitationAcceptedResponse {
+  user_id: string
+  email: string
+  full_name: string
+  organization_id: string
+  organization_name: string
+  role_code: RoleCode
+}
+
+export interface ShipmentLotItem {
+  id: string
+  lot_id: string
+  lot_code: string | null
+  lot_name: string
+  loaded_at: string
+  unloaded_at: string | null
+}
+
+export interface ShipmentDetail extends Shipment {
+  lots: ShipmentLotItem[]
 }

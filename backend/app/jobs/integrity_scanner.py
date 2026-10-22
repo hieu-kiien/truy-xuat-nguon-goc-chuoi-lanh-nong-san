@@ -13,6 +13,7 @@ Two rules decide which lots are due for a check:
 """
 
 import argparse
+import json
 import logging
 import time
 from datetime import UTC, datetime, timedelta
@@ -264,7 +265,8 @@ def main() -> None:
                         rotation_days=args.rotation_days,
                         include_all=args.all,
                     )
-                logger.info("Integrity scan completed: %s", summary)
+                logger.info("Integrity scan completed: %s", json.dumps(summary))
+                print(json.dumps(summary), flush=True)
             except Exception:
                 logger.exception("Integrity scan failed")
                 if args.once:

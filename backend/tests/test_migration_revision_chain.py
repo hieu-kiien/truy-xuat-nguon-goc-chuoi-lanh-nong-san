@@ -53,4 +53,6 @@ def test_legacy_revision_08_precedes_harvest_schema_and_handover_migrations():
     assert rls_branches.down_revision == "20261021_41"
     pii_anonymization = script.get_revision("20261021_43")
     assert pii_anonymization.down_revision == "20261021_42"
-    assert script.get_current_head() == "20261021_43"
+    fix_public_trace_and_pii = script.get_revision("20261021_44")
+    assert fix_public_trace_and_pii.down_revision == "20261021_43"
+    assert script.get_current_head() == "20261021_44"

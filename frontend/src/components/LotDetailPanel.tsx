@@ -28,7 +28,9 @@ interface LotDetailPanelProps {
   canManageDistribution: boolean
   canTransform: boolean
   canOpenRecall?: boolean
+  canManageRecall?: boolean
   canConfirmRecall?: boolean
+  isSystemAdmin?: boolean
   organizationId: string
   onOpenLot: (lotId: string) => void
   lotId: string
@@ -57,7 +59,9 @@ export function LotDetailPanel({
   canManageDistribution,
   canTransform,
   canOpenRecall = false,
+  canManageRecall = false,
   canConfirmRecall = false,
+  isSystemAdmin = false,
   organizationId,
   onOpenLot,
   lotId,
@@ -88,7 +92,15 @@ export function LotDetailPanel({
   const savingRef = useRef(false)
   const task = new URLSearchParams(window.location.search).get('task')
   const initialView = new URLSearchParams(window.location.search).get('view')
-  const [view, setView] = useState((initialView === 'history' && canReadEvents) || initialView === 'origins' || initialView === 'recall' ? initialView : 'overview')
+  const [view, setView] = useState(
+    (initialView === 'history' && canReadEvents) ||
+      initialView === 'origins' ||
+      initialView === 'recall' ||
+      (initialView === 'inputs' && canReadInputLots) ||
+      (initialView === 'steps' && canReadProcessingSteps)
+      ? initialView
+      : 'overview',
+  )
   const taskAllowed = task === 'split' || task === 'merge' ? canTransform : task === 'move' || task === 'consume' ? canManageDistribution : task === 'handover' ? canCreateHandover : task === 'event' ? canCreateEvents : task === 'recall' ? true : false
 
   const loadDetails = useCallback(async () => {
@@ -262,6 +274,7 @@ export function LotDetailPanel({
                   key={lot.id}
                   lotId={lot.id}
                   canRecord={canRecordProcessingSteps}
+                  canManageCatalog={isSystemAdmin}
                 />
               )}
               {view === 'inputs' && (
@@ -269,6 +282,17 @@ export function LotDetailPanel({
                   key={lot.id}
                   lotId={lot.id}
                   canDeclare={canDeclareInputLots}
+                />
+              )}
+              {view === 'recall' && (
+                <RecallPanel
+                  key={lot.id}
+                  lotId={lot.id}
+                  onOpenLot={onOpenLot}
+                  canOpenRecall={canOpenRecall}
+                  canManageRecall={canManageRecall}
+                  canConfirmRecall={canConfirmRecall}
+                  organizationId={organizationId}
                 />
               )}
               {view === 'origins' && <>
@@ -289,6 +313,7 @@ export function LotDetailPanel({
               lotId={lot.id}
               onOpenLot={onOpenLot}
               canOpenRecall={canOpenRecall}
+              canManageRecall={canManageRecall}
               canConfirmRecall={canConfirmRecall}
               organizationId={organizationId}
             />
@@ -304,6 +329,7 @@ export function LotDetailPanel({
               lotId={lot.id}
               onOpenLot={onOpenLot}
               canOpenRecall={canOpenRecall}
+              canManageRecall={canManageRecall}
               canConfirmRecall={canConfirmRecall}
               organizationId={organizationId}
             />

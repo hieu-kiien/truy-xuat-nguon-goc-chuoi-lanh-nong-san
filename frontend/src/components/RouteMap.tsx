@@ -64,8 +64,8 @@ export function RouteMap({ route, lotCode }: RouteMapProps) {
       </header>
       <div ref={containerRef} className="route-map" role="img" aria-label="Bản đồ các điểm dừng của hành trình" />
       <ol className="route-map-points">
-        {route.points.map((point) => (
-          <li key={`${point.order}-${point.name}`}>
+        {route.points.map((point, index) => (
+          <li key={`${index}-${point.order}-${point.name}`}>
             <strong>{point.kind === 'origin' ? 'Vùng trồng xuất phát' : 'Điểm dừng'}</strong> · {point.name}
           </li>
         ))}
