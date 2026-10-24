@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, aliased, contains_eager
 
 from app.core.auth import Principal
@@ -166,22 +166,22 @@ def append_event(
 ) -> Event:
     """Append an event without committing, for callers with a wider transaction."""
     assert_payload_has_no_identity(payload)
-    # Serialize appends per lot so concurrent writers cannot reuse a sequence.
-    db.scalar(select(Lot).where(Lot.id == lot_id).with_for_update(of=Lot))
+    # Serialize appends per lot and read the true global chain head even when
+    # the caller's SELECT view on events is bounded by app_event_cutoff(lot_id).
+    head_row = db.execute(
+        text(
+            "SELECT sequence_number, event_hash "
+            "FROM public.app_lock_and_get_lot_chain_head(:lot_id)"
+        ),
+        {"lot_id": lot_id},
+    ).first()
 
-    latest_event = db.scalar(
-        select(Event)
-        .where(Event.lot_id == lot_id)
-        .order_by(Event.sequence_number.desc())
-        .limit(1)
-    )
-
-    if latest_event is None:
+    if head_row is None:
         sequence_number = 1
         prev_hash = GENESIS_PREV_HASH
     else:
-        sequence_number = latest_event.sequence_number + 1
-        prev_hash = latest_event.event_hash
+        sequence_number = int(head_row.sequence_number) + 1
+        prev_hash = str(head_row.event_hash)
 
     # Construct canonical content dictionary for hashing
     content_for_hash = {
