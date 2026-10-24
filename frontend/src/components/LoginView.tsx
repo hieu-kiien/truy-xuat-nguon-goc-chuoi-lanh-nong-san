@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type FocusEvent } from 'react'
 import { login } from '../services/api'
 import type { SessionUser } from '../types'
+import { SquircleIcon } from './VietFarmVisuals'
 
 interface LoginViewProps {
   backendOnline: boolean | null
@@ -16,7 +17,7 @@ const DEMO_PRESETS = [
     badge: 'system_admin',
     email: 'admin@system.vn',
     password: 'Password123!',
-    icon: '🛡️',
+    iconKey: 'rice' as const,
     desc: 'Quản lý cấu hình, nhật ký kiểm toán và danh mục dùng chung toàn hệ thống',
   },
   {
@@ -24,7 +25,7 @@ const DEMO_PRESETS = [
     badge: 'grower',
     email: 'grower@caudat.vn',
     password: 'Password123!',
-    icon: '🌱',
+    iconKey: 'bokchoy' as const,
     desc: 'Quản trị thửa đất, lô thu hoạch & ghi nhật ký chuỗi lạnh',
   },
   {
@@ -32,7 +33,7 @@ const DEMO_PRESETS = [
     badge: 'organization_admin',
     email: 'admin@mocchau.vn',
     password: 'Password123!',
-    icon: '🏢',
+    iconKey: 'basket' as const,
     desc: 'Nhận bàn giao, tách lô, gộp lô và điều phối trong hợp tác xã',
   },
   {
@@ -40,15 +41,15 @@ const DEMO_PRESETS = [
     badge: 'transporter',
     email: 'transporter@vantai.vn',
     password: 'Password123!',
-    icon: '❄️',
-    desc: 'Khai báo chuyến xe thùng lạnh, ghi số đo nhiệt độ và giám sát vi phạm',
+    iconKey: 'truck' as const,
+    desc: 'Vận chuyển thùng xe lạnh, cập nhật số đo và giám sát vi phạm',
   },
   {
     roleName: 'Nhà phân phối Chuỗi lạnh',
     badge: 'distributor',
     email: 'distributor@phanphoi.vn',
     password: 'Password123!',
-    icon: '🚚',
+    iconKey: 'frost' as const,
     desc: 'Quản lý kho lạnh/cửa hàng, di chuyển lô và ghi nhận tiêu thụ cuối',
   },
   {
@@ -56,7 +57,7 @@ const DEMO_PRESETS = [
     badge: 'inspector',
     email: 'inspector@chicuc.gov.vn',
     password: 'Password123!',
-    icon: '🔍',
+    iconKey: 'carrot' as const,
     desc: 'Thanh tra độc lập, giám sát chuỗi lạnh & sự kiện bất biến',
   },
 ]
@@ -71,9 +72,9 @@ export function LoginView({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [traceCode, setTraceCode] = useState('')
 
   const syncAriaInvalid = (input: HTMLInputElement) => {
     if (!input.checkValidity()) {
@@ -122,19 +123,25 @@ export function LoginView({
     await executeLogin(email, password)
   }
 
-  const handleForgotPassword = () => {
-    onNotify('Vui lòng liên hệ Quản trị viên tổ chức hoặc bộ phận IT để thiết lập lại mật khẩu.')
+  const handleQuickTrace = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const trimmed = traceCode.trim()
+    if (!trimmed) {
+      window.location.href = '/truy-xuat?code=XRVT7PXY'
+      return
+    }
+    window.location.href = `/truy-xuat?code=${encodeURIComponent(trimmed)}`
   }
 
   return (
     <div className="login-root-container">
-      {/* Background ambient lighting effects */}
-      <div className="login-glow-bg login-glow-1" aria-hidden="true" />
-      <div className="login-glow-bg login-glow-2" aria-hidden="true" />
+      {/* Background organic ambient lighting with smooth float animation */}
+      <div className="login-ambient-orb login-orb-1" aria-hidden="true" />
+      <div className="login-ambient-orb login-orb-2" aria-hidden="true" />
 
       <main className="login-split-card">
-        {/* LEFT PANEL: Enterprise Brand & Cold-Chain Vision */}
-        <section className="login-hero-side">
+        {/* LEFT PANEL: Landing Hero & Hành trình Nông sản */}
+        <section className="login-hero-side animate-fade-in-1" aria-labelledby="hero-title">
           <div className="hero-top-badge-row">
             <div className="brand-logo-pill">
               <svg
@@ -161,109 +168,171 @@ export function LoginView({
               </svg>
               <div className="brand-titles">
                 <span className="brand-name">AgroChain</span>
-                <span className="brand-version">Enterprise Cold-Chain Platform</span>
+                <span className="brand-version">Truy xuất nguồn gốc &amp; Chuỗi lạnh</span>
               </div>
             </div>
 
-            <div className="status-indicator-badge">
-              <span
-                className={`status-dot ${
-                  backendOnline === true ? 'dot-online' : backendOnline === false ? 'dot-offline' : 'dot-pending'
-                }`}
-              />
-              <span className="status-label">
-                {backendOnline === true ? 'Hệ thống Sẵn sàng' : backendOnline === false ? 'Đang kết nối lại...' : 'Đang kết nối'}
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="status-indicator-badge">
+                <span
+                  className={`status-dot ${
+                    backendOnline === true ? 'dot-online' : backendOnline === false ? 'dot-offline' : 'dot-pending'
+                  }`}
+                />
+                <span className="status-label">
+                  {backendOnline === true ? 'Hệ thống sẵn sàng' : backendOnline === false ? 'Đang kết nối lại...' : 'Đang kết nối'}
+                </span>
+              </div>
             </div>
           </div>
 
           <div className="hero-content-block">
             <div className="hero-tagline">
-              <span className="tagline-chip">Tiêu chuẩn Xuất khẩu Quốc tế</span>
-              <span className="tagline-chip chip-neutral">VietGAP &amp; GlobalGAP</span>
+              <span className="tagline-chip">Chuỗi cung ứng minh bạch</span>
+              <span className="tagline-chip chip-neutral">Môi trường thử nghiệm giả lập</span>
             </div>
-            <h1 className="hero-main-title">
-              Nền tảng Giám sát Chuỗi lạnh &amp; Truy xuất Nguồn gốc Nông sản
+            <h1 id="hero-title" className="hero-main-title">
+              Hành trình nông sản từ vùng trồng đến điểm phân phối
             </h1>
             <p className="hero-description">
-              Đảm bảo độ tươi ngon nguyên bản từ vùng trồng đến bàn ăn thông qua kiểm soát nhiệt độ thời gian thực
-              và nhật ký bất biến bảo vệ bằng chuỗi mã hóa mật mã học.
+              Hệ thống giám sát điều kiện nhiệt độ thùng xe lạnh và ghi nhận nhật ký bất biến của từng lô hàng,
+              giúp các bên đối tác và người tiêu dùng xác thực nguồn gốc minh bạch.
             </p>
           </div>
 
-          {/* Real-time Telemetry Showcase */}
-          <div className="telemetry-grid">
-            <div className="telemetry-card">
-              <div className="telemetry-icon">❄️</div>
-              <div className="telemetry-text">
-                <span className="telemetry-val">-18°C ~ +4°C</span>
-                <span className="telemetry-lbl">Giám sát Cảm biến Lạnh IoT</span>
-              </div>
+          {/* Sơ đồ hành trình nông sản bằng CSS thuần (4 chặng) */}
+          <div className="journey-flow-container" aria-label="Sơ đồ hành trình một lô hàng">
+            <div className="journey-flow-header">
+              <span className="journey-flow-title">Vòng đời một lô hàng trong chuỗi lạnh</span>
             </div>
-
-            <div className="telemetry-card">
-              <div className="telemetry-icon">🔗</div>
-              <div className="telemetry-text">
-                <span className="telemetry-val">SHA-256 + RFC 8785</span>
-                <span className="telemetry-lbl">Nhật ký Bất biến 5 Lớp</span>
+            <div className="journey-flow-steps">
+              <div className="journey-step-item">
+                <div className="step-badge-indicator">
+                  <span className="step-num">1</span>
+                  <SquircleIcon kind="seedling" size="sm" />
+                </div>
+                <div className="step-content">
+                  <span className="step-title">Vùng trồng</span>
+                  <span className="step-desc">Định danh thửa đất, cây trồng và nhật ký canh tác ban đầu.</span>
+                </div>
               </div>
-            </div>
 
-            <div className="telemetry-card">
-              <div className="telemetry-icon">🛡️</div>
-              <div className="telemetry-text">
-                <span className="telemetry-val">PostgreSQL FORCE RLS</span>
-                <span className="telemetry-lbl">Cô lập Dữ liệu Đa tổ chức</span>
+              <div className="journey-step-divider" aria-hidden="true" />
+
+              <div className="journey-step-item">
+                <div className="step-badge-indicator">
+                  <span className="step-num">2</span>
+                  <SquircleIcon kind="basket" size="sm" />
+                </div>
+                <div className="step-content">
+                  <span className="step-title">Lô thu hoạch</span>
+                  <span className="step-desc">Cấp mã định danh duy nhất, sơ chế và đóng gói quy chuẩn.</span>
+                </div>
               </div>
-            </div>
 
-            <div className="telemetry-card">
-              <div className="telemetry-icon">📍</div>
-              <div className="telemetry-text">
-                <span className="telemetry-val">GPS WGS84</span>
-                <span className="telemetry-lbl">Định danh Vùng trồng Cố định</span>
+              <div className="journey-step-divider" aria-hidden="true" />
+
+              <div className="journey-step-item">
+                <div className="step-badge-indicator">
+                  <span className="step-num">3</span>
+                  <SquircleIcon kind="truck" size="sm" />
+                </div>
+                <div className="step-content">
+                  <span className="step-title">Vận chuyển lạnh</span>
+                  <span className="step-desc">Thùng xe lạnh duy trì ngưỡng nhiệt độ bảo quản trên đường.</span>
+                </div>
+              </div>
+
+              <div className="journey-step-divider" aria-hidden="true" />
+
+              <div className="journey-step-item">
+                <div className="step-badge-indicator">
+                  <span className="step-num">4</span>
+                  <SquircleIcon kind="frost" size="sm" />
+                </div>
+                <div className="step-content">
+                  <span className="step-title">Điểm phân phối</span>
+                  <span className="step-desc">Tiếp nhận kiểm định, đưa vào quầy kệ và phục vụ người dùng.</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="hero-footer-bar">
-            <a href="/truy-xuat" className="audit-inspect-button">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                <path d="M9 12l2 2 4-4" />
-              </svg>
-              <span>Tra cứu Nguồn gốc Nông sản Công khai (Không cần đăng nhập)</span>
-            </a>
+          {/* Ô tra cứu mã lô nhanh (Quick Trace) */}
+          <div className="quick-trace-section">
+            <div className="quick-trace-card">
+              <div className="quick-trace-title-row">
+                <span className="quick-trace-label">Tra cứu nguồn gốc lô hàng công khai</span>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {(['XRVT7PXY', 'BZ84PFZ3', 'JQMB7MZ9'] as const).map((sample) => (
+                    <a
+                      key={sample}
+                      href={`/truy-xuat?code=${sample}`}
+                      className="qr-scanner-btn"
+                      title={`Tra cứu ngay lô mẫu ${sample}`}
+                      style={{ textDecoration: 'none' }}
+                    >
+                      <code>{sample}</code>
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              <form onSubmit={handleQuickTrace} className="quick-trace-form">
+                <div className="trace-input-wrap">
+                  <input
+                    type="text"
+                    value={traceCode}
+                    onChange={(e) => setTraceCode(e.target.value)}
+                    placeholder="Nhập mã lô thực tế (VD: XRVT7PXY, BZ84PFZ3, JQMB7MZ9)..."
+                    aria-label="Nhập mã lô để tra cứu"
+                    className="trace-input"
+                  />
+                  <button type="submit" className="ds-button ds-button-brand trace-submit-btn">
+                    Tra cứu
+                  </button>
+                </div>
+              </form>
+
+              <div className="quick-trace-footer-link">
+                <a href="/truy-xuat?code=XRVT7PXY" className="trace-direct-link">
+                  Mở trang tra cứu công khai kèm bản đồ hành trình →
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div className="hero-disclaimer-note">
+            <span>Ghi chú: Toàn bộ thông tin, số đo nhiệt độ và sự kiện trên hệ thống là dữ liệu mẫu giả lập phục vụ nghiên cứu và kiểm thử.</span>
           </div>
         </section>
 
-        {/* RIGHT PANEL: Enterprise Security Login Form */}
-        <section className="login-form-side">
+        {/* RIGHT PANEL: Form Đăng nhập & Tài khoản mẫu */}
+        <section className="login-form-side" aria-labelledby="form-title">
           <div className="form-card-header">
             <div className="form-card-badge">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              <span>Phiên làm việc An toàn</span>
+              <span>Phiên làm việc bảo vệ</span>
             </div>
-            <h2 className="form-title">Đăng nhập Hệ thống</h2>
-            <p className="form-subtitle">Nhập thông tin tài khoản được cấp phát để truy cập không gian điều hành</p>
+            <h2 id="form-title" className="form-title">Đăng nhập</h2>
+            <p className="form-subtitle">Nhập thông tin tài khoản được cấp phát hoặc chọn tài khoản mẫu bên dưới</p>
           </div>
 
           {backendOnline === false && (
-            <div className="auth-alert-box" role="status" style={{ borderColor: 'rgba(234, 179, 8, 0.4)', background: 'rgba(234, 179, 8, 0.1)', color: 'var(--text-primary)' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2">
+            <div className="auth-alert-box" role="status" style={{ borderColor: 'var(--border-subtle)', background: 'var(--neutral-secondary-soft)', color: 'var(--text-primary)' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="8" x2="12" y2="12" />
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
               <span style={{ fontSize: '13px', lineHeight: '1.5' }}>
-                Máy chủ đám mây đang thức dậy sau thời gian chờ (Cold Start ~30s). Hệ thống đang tự động kết nối lại, bạn có thể thử đăng nhập sau giây lát...
+                Hệ thống đang kết nối tới máy chủ dữ liệu. Bạn có thể thử đăng nhập sau giây lát...
               </span>
             </div>
           )}
-
 
           {errorMessage && (
             <div className="auth-alert-box" role="alert">
@@ -279,7 +348,7 @@ export function LoginView({
           <form onSubmit={handleSubmit} className="auth-clean-form" noValidate>
             <div className="form-group-field">
               <label htmlFor="login-email" className="field-label">
-                Tài khoản Email <span className="req-star">*</span>
+                Tài khoản email <span className="req-star">*</span>
               </label>
               <div className="input-with-icon">
                 <svg className="field-prefix-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -301,7 +370,7 @@ export function LoginView({
                       e.currentTarget.removeAttribute('aria-invalid')
                     }
                   }}
-                  placeholder="name@organization.com"
+                  placeholder="name@organization.vn"
                   aria-errormessage="login-email-error"
                   className="modern-input"
                 />
@@ -314,16 +383,8 @@ export function LoginView({
             <div className="form-group-field">
               <div className="label-with-action">
                 <label htmlFor="login-password" className="field-label">
-                  Mật khẩu bảo vệ <span className="req-star">*</span>
+                  Mật khẩu <span className="req-star">*</span>
                 </label>
-                <button
-                  type="button"
-                  className="field-helper-link"
-                  disabled={submitting}
-                  onClick={handleForgotPassword}
-                >
-                  Quên mật khẩu?
-                </button>
               </div>
               <div className="input-with-icon">
                 <svg className="field-prefix-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -375,19 +436,6 @@ export function LoginView({
               </div>
             </div>
 
-            <div className="form-options-row">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  disabled={submitting}
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="modern-checkbox"
-                />
-                <span>Duy trì trạng thái đăng nhập an toàn</span>
-              </label>
-            </div>
-
             <button
               type="submit"
               className="submit-login-button"
@@ -396,12 +444,12 @@ export function LoginView({
               {submitting ? (
                 <span className="spinner-row">
                   <span className="login-btn-spinner" />
-                  Đang xác thực thông tin...
+                  Đang đăng nhập...
                 </span>
               ) : (
                 <span className="login-btn-content">
-                  <span>Đăng nhập vào Hệ thống</span>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <span>Đăng nhập</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <line x1="5" y1="12" x2="19" y2="12" />
                     <polyline points="12 5 19 12 12 19" />
                   </svg>
@@ -410,14 +458,14 @@ export function LoginView({
             </button>
           </form>
 
-          {/* Quick Demo Accounts Presets for Evaluators & Users */}
+          {/* Danh sách 6 tài khoản mẫu theo từng vai trò */}
           <div className="demo-accounts-card">
             <div className="demo-accounts-header">
               <div className="demo-accounts-title-wrap">
                 <span className="demo-badge-icon">🎯</span>
-                <span className="demo-accounts-title">Tài khoản Mẫu Thử nghiệm (Demo)</span>
+                <span className="demo-accounts-title">Tài khoản mẫu thử nghiệm</span>
               </div>
-              <span className="demo-accounts-hint">Mật khẩu: <code>Password123!</code></span>
+              <span className="demo-accounts-hint">Mật khẩu chung: <code>Password123!</code></span>
             </div>
             <div className="demo-presets-grid">
               {DEMO_PRESETS.map((preset) => (
@@ -430,11 +478,11 @@ export function LoginView({
                     setEmail(preset.email)
                     setPassword(preset.password)
                     setErrorMessage(null)
-                    onNotify(`Đã điền tài khoản: ${preset.roleName}`)
+                    void executeLogin(preset.email, preset.password)
                   }}
-                  title={`Chọn tài khoản ${preset.roleName}`}
+                  title={`Đăng nhập nhanh bằng tài khoản ${preset.roleName}`}
                 >
-                  <span className="preset-icon">{preset.icon}</span>
+                  <SquircleIcon kind={preset.iconKey} size="sm" />
                   <div className="preset-info">
                     <div className="preset-name-row">
                       <span className="preset-name">{preset.roleName}</span>
@@ -447,33 +495,23 @@ export function LoginView({
             </div>
           </div>
 
-          {/* Security Assurance Notice */}
-          <div className="security-guarantee-box">
-            <div className="security-icon-shield">🛡️</div>
-            <div className="security-guarantee-text">
-              <strong>Bảo mật Xác thực Cấp độ Doanh nghiệp</strong>
-              <p>Mật khẩu băm chuẩn Argon2id. Phiên lưu trữ HttpOnly Cookie chống tấn công XSS &amp; khóa 15 phút nếu sai 5 lần.</p>
-            </div>
-          </div>
-
-          {/* Utility Bar (Dark Mode Toggle & Footer) */}
+          {/* Chuyển đổi giao diện sáng / tối & thông tin chân trang */}
           <div className="login-card-footer">
             <button
               type="button"
               className="theme-switch-pill"
               onClick={onToggleTheme}
-              title="Đổi giao diện Sáng / Tối"
+              title="Chuyển đổi giao diện Sáng / Tối"
             >
-              <span>{isDark ? '☀️ Giao diện Sáng' : '🌙 Giao diện Tối'}</span>
+              <span>{isDark ? 'Chế độ sáng' : 'Chế độ tối'}</span>
             </button>
 
             <span className="copyright-tag">
-              © 2026 AgroChain • TTCS_T926_K18C4_N3
+              AgroChain • Đề tài Nghiên cứu Khoa học
             </span>
           </div>
         </section>
       </main>
-
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { ApiError, getPublicRoute, getPublicTrace } from '../services/api'
 import type { PublicRoute, PublicTraceResponse, PublicTraceWarning } from '../types'
+import { SquircleIcon, VietFarmJourneyStepper } from './VietFarmVisuals'
 
 const RouteMap = lazy(() => import('./RouteMap').then((module) => ({ default: module.RouteMap })))
 
@@ -23,7 +24,6 @@ function readInitialLotCode(): string {
     raw = new URLSearchParams(window.location?.search ?? '').get('code') ?? ''
   }
   const normalized = normalizeCode(raw)
-  // Mã không hợp lệ trên URL không được đẩy vào ô nhập.
   return LOT_CODE_PATTERN.test(normalized) ? normalized : ''
 }
 
@@ -85,7 +85,6 @@ export function PublicTracePage() {
       setLoading(false)
     }
 
-    // Bản đồ hành trình là phần bổ sung: lô vẫn tra cứu được khi không có tuyến đường.
     try {
       setRoute(await getPublicRoute(normalized))
     } catch {
@@ -93,13 +92,15 @@ export function PublicTracePage() {
     }
   }, [])
 
-  // Tem QR trỏ tới /truy-xuat?code=<mã lô> (hoặc /trace/<mã lô>): tra cứu ngay, không bắt nhập lại.
   useEffect(() => {
     if (autoLookupDone.current) return
     const initial = readInitialLotCode()
     if (!initial) return
     autoLookupDone.current = true
-    void lookup(initial)
+    const timer = window.setTimeout(() => {
+      void lookup(initial)
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [lookup])
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -110,8 +111,7 @@ export function PublicTracePage() {
   const trace = result?.trace
 
   return (
-    <div className="login-root-container">
-      {/* Background ambient lighting effects */}
+    <div className="login-root-container public-trace-page">
       <div className="login-glow-bg login-glow-1" aria-hidden="true" />
       <div className="login-glow-bg login-glow-2" aria-hidden="true" />
 
@@ -144,9 +144,16 @@ export function PublicTracePage() {
               </svg>
               <div className="brand-titles">
                 <span className="brand-name">AgroChain</span>
-                <span className="brand-version">Public Traceability Portal</span>
+                <span className="brand-version">VietFarm Public Traceability</span>
               </div>
             </div>
+            <a
+              href="/login"
+              className="ds-button ds-button-secondary ds-button-sm"
+              style={{ textDecoration: 'none' }}
+            >
+              ← Cổng đăng nhập
+            </a>
           </div>
 
           <div className="hero-content-block">
@@ -164,26 +171,30 @@ export function PublicTracePage() {
 
           <div className="telemetry-grid">
             <div className="telemetry-card">
-              <div className="telemetry-icon">🌱</div>
+              <SquircleIcon kind="seedling" size="sm" />
               <div className="telemetry-text">
                 <span className="telemetry-val">Vùng trồng Minh bạch</span>
                 <span className="telemetry-lbl">Tên vùng trồng hiển thị công khai</span>
               </div>
             </div>
             <div className="telemetry-card">
-              <div className="telemetry-icon">❄️</div>
+              <SquircleIcon kind="frost" size="sm" />
               <div className="telemetry-text">
                 <span className="telemetry-val">Giám sát Chuỗi lạnh</span>
                 <span className="telemetry-lbl">Cảnh báo bảo quản được ghi nhận</span>
               </div>
             </div>
             <div className="telemetry-card">
-              <div className="telemetry-icon">🛡️</div>
+              <SquircleIcon kind="rice" size="sm" />
               <div className="telemetry-text">
                 <span className="telemetry-val">Chỉ hiện Trường Công khai</span>
                 <span className="telemetry-lbl">Giấu khối lượng, giá &amp; đối tác</span>
               </div>
             </div>
+          </div>
+
+          <div style={{ marginTop: '14px' }}>
+            <VietFarmJourneyStepper compact />
           </div>
         </section>
 
@@ -229,12 +240,35 @@ export function PublicTracePage() {
                   className="modern-input"
                   value={code}
                   onChange={(event) => setCode(event.target.value.toUpperCase())}
-                  placeholder="VD: K3M7P2QZ"
+                  placeholder="VD: XRVT7PXY, BZ84PFZ3, JQMB7MZ9"
                   autoComplete="off"
                   maxLength={12}
                   disabled={loading}
                 />
               </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px', alignItems: 'center' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Mã lô mẫu có sẵn:</span>
+              {[
+                { code: 'XRVT7PXY', label: 'XRVT7PXY (Bắp cải D1 + Bản đồ)' },
+                { code: 'BZ84PFZ3', label: 'BZ84PFZ3 (Dâu tây HTX + Chế biến)' },
+                { code: 'JQMB7MZ9', label: 'JQMB7MZ9 (Dâu tây Nông trại)' },
+                { code: 'DB99A7YK', label: 'DB99A7YK (Đã tiêu thụ)' },
+              ].map((item) => (
+                <button
+                  key={item.code}
+                  type="button"
+                  className="ds-button ds-button-secondary ds-button-xs"
+                  disabled={loading}
+                  onClick={() => {
+                    setCode(item.code)
+                    void lookup(item.code)
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
 
             <button type="submit" className="submit-login-button" disabled={loading}>
@@ -266,8 +300,8 @@ export function PublicTracePage() {
                     warning.level === 'danger'
                       ? undefined
                       : {
-                          borderColor: 'rgba(234, 179, 8, 0.4)',
-                          background: 'rgba(234, 179, 8, 0.1)',
+                          borderColor: 'rgba(217, 130, 43, 0.4)',
+                          background: 'rgba(217, 130, 43, 0.1)',
                           color: 'var(--text-primary)',
                         }
                   }
@@ -277,16 +311,19 @@ export function PublicTracePage() {
                 </div>
               ))}
 
-              <div className="trace-lot-summary">
-                <span className="trace-lot-chip">
-                  Mã lô <code>{trace.lot_code ?? '—'}</code>
-                </span>
-                <h3 className="trace-product-name">{trace.product_name ?? 'Sản phẩm'}</h3>
+              <div className="trace-lot-summary vf-trace-summary-with-icon">
+                <SquircleIcon nameHint={trace.product_name} size="lg" />
+                <div>
+                  <span className="trace-lot-chip">
+                    Mã lô <code>{trace.lot_code ?? '—'}</code>
+                  </span>
+                  <h3 className="trace-product-name">{trace.product_name ?? 'Sản phẩm'}</h3>
+                </div>
               </div>
 
               <div className="trace-fields-grid">
                 <div className="trace-field-tile">
-                  <span className="trace-field-icon" aria-hidden="true">📦</span>
+                  <SquircleIcon kind="basket" size="sm" />
                   <div>
                     <span className="trace-field-lbl">Quy cách</span>
                     <span className="trace-field-val">
@@ -295,38 +332,52 @@ export function PublicTracePage() {
                   </div>
                 </div>
                 <div className="trace-field-tile">
-                  <span className="trace-field-icon" aria-hidden="true">📅</span>
+                  <SquircleIcon kind="bokchoy" size="sm" />
                   <div>
                     <span className="trace-field-lbl">Ngày thu hoạch</span>
                     <span className="trace-field-val">{trace.harvested_on ?? 'Chưa cập nhật'}</span>
                   </div>
                 </div>
                 <div className="trace-field-tile">
-                  <span className="trace-field-icon" aria-hidden="true">🌱</span>
+                  <SquircleIcon kind="seedling" size="sm" />
                   <div>
                     <span className="trace-field-lbl">Vùng trồng</span>
                     <span className="trace-field-val">{trace.farm_name ?? 'Chưa cập nhật'}</span>
                   </div>
                 </div>
                 <div className="trace-field-tile">
-                  <span className="trace-field-icon" aria-hidden="true">📍</span>
+                  <SquircleIcon kind="rice" size="sm" />
                   <div>
                     <span className="trace-field-lbl">Nguồn gốc</span>
-                    <span className="trace-field-val">{trace.origin_organization_type ?? '—'}</span>
+                    <span className="trace-field-val">
+                      {trace.origin_organization_type === 'farm'
+                        ? 'Nông trại sản xuất'
+                        : trace.origin_organization_type === 'cooperative'
+                          ? 'Hợp tác xã'
+                          : trace.origin_organization_type ?? '—'}
+                    </span>
                   </div>
                 </div>
                 <div className="trace-field-tile">
-                  <span className="trace-field-icon" aria-hidden="true">🏷️</span>
+                  <SquircleIcon kind="frost" size="sm" />
                   <div>
                     <span className="trace-field-lbl">Trạng thái</span>
-                    <span className="trace-field-val">{trace.status ?? '—'}</span>
+                    <span className="trace-field-val">
+                      {trace.status === 'active'
+                        ? 'Đang lưu hành'
+                        : trace.status === 'pending_handover'
+                          ? 'Chờ bàn giao'
+                          : trace.status === 'consumed'
+                            ? 'Đã tiêu thụ'
+                            : trace.status ?? '—'}
+                    </span>
                   </div>
                 </div>
               </div>
 
               {trace.processing_summary ? (
                 <div className="trace-field-tile">
-                  <span className="trace-field-icon" aria-hidden="true">&#9881;</span>
+                  <SquircleIcon kind="carrot" size="sm" />
                   <div>
                     <span className="trace-field-lbl">Công đoạn chế biến</span>
                     <span className="trace-field-val">{trace.processing_summary}</span>

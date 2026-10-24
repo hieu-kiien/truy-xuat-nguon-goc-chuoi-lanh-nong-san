@@ -1,5 +1,7 @@
+import { useState, useRef } from 'react'
 import { hasPermission, ORG_TYPE_LABELS, type SessionUser } from '../types'
 import { NotificationBell } from './NotificationBell'
+import { ProfileModal } from './ProfileModal'
 import type { WorkspaceTab } from './FarmWorkspace'
 
 interface WorkspaceTopbarProps {
@@ -12,9 +14,11 @@ interface WorkspaceTopbarProps {
   onSearchChange: (value: string) => void
   onRefresh: () => void
   onToggleTheme: () => void
+  onLogout?: () => void
 }
 
 const TAB_TITLES: Record<WorkspaceTab, string> = {
+  dashboard: 'Trang chủ',
   lots: 'Lô hàng',
   products: 'Nông sản',
   handovers: 'Bàn giao',
@@ -37,7 +41,10 @@ export function WorkspaceTopbar({
   onSearchChange,
   onRefresh,
   onToggleTheme,
+  onLogout,
 }: WorkspaceTopbarProps) {
+  const [profileModalOpen, setProfileModalOpen] = useState(false)
+  const avatarButtonRef = useRef<HTMLButtonElement>(null)
   const showOverviewActions = activeTab === 'overview' && canReadFarms
 
   return (
@@ -79,7 +86,6 @@ export function WorkspaceTopbar({
           </>
         )}
 
-
         <button
           type="button"
           className="ds-button ds-button-secondary ds-button-sm"
@@ -91,6 +97,30 @@ export function WorkspaceTopbar({
         <NotificationBell
           canRead={hasPermission(user.role, 'notifications:read')}
         />
+
+        <button
+          ref={avatarButtonRef}
+          type="button"
+          className="topbar-avatar-btn"
+          onClick={() => setProfileModalOpen(true)}
+          aria-label={`Hồ sơ người dùng ${user.full_name}`}
+          aria-haspopup="dialog"
+          aria-expanded={profileModalOpen}
+          title={`Hồ sơ tài khoản: ${user.full_name}`}
+        >
+          <span className="avatar-initials" aria-hidden="true">
+            {user.full_name ? user.full_name.trim().charAt(0).toUpperCase() : 'U'}
+          </span>
+        </button>
+
+        {profileModalOpen && (
+          <ProfileModal
+            user={user}
+            onClose={() => setProfileModalOpen(false)}
+            onLogout={onLogout}
+            triggerRef={avatarButtonRef}
+          />
+        )}
       </div>
     </header>
   )

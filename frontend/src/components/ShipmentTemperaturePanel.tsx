@@ -62,7 +62,7 @@ export function ShipmentTemperaturePanel() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void load()
-    }, 150)
+    }, 20)
     return () => {
       window.clearTimeout(timer)
     }

@@ -50,7 +50,7 @@ export function ShipmentReadingForm() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void load()
-    }, 150)
+    }, 20)
     return () => {
       window.clearTimeout(timer)
     }

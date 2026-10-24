@@ -1,4 +1,20 @@
+import {
+  House,
+  Package,
+  Carrot,
+  Handshake,
+  Plant,
+  ClockCounterClockwise,
+  ShieldCheck,
+  ChartBar,
+  ThermometerCold,
+  Truck,
+  Buildings,
+  SignOut,
+  Leaf,
+} from '@phosphor-icons/react'
 import { hasPermission, ROLE_LABELS, type SessionUser } from '../types'
+import { SquircleIcon } from './VietFarmVisuals'
 import type { WorkspaceTab } from './FarmWorkspace'
 
 interface WorkspaceSidebarProps {
@@ -35,7 +51,22 @@ export function WorkspaceSidebar({
       <div>
         <div className="sidebar-brand">
           <div className="sidebar-brand-row">
-            <div className="sidebar-brand-title">AgroChain</div>
+            <button
+              type="button"
+              onClick={() => selectTab('dashboard')}
+              className="sidebar-brand-button"
+              title="Về Trang chủ không gian làm việc"
+            >
+              <span className="vf-brand-emblem" aria-hidden="true">
+                <Leaf size={20} weight="duotone" />
+              </span>
+              <div>
+                <div className="sidebar-brand-title">
+                  Agro<span className="vf-brand-accent">Chain</span>
+                </div>
+                <span className="vf-brand-kicker">Chuỗi Lạnh Nông Sản</span>
+              </div>
+            </button>
           </div>
           <p className="sidebar-brand-sub" title={user.organization_name}>
             {user.organization_name}
@@ -43,6 +74,23 @@ export function WorkspaceSidebar({
         </div>
 
         <nav className="sidebar-nav">
+          <div style={{ marginBottom: '14px' }}>
+            <ul className="sidebar-nav-list">
+              <li>
+                <button
+                  type="button"
+                  onClick={() => selectTab('dashboard')}
+                  className={`dashboard-nav-item ${
+                    activeTab === 'dashboard' ? 'dashboard-nav-item-active' : ''
+                  }`}
+                >
+                  <House size={18} weight="duotone" aria-hidden="true" />
+                  <span>Trang chủ</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+
           <div>
             <div className="sidebar-section-label">Phân hệ Nghiệp vụ</div>
             <ul className="sidebar-nav-list">
@@ -54,6 +102,7 @@ export function WorkspaceSidebar({
                     activeTab === 'lots' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
+                  <Package size={18} weight="duotone" aria-hidden="true" />
                   <span>Danh sách lô</span>
                 </button>
               </li>}
@@ -65,6 +114,7 @@ export function WorkspaceSidebar({
                     activeTab === 'products' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
+                  <Carrot size={18} weight="duotone" aria-hidden="true" />
                   <span>Nông sản</span>
                 </button>
               </li>}
@@ -77,6 +127,7 @@ export function WorkspaceSidebar({
                     activeTab === 'handovers' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
+                  <Handshake size={18} weight="duotone" aria-hidden="true" />
                   <span>Bàn giao</span>
                   {pendingHandoverCount != null && pendingHandoverCount > 0 && (
                     <span className="handover-pending-count" aria-label={`${pendingHandoverCount} yêu cầu cần xác nhận`}>
@@ -93,6 +144,7 @@ export function WorkspaceSidebar({
                     activeTab === 'overview' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
+                  <Plant size={18} weight="duotone" aria-hidden="true" />
                   <span>Vùng trồng</span>
                 </button>
               </li>}
@@ -104,6 +156,7 @@ export function WorkspaceSidebar({
                     activeTab === 'security' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
+                  <ClockCounterClockwise size={18} weight="duotone" aria-hidden="true" />
                   <span>Nhật ký thao tác</span>
                 </button>
               </li>}
@@ -115,6 +168,7 @@ export function WorkspaceSidebar({
                     activeTab === 'integrity' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
+                  <ShieldCheck size={18} weight="duotone" aria-hidden="true" />
                   <span>Tính toàn vẹn</span>
                 </button>
               </li>}
@@ -126,6 +180,7 @@ export function WorkspaceSidebar({
                     activeTab === 'cold-chain-stats' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
+                  <ChartBar size={18} weight="duotone" aria-hidden="true" />
                   <span>Thống kê chuỗi lạnh</span>
                 </button>
               </li>}
@@ -137,6 +192,7 @@ export function WorkspaceSidebar({
                     activeTab === 'cold-chain' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
+                  <ThermometerCold size={18} weight="duotone" aria-hidden="true" />
                   <span>Chuỗi nhiệt độ</span>
                 </button>
               </li>}
@@ -149,6 +205,7 @@ export function WorkspaceSidebar({
                     activeTab === 'cold-chain-ops' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
+                  <Truck size={18} weight="duotone" aria-hidden="true" />
                   <span>Thao tác chuỗi lạnh</span>
                 </button>
               </li>}
@@ -160,6 +217,7 @@ export function WorkspaceSidebar({
                     activeTab === 'organization' ? 'dashboard-nav-item-active' : ''
                   }`}
                 >
+                  <Buildings size={18} weight="duotone" aria-hidden="true" />
                   <span>Quản trị tổ chức</span>
                 </button>
               </li>}
@@ -170,13 +228,16 @@ export function WorkspaceSidebar({
       </div>
 
       <div className="sidebar-footer">
-        <div className="sidebar-user-card">
-          <div className="sidebar-user-name">{user.full_name}</div>
-          <div className="sidebar-user-meta" title={user.email}>
-            {user.email}
-          </div>
-          <div className="sidebar-user-meta">
-            Vai trò: <strong>{ROLE_LABELS[user.role]}</strong>
+        <div className="sidebar-user-card vf-sidebar-org-card">
+          <SquircleIcon kind="seedling" size="sm" />
+          <div style={{ minWidth: 0 }}>
+            <div className="sidebar-user-name">{user.full_name}</div>
+            <div className="sidebar-user-meta" title={user.email}>
+              {user.email}
+            </div>
+            <div className="sidebar-user-meta">
+              Vai trò: <strong>{ROLE_LABELS[user.role]}</strong>
+            </div>
           </div>
         </div>
 
@@ -185,7 +246,8 @@ export function WorkspaceSidebar({
           className="ds-button ds-button-secondary ds-button-sm ds-button-block"
           onClick={onLogout}
         >
-          Đăng xuất phiên
+          <SignOut size={15} weight="bold" aria-hidden="true" />
+          <span>Đăng xuất phiên</span>
         </button>
       </div>
     </aside>

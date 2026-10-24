@@ -8,6 +8,7 @@ import type { SessionUser } from './types'
 
 const THEME_STORAGE_KEY = 'ttcs_theme'
 const WORKSPACE_PATHS = new Set([
+  '/dashboard',
   '/lots',
   '/handovers',
   '/products',
@@ -67,6 +68,8 @@ function safeWorkspacePath(candidate: string | null): string | null {
 }
 
 function routeForTab(tab: WorkspaceTab): string {
+  if (tab === 'dashboard') return '/dashboard'
+  if (tab === 'lots') return '/lots'
   if (tab === 'overview') return '/farms'
   if (tab === 'handovers') return '/handovers'
   if (tab === 'products') return '/products'
@@ -76,10 +79,12 @@ function routeForTab(tab: WorkspaceTab): string {
   if (tab === 'cold-chain') return '/cold-chain'
   if (tab === 'cold-chain-ops') return '/cold-chain-ops'
   if (tab === 'organization') return '/organization'
-  return '/lots'
+  return '/dashboard'
 }
 
 function tabForPath(pathname: string): WorkspaceTab {
+  if (pathname === '/dashboard') return 'dashboard'
+  if (pathname === '/lots') return 'lots'
   if (pathname === '/farms') return 'overview'
   if (pathname === '/handovers') return 'handovers'
   if (pathname === '/products') return 'products'
@@ -89,7 +94,7 @@ function tabForPath(pathname: string): WorkspaceTab {
   if (pathname === '/cold-chain') return 'cold-chain'
   if (pathname === '/cold-chain-ops') return 'cold-chain-ops'
   if (pathname === '/organization') return 'organization'
-  return 'lots'
+  return 'dashboard'
 }
 
 function loginPath(returnTo: string): string {
@@ -159,7 +164,7 @@ export default function App() {
         const returnTo =
           safeWorkspacePath(
             `${nextLocation.pathname}${nextLocation.search}${nextLocation.hash}`
-          ) ?? '/lots'
+          ) ?? '/dashboard'
         window.history.replaceState(null, '', loginPath(returnTo))
         nextLocation = readLocation()
       } else if (
@@ -167,7 +172,7 @@ export default function App() {
         !isWorkspacePath(nextLocation.pathname) &&
         !isPublicPath(nextLocation.pathname)
       ) {
-        window.history.replaceState(null, '', '/lots')
+        window.history.replaceState(null, '', '/dashboard')
         nextLocation = readLocation()
       }
       setLocation(nextLocation)
@@ -224,7 +229,7 @@ export default function App() {
     const initialReturnTo =
       safeWorkspacePath(
         `${initialLocation.pathname}${initialLocation.search}${initialLocation.hash}`
-      ) ?? '/lots'
+      ) ?? '/dashboard'
 
     async function bootstrap() {
       const startsOnPublicPage = isPublicPath(initialLocation.pathname)
@@ -238,7 +243,7 @@ export default function App() {
       } catch {
         if (active) {
           setBackendOnline(false)
-          if (initialLocation.pathname !== '/login' && !startsOnPublicPage) {
+          if (initialLocation.pathname !== '/login') {
             navigate(loginPath(initialReturnTo), true)
           }
           setInitializing(false)
@@ -251,26 +256,23 @@ export default function App() {
         if (active) {
           currentUserRef.current = user
           setCurrentUser(user)
-          if (
-            initialLocation.pathname === '/' ||
-            initialLocation.pathname === '/login'
-          ) {
+          if (initialLocation.pathname === '/login') {
             const requestedReturnTo = safeWorkspacePath(
               new URLSearchParams(initialLocation.search).get('next')
             )
-            navigate(requestedReturnTo ?? '/lots', true)
+            navigate(requestedReturnTo ?? '/dashboard', true)
           } else if (
             !isWorkspacePath(initialLocation.pathname) &&
             !isPublicPath(initialLocation.pathname)
           ) {
-            navigate('/lots', true)
+            navigate('/dashboard', true)
           }
         }
       } catch {
         if (active) {
           currentUserRef.current = null
           setCurrentUser(null)
-          if (initialLocation.pathname !== '/login' && !startsOnPublicPage) {
+          if (initialLocation.pathname !== '/login') {
             navigate(loginPath(initialReturnTo), true)
           }
         }
@@ -305,7 +307,6 @@ export default function App() {
     }
   }, [backendOnline])
 
-
   const handleLogout = async () => {
     try {
       await logout()
@@ -317,7 +318,7 @@ export default function App() {
     }
     currentUserRef.current = null
     setCurrentUser(null)
-    navigate(loginPath('/lots'), true)
+    navigate('/login', true)
     notify('Đã đăng xuất khỏi phiên làm việc')
   }
 
@@ -340,7 +341,8 @@ export default function App() {
         <PublicTracePage />
       ) : currentUser ? (
         <FarmWorkspace
-          key={`${currentUser.id}:${location.pathname}:${location.search}`}
+          key={`${currentUser.id}:${location.pathname === '/farms' ? location.search : ''}`}
+          locationKey={`${location.pathname}:${location.search}`}
           user={currentUser}
           activeTab={activeTab}
           isDark={isDark}
@@ -363,7 +365,7 @@ export default function App() {
             const requestedReturnTo = safeWorkspacePath(
               new URLSearchParams(location.search).get('next')
             )
-            navigate(requestedReturnTo ?? '/lots', true)
+            navigate(requestedReturnTo ?? '/dashboard', true)
           }}
           onNotify={notify}
         />

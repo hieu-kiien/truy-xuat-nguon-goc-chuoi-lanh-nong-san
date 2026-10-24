@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import create_engine, func, select, text
+from sqlalchemy import create_engine, delete, func, select, text
 from sqlalchemy.orm import Session
 
 from app.core.auth import Principal
@@ -15,20 +15,25 @@ from app.models.cold_chain_config import ProductColdChainConfig
 from app.models.farm import Farm
 from app.models.handover import Handover
 from app.models.identity import Organization, Role, User
+from app.models.integrity_check import IntegrityCheck
 from app.models.lot import Lot
-from app.models.processing_step import ProcessingStep
+from app.models.lot_input import LotInputLot
+from app.models.processing_step import LotProcessingStep, ProcessingStep
 from app.models.product import Product
 from app.models.shipment import Shipment, ShipmentLot
 from app.models.telemetry import ColdChainViolation, TemperatureReading
 from app.schemas.handover import HandoverCreate
 from app.schemas.location import LocationCreate, LotConsume, LotMove
-from app.schemas.lot import LotCreate
+from app.schemas.lot import InputLotCreate, InputLotItemCreate, LotCreate
+from app.schemas.processing import ProcessingStepRecordCreate
 from app.seed_lineage_workflow import seed_workflow
 from app.services import (
     event_service,
     handover_service,
+    input_lot_service,
     lot_lifecycle_service,
     lot_service,
+    processing_step_service,
 )
 
 logger = logging.getLogger(__name__)
@@ -58,6 +63,7 @@ HYDRO_VEG_PRODUCT_ID = UUID("66666666-6666-4666-8666-666666666602")
 SHAN_TEA_PRODUCT_ID = UUID("66666666-6666-4666-8666-666666666603")
 
 DEMO_SHIPMENT_ID = UUID("77777777-7777-4777-8777-777777777701")
+DEMO_SHIPMENT_2_ID = UUID("77777777-7777-4777-8777-777777777702")
 
 DEMO_ORGANIZATIONS = [
     {
@@ -367,6 +373,8 @@ def _seed_operational_demo_lots(
 def _seed_sprint5_to_8_demo_extras(
     session: Session,
     strawberry_product_id: UUID,
+    grower_principal: Principal,
+    coop_principal: Principal,
 ) -> None:
     """Seed processing steps catalogue, cold chain configs, and demo shipment telemetry."""
     for step_data in DEMO_PROCESSING_STEPS:
@@ -409,14 +417,55 @@ def _seed_sprint5_to_8_demo_extras(
             )
     session.commit()
 
-    # Seed one demo shipment with readings & violation for TransViet if not present
-    if session.get(Shipment, DEMO_SHIPMENT_ID) is None:
+    now_hour = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
+    started = now_hour - timedelta(hours=3)
+    existing_s1 = session.get(Shipment, DEMO_SHIPMENT_ID)
+    if existing_s1 is not None and (
+        existing_s1.last_reading_at is None
+        or existing_s1.last_reading_at < now_hour - timedelta(days=2)
+    ):
+        session.execute(
+            delete(ColdChainViolation).where(
+                ColdChainViolation.shipment_id == DEMO_SHIPMENT_ID
+            )
+        )
+        existing_s1.created_at = started
+        existing_s1.last_reading_at = started + timedelta(minutes=50)
+        existing_s1.cold_chain_config_resolved_at = started
+        for offset_min, temp in (
+            (0, Decimal("3.40")),
+            (10, Decimal("9.50")),
+            (20, Decimal("10.80")),
+            (30, Decimal("11.40")),
+            (40, Decimal("10.20")),
+            (50, Decimal("3.60")),
+        ):
+            session.add(
+                TemperatureReading(
+                    shipment_id=existing_s1.id,
+                    container_code="RF-DEMO-01",
+                    temperature_celsius=temp,
+                    recorded_at=started + timedelta(minutes=offset_min),
+                )
+            )
+        session.add(
+            ColdChainViolation(
+                shipment_id=existing_s1.id,
+                violation_type="high_temp",
+                started_at=started + timedelta(minutes=10),
+                ended_at=started + timedelta(minutes=40),
+                duration_minutes=Decimal("30.00"),
+                peak_temperature_celsius=Decimal("11.40"),
+                is_settled=True,
+            )
+        )
+        session.commit()
+    elif existing_s1 is None:
         any_coop_lot = session.scalar(
             select(Lot)
             .where(Lot.current_holder_organization_id == COOP_ORG_ID)
             .limit(1)
         )
-        started = datetime(2026, 10, 15, 8, 0, 0, tzinfo=UTC)
         shipment = Shipment(
             id=DEMO_SHIPMENT_ID,
             shipment_code="SH-DEMO-001",
@@ -470,6 +519,170 @@ def _seed_sprint5_to_8_demo_extras(
             )
         )
         session.commit()
+
+    # Seed a second normal in-transit shipment (no violations) so fleet & stats have 2 shipments
+    started_2 = now_hour - timedelta(hours=2)
+    existing_s2 = session.get(Shipment, DEMO_SHIPMENT_2_ID)
+    if existing_s2 is not None and (
+        existing_s2.last_reading_at is None
+        or existing_s2.last_reading_at < now_hour - timedelta(days=2)
+    ):
+        existing_s2.created_at = started_2
+        existing_s2.last_reading_at = started_2 + timedelta(minutes=30)
+        existing_s2.cold_chain_config_resolved_at = started_2
+        for offset_min, temp in (
+            (0, Decimal("3.60")),
+            (10, Decimal("3.90")),
+            (20, Decimal("4.10")),
+            (30, Decimal("3.80")),
+        ):
+            session.add(
+                TemperatureReading(
+                    shipment_id=existing_s2.id,
+                    container_code="RF-DEMO-02",
+                    temperature_celsius=temp,
+                    recorded_at=started_2 + timedelta(minutes=offset_min),
+                )
+            )
+        session.commit()
+    elif existing_s2 is None:
+        dist_lot = session.scalar(
+            select(Lot)
+            .where(Lot.current_holder_organization_id == DIST_ORG_ID)
+            .where(Lot.status == "active")
+            .limit(1)
+        )
+        shipment2 = Shipment(
+            id=DEMO_SHIPMENT_2_ID,
+            shipment_code="SH-DEMO-002",
+            organization_id=TRANSPORT_ORG_ID,
+            created_by_user_id=TRANSPORT_USER_ID,
+            container_code="RF-DEMO-02",
+            status="in_transit",
+            notes="Chuyến xe lạnh vận chuyển Bắp cải xanh & Dâu tây về Kho lạnh Trung tâm Q7",
+            created_at=started_2,
+            last_reading_at=started_2 + timedelta(minutes=30),
+            cold_chain_min_temp_celsius=Decimal("2.00"),
+            cold_chain_max_temp_celsius=Decimal("8.00"),
+            cold_chain_delay_minutes=30,
+            cold_chain_config_resolved_at=started_2,
+        )
+        session.add(shipment2)
+        session.flush()
+        if dist_lot is not None:
+            session.add(
+                ShipmentLot(
+                    shipment_id=shipment2.id,
+                    lot_id=dist_lot.id,
+                    loaded_at=started_2,
+                )
+            )
+        for offset_min, temp in (
+            (0, Decimal("3.60")),
+            (10, Decimal("3.90")),
+            (20, Decimal("4.10")),
+            (30, Decimal("3.80")),
+        ):
+            session.add(
+                TemperatureReading(
+                    shipment_id=shipment2.id,
+                    container_code="RF-DEMO-02",
+                    temperature_celsius=temp,
+                    recorded_at=started_2 + timedelta(minutes=offset_min),
+                )
+            )
+        session.commit()
+
+    # Seed input lot declaration (N3-38) and processing steps (N3-27) on demo lots if empty
+    if session.scalar(select(LotInputLot.id).limit(1)) is None:
+        grower_lot = session.scalar(
+            select(Lot)
+            .where(Lot.current_holder_organization_id == FARM_ORG_ID)
+            .where(Lot.status == "active")
+            .limit(1)
+        )
+        if (
+            grower_lot is not None
+            and session.get(Product, HYDRO_VEG_PRODUCT_ID) is not None
+        ):
+            try:
+                input_lot_service.declare_input_lots(
+                    session,
+                    grower_principal,
+                    grower_lot.id,
+                    InputLotCreate(
+                        items=[
+                            InputLotItemCreate(
+                                product_id=strawberry_product_id,
+                                quantity=Decimal("5.000"),
+                                used_on=date(2026, 9, 25),
+                            )
+                        ]
+                    ),
+                )
+            except Exception:
+                session.rollback()
+
+    if session.scalar(select(LotProcessingStep.id).limit(1)) is None:
+        coop_lot = session.scalar(
+            select(Lot)
+            .where(Lot.current_holder_organization_id == COOP_ORG_ID)
+            .where(Lot.status == "active")
+            .limit(1)
+        )
+        wash_step = session.scalar(
+            select(ProcessingStep).where(ProcessingStep.code == "WASH-STD")
+        )
+        pack_step = session.scalar(
+            select(ProcessingStep).where(ProcessingStep.code == "PACK-MAP")
+        )
+        if coop_lot is not None and wash_step is not None:
+            try:
+                processing_step_service.record_processing_step(
+                    session,
+                    coop_principal,
+                    coop_lot.id,
+                    ProcessingStepRecordCreate(
+                        processing_step_id=wash_step.id,
+                        parameters={"water_temp_c": 4.0, "duration_minutes": 8},
+                        occurred_at=now_hour - timedelta(hours=5),
+                    ),
+                )
+                if pack_step is not None:
+                    processing_step_service.record_processing_step(
+                        session,
+                        coop_principal,
+                        coop_lot.id,
+                        ProcessingStepRecordCreate(
+                            processing_step_id=pack_step.id,
+                            parameters={
+                                "pack_type": "Khay MAP 500g",
+                                "chill_room_temp_c": 5.0,
+                            },
+                            occurred_at=now_hour - timedelta(hours=4),
+                        ),
+                    )
+            except Exception:
+                session.rollback()
+
+    # Seed initial IntegrityCheck records so the Integrity Scan Summary shows all lots verified
+    check_count = session.scalar(select(func.count(IntegrityCheck.id))) or 0
+    if check_count < 5:
+        admin_principal = Principal(
+            user_id=ADMIN_USER_ID,
+            email="admin@system.vn",
+            full_name="Vũ Hải Đăng (Quản trị hệ thống)",
+            organization_id=ADMIN_ORG_ID,
+            organization_name="Cục Quản trị Hệ thống Chuỗi lạnh Quốc gia",
+            organization_type="administration",
+            role="system_admin",
+        )
+        all_lot_ids = list(session.scalars(select(Lot.id)).all())
+        for lid in all_lot_ids:
+            try:
+                event_service.record_integrity_check(session, admin_principal, lid)
+            except Exception:
+                session.rollback()
 
 
 def seed_demo_data() -> None:
@@ -700,7 +913,12 @@ def seed_demo_data() -> None:
                 logger.exception("Failed seeding operational demo lots.")
 
             try:
-                _seed_sprint5_to_8_demo_extras(session, strawberry_product_id)
+                _seed_sprint5_to_8_demo_extras(
+                    session,
+                    strawberry_product_id,
+                    grower_principal,
+                    coop_principal,
+                )
             except Exception:
                 session.rollback()
                 logger.exception("Failed seeding Sprint 5-8 demo extras.")

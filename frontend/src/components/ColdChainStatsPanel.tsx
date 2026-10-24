@@ -54,7 +54,7 @@ export function ColdChainStatsPanel() {
         .finally(() => {
           if (active) setLoading(false)
         })
-    }, 150)
+    }, 20)
 
     return () => {
       active = false

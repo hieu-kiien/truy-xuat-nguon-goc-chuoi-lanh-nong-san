@@ -4,6 +4,7 @@ import type { Farm, Lot, Product } from '../types'
 import { lotStatusLabel } from '../types'
 import { LotCreateForm } from './LotCreateForm'
 import { TaskLink } from './TaskLink'
+import { SquircleIcon } from './VietFarmVisuals'
 
 interface Props {
   canReadLots: boolean; canCreateLots: boolean; canReadFarms?: boolean; canReadEvents?: boolean
@@ -17,7 +18,7 @@ export function LotsPanel({ canReadLots, canCreateLots, canReadFarms = true, can
   const [farms, setFarms] = useState<Farm[]>([])
   const [loading, setLoading] = useState(canReadLots)
   const [loadingProducts, setLoadingProducts] = useState(true)
-  const [loadingFarms, setLoadingFarms] = useState(canReadFarms)
+  const [loadingFarms, setLoadingFarms] = useState(() => Boolean(canReadFarms))
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [productId, setProductId] = useState('')
@@ -39,8 +40,6 @@ export function LotsPanel({ canReadLots, canCreateLots, canReadFarms = true, can
       getFarms().then(data => { if (active) setFarms(data) })
         .catch(() => { if (active) setFarms([]) })
         .finally(() => { if (active) setLoadingFarms(false) })
-    } else {
-      setLoadingFarms(false)
     }
     return () => { active = false }
   }, [canReadFarms])
@@ -48,6 +47,7 @@ export function LotsPanel({ canReadLots, canCreateLots, canReadFarms = true, can
   useEffect(() => {
     if (!canReadLots || task === 'create') return
     let active = true
+    const delayMs = query.trim() ? 200 : 0
     const timer = window.setTimeout(() => {
       getLots({
         q: query.trim(),
@@ -61,7 +61,7 @@ export function LotsPanel({ canReadLots, canCreateLots, canReadFarms = true, can
         .then(page => { if (active) { setLots(page.items); setNextCursor(page.next_cursor) } })
         .catch((err: unknown) => { if (active) setError(err instanceof Error ? err.message : 'Không tải được danh sách lô.') })
         .finally(() => { if (active) setLoading(false) })
-    }, 250)
+    }, delayMs)
     return () => { active = false; window.clearTimeout(timer) }
   }, [canReadLots, query, productId, farmId, harvestedFrom, harvestedTo, cursor, refresh, task])
 
@@ -99,14 +99,20 @@ export function LotsPanel({ canReadLots, canCreateLots, canReadFarms = true, can
       <tbody>{loading ? <tr><td colSpan={8} aria-busy="true">Đang tải danh sách lô…</td></tr> : lots.length === 0 ? <tr><td colSpan={8}>Không có lô phù hợp. Thử đổi bộ lọc hoặc tạo lô thu hoạch mới.</td></tr> : lots.map(lot => {
         const code = lot.lot_code ?? lot.id.slice(0, 8)
         const selectedHere = selected.some(item => item.id === lot.id)
+        const displayName = lot.name && lot.name !== lot.product?.name ? lot.name : (lot.product?.name ?? lot.name)
         const reason = lot.current_holder_organization_id !== organizationId ? 'Đơn vị của bạn không giữ lô này' : lot.status !== 'active' || Number(lot.remaining_quantity) <= 0 ? 'Lô không còn lượng khả dụng' : selected.length && selected[0].product_id !== lot.product_id ? 'Sản phẩm khác với lô đã chọn' : selected.length >= 100 && !selectedHere ? 'Tối đa 100 lô mỗi lần gộp' : ''
         return <tr key={lot.id}>
           {canTransform && <td data-label="Chọn" title={reason}><input type="checkbox" aria-label={`Chọn ${code}${reason ? `: ${reason}` : ''}`} checked={selectedHere} disabled={!!reason && !selectedHere} onChange={event => {
             if (event.target.checked && selected.length === 0) { resetPage(); setProductId(lot.product_id ?? '') }
             setSelected(current => event.target.checked ? [...current, lot] : current.filter(item => item.id !== lot.id))
           }} />{reason && !selectedHere && <small className="panel-sub">{reason}</small>}</td>}
-          <th scope="row" data-label="Nông sản"><a className="lot-code-link" href={`/lots/${lot.id}`} onClick={event => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && event.button === 0) {event.preventDefault(); onOpenLot(lot.id)} }}>{lot.name && lot.name !== lot.product?.name ? lot.name : (lot.product?.name ?? lot.name)}</a></th>
-          <td data-label="Mã truy xuất"><code>{code}</code></td><td data-label="Ngày thu hoạch">{lot.harvested_on ?? 'Lô dẫn xuất'}</td><td data-label="Còn lại">{lot.remaining_quantity} {lot.product?.unit}</td><td data-label="Trạng thái">{lotStatusLabel(lot.status)}</td><td data-label="Địa điểm">{lot.current_location?.name ?? 'Chưa gán địa điểm'}</td>
+          <th scope="row" data-label="Nông sản">
+            <div className="vf-lot-cell-brand">
+              <SquircleIcon nameHint={displayName} size="sm" />
+              <a className="lot-code-link" href={`/lots/${lot.id}`} onClick={event => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && event.button === 0) {event.preventDefault(); onOpenLot(lot.id)} }}>{displayName}</a>
+            </div>
+          </th>
+          <td data-label="Mã truy xuất"><code className="lot-code-tag">{code}</code></td><td data-label="Ngày thu hoạch">{lot.harvested_on ?? 'Lô dẫn xuất'}</td><td data-label="Còn lại"><strong>{lot.remaining_quantity} {lot.product?.unit}</strong></td><td data-label="Trạng thái"><span className={`status-badge ${lot.status === 'active' ? 'status-done' : 'status-neutral'}`}>{lotStatusLabel(lot.status)}</span></td><td data-label="Địa điểm">{lot.current_location?.name ?? 'Chưa gán địa điểm'}</td>
           {canReadEvents && <td data-label="Lịch sử"><a href={`/lots/${lot.id}?view=history`} className="ds-button ds-button-secondary">Xem lịch sử</a></td>}
         </tr>
       })}</tbody>

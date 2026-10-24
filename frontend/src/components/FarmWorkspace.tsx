@@ -31,12 +31,15 @@ import { LocationsPanel } from './LocationsPanel'
 import { ProductManager } from './ProductManager'
 import { RecallAlertBanner } from './RecallAlertBanner'
 import { AuditPanel } from './AuditPanel'
+import { DashboardHomePanel } from './DashboardHomePanel'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceTopbar } from './WorkspaceTopbar'
 import { ErrorBoundary } from './ErrorBoundary'
 import { EditDialog } from './EditDialog'
+import { TaskLink } from './TaskLink'
 
 export type WorkspaceTab =
+  | 'dashboard'
   | 'lots'
   | 'products'
   | 'handovers'
@@ -49,6 +52,7 @@ export type WorkspaceTab =
   | 'organization'
 
 interface FarmWorkspaceProps {
+  locationKey?: string
   user: SessionUser
   activeTab: WorkspaceTab
   isDark: boolean
@@ -62,6 +66,7 @@ interface FarmWorkspaceProps {
 }
 
 export function FarmWorkspace({
+  locationKey,
   user,
   activeTab,
   isDark,
@@ -178,7 +183,7 @@ export function FarmWorkspace({
     if (activeTab !== 'overview') return
     const timer = window.setTimeout(() => {
       void refreshPiiRequests()
-    }, 150)
+    }, 0)
     return () => {
       window.clearTimeout(timer)
     }
@@ -339,6 +344,7 @@ export function FarmWorkspace({
             onSearchChange={setSearchQuery}
             onRefresh={() => void refreshFarms()}
             onToggleTheme={onToggleTheme}
+            onLogout={onLogout}
           />
 
           <main id="main-content" tabIndex={-1} ref={contentRef} className="dashboard-content">
@@ -349,6 +355,17 @@ export function FarmWorkspace({
                 onNotify={onNotify}
               />
             )}
+
+            <div key={locationKey} className="workspace-tab-stage">
+            {activeTab === 'dashboard' && (
+              <DashboardHomePanel
+                user={user}
+                onTabChange={onTabChange}
+                onOpenLot={onOpenLot}
+                onNotify={onNotify}
+              />
+            )}
+
             {activeTab === 'overview' && canReadFarms && (
               <section aria-label="Tóm tắt vùng trồng">
               <div className="stats-grid">
@@ -490,6 +507,7 @@ export function FarmWorkspace({
                           {filteredFarms.length} vùng
                         </span>
                         {canWriteFarms && <button type="button" className="ds-button ds-button-brand" onClick={() => { resetForm(); setFormFeedback(null); setFarmFormOpen(true) }}>Thêm vùng trồng</button>}
+                        {user.role === 'system_admin' && <TaskLink href="/products?task=csv" secondary>Nhập CSV</TaskLink>}
                       </div>
 
                       {listError && (
@@ -840,6 +858,7 @@ export function FarmWorkspace({
                 />
               </ErrorBoundary>
             )}
+            </div>
           </main>
         </div>
       </div>
