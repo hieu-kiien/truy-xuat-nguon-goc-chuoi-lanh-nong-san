@@ -3409,6 +3409,124 @@ code {
 .lineage-canvas { min-width: 760px; height: 460px; }
 .lineage-current { border: 3px solid #148447 !important; box-shadow: 0 0 0 4px #a9daba; }
 .lineage-canvas .react-flow__node { width: 220px; font-size: 12px; overflow-wrap: anywhere; color: #163c28; }
+
+/* --------------------------------------------------------------------------
+   ReactFlow (@xyflow/react) Lineage Panel - Dark Theme & Contrast
+   -------------------------------------------------------------------------- */
+
+/* Thiết lập biến màu ReactFlow khi html.dark kích hoạt */
+html.dark .lineage-canvas .react-flow {
+  --xy-background-color-default: var(--slate-950);
+  --xy-background-pattern-dots-color-default: rgba(255, 255, 255, 0.15);
+  --xy-background-pattern-lines-color-default: rgba(255, 255, 255, 0.08);
+  --xy-node-background-color-default: var(--slate-900);
+  --xy-node-border-default: 1px solid var(--slate-700);
+  --xy-node-color-default: var(--slate-100);
+  --xy-edge-stroke-default: var(--slate-400);
+  --xy-edge-stroke-selected-default: var(--emerald-400);
+  --xy-edge-label-background-color-default: var(--slate-900);
+  --xy-edge-label-color-default: var(--slate-200);
+  --xy-controls-button-background-color-default: var(--slate-900);
+  --xy-controls-button-background-color-hover-default: var(--slate-800);
+  --xy-controls-button-color-default: var(--slate-200);
+  --xy-controls-button-color-hover-default: var(--slate-50);
+  --xy-controls-button-border-color-default: var(--slate-700);
+  --xy-controls-box-shadow-default: 0 4px 12px rgba(0, 0, 0, 0.45);
+  background-color: var(--slate-950);
+  border-radius: var(--radius-lg);
+}
+
+/* Node container trong Dark Mode */
+html.dark .lineage-canvas .react-flow__node {
+  background: var(--slate-900) !important;
+  color: var(--slate-100) !important;
+  border: 1px solid var(--slate-700) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+  padding: 10px !important;
+  line-height: 1.45;
+}
+
+html.dark .lineage-canvas .react-flow__node strong {
+  color: var(--slate-50) !important;
+  font-weight: 700;
+}
+
+/* Lô hiện tại được chọn (Current Node Highlight) trong Dark Mode */
+html.dark .lineage-current {
+  border: 3px solid var(--emerald-400) !important;
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.45) !important;
+}
+
+/* Nút bấm bên trong Node (Mở nhánh / Thu gọn nhánh) */
+html.dark .lineage-canvas .react-flow__node button.nodrag {
+  background: var(--slate-800);
+  color: var(--slate-200);
+  border: 1px solid var(--slate-600);
+  border-radius: var(--radius-xs);
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-top: 8px;
+  font-weight: 500;
+  transition: background var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
+}
+
+html.dark .lineage-canvas .react-flow__node button.nodrag:hover {
+  background: var(--slate-700);
+  color: var(--slate-50);
+  border-color: var(--slate-500);
+}
+
+/* Đường nối (Edges) trong Dark Mode: Tăng độ đậm và tương phản */
+html.dark .lineage-canvas .react-flow__edge-path {
+  stroke: var(--slate-400) !important;
+  stroke-width: 2px !important;
+}
+
+html.dark .lineage-canvas .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--emerald-400) !important;
+  stroke-width: 2.5px !important;
+}
+
+/* Nhãn khối lượng trên đường nối (Edge Labels) */
+html.dark .lineage-canvas .react-flow__edge-text {
+  fill: var(--slate-200) !important;
+  font-size: 11px !important;
+  font-weight: 600;
+}
+
+html.dark .lineage-canvas .react-flow__edge-textbg {
+  fill: var(--slate-900) !important;
+  stroke: var(--slate-700) !important;
+  rx: 4px;
+  ry: 4px;
+}
+
+/* Khối nút phóng to / thu nhỏ (Controls) */
+html.dark .lineage-canvas .react-flow__controls {
+  border: 1px solid var(--slate-700);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .lineage-canvas .react-flow__controls-button {
+  background: var(--slate-900) !important;
+  border-bottom: 1px solid var(--slate-700) !important;
+  fill: var(--slate-200) !important;
+  color: var(--slate-200) !important;
+}
+
+html.dark .lineage-canvas .react-flow__controls-button:hover {
+  background: var(--slate-800) !important;
+  fill: var(--slate-50) !important;
+  color: var(--slate-50) !important;
+}
+
+html.dark .lineage-canvas .react-flow__controls-button svg {
+  fill: currentColor;
+}
 /* Task pages use one document scroll; forms are never placed beside a list. */
 .application-shell { height: auto; min-height: 100dvh; overflow: visible; }
 .dashboard-layout { height: auto; min-height: 100dvh; overflow: visible; align-items: flex-start; }
@@ -3919,6 +4037,74 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .route-map-points li strong {
   color: var(--text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Leaflet Map (RouteMap) - Dark Mode Filter & Controls Styling
+   -------------------------------------------------------------------------- */
+
+html.dark .route-map {
+  background: var(--slate-950);
+  border-color: var(--slate-700);
+}
+
+/* Áp dụng bộ lọc nghịch đảo màu + xoay hue để chuyển gạch bản đồ sáng sang tối */
+html.dark .route-map .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(1.2);
+}
+
+html.dark .route-map .leaflet-container {
+  background: var(--slate-950);
+}
+
+/* Hộp thoại thông tin điểm dừng (Leaflet Popup) trong Dark Mode */
+html.dark .route-map .leaflet-popup-content-wrapper,
+html.dark .route-map .leaflet-popup-tip {
+  background: var(--slate-900);
+  color: var(--slate-100);
+  border: 1px solid var(--slate-700);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius-sm);
+}
+
+html.dark .route-map .leaflet-popup-content {
+  color: var(--slate-100);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+html.dark .route-map .leaflet-popup-content strong {
+  color: var(--emerald-400);
+}
+
+/* Cụm nút phóng to / thu nhỏ bản đồ (Zoom Controls) */
+html.dark .route-map .leaflet-control-zoom {
+  border: 1px solid var(--slate-700);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+html.dark .route-map .leaflet-control-zoom a {
+  background-color: var(--slate-900);
+  color: var(--slate-200);
+  border-bottom: 1px solid var(--slate-700);
+}
+
+html.dark .route-map .leaflet-control-zoom a:hover {
+  background-color: var(--slate-800);
+  color: var(--slate-50);
+}
+
+/* Chú thích bản quyền OSM (Attribution) */
+html.dark .route-map .leaflet-control-attribution {
+  background: rgba(22, 25, 23, 0.85);
+  color: var(--slate-400);
+  font-size: 10px;
+}
+
+html.dark .route-map .leaflet-control-attribution a {
+  color: var(--emerald-400);
 }
 
 /* --------------------------------------------------------------------------
@@ -5359,6 +5545,35 @@ html.light .banner-action-btn.primary {
 .vf-mint-text {
   color: #166147 !important;
   font-weight: 700 !important;
+}
+
+/* --------------------------------------------------------------------------
+   High-Contrast Status Text Tokens in Dark Mode (WCAG AA / AAA Compliant)
+   -------------------------------------------------------------------------- */
+
+html.dark .vf-ok-text {
+  color: var(--emerald-300, #9BBF92) !important;
+  text-shadow: 0 0 12px rgba(155, 191, 146, 0.2);
+}
+
+html.dark .vf-mint-text {
+  color: var(--mint-500, #33A881) !important;
+  text-shadow: 0 0 12px rgba(51, 168, 129, 0.2);
+}
+
+html.dark .vf-terracotta-text {
+  color: #f87171 !important; /* Coral Terracotta sáng: Đạt tương phản 6.8:1 trên Slate-950 */
+  text-shadow: 0 0 12px rgba(248, 113, 113, 0.2);
+}
+
+/* Đảm bảo khung cảnh báo thu hồi (RecallAlertBanner) có tương phản tối ưu */
+html.dark [aria-label="Thông báo lệnh thu hồi khẩn cấp"] {
+  background-color: var(--danger-soft) !important;
+  border-left-color: var(--fg-danger) !important;
+}
+
+html.dark [aria-label="Thông báo lệnh thu hồi khẩn cấp"] h2 {
+  color: var(--fg-danger) !important;
 }
 
 /* Bento Main Split: Recent Lots + Featured Right Column */

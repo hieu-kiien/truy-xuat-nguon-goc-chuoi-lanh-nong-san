@@ -10,10 +10,11 @@ import {
   ThermometerCold,
   Truck,
   Buildings,
+  Warehouse,
   SignOut,
   Leaf,
 } from '@phosphor-icons/react'
-import { hasPermission, ROLE_LABELS, type SessionUser } from '../types'
+import { hasPermission, canManageDistribution, ROLE_LABELS, type SessionUser } from '../types'
 import { SquircleIcon } from './VietFarmVisuals'
 import type { WorkspaceTab } from './FarmWorkspace'
 
@@ -40,6 +41,36 @@ export function WorkspaceSidebar({
     onTabChange(tab)
     onCloseSidebar()
   }
+
+  // 1. Phân quyền Nhóm Quản lý Nông sản
+  const canReadLots = hasPermission(user.role, 'lots:read')
+  const canReadFarms = hasPermission(user.role, 'farms:read')
+  const canReadProducts = hasPermission(user.role, 'products:read')
+  const showAgriGroup = canReadLots || canReadFarms || canReadProducts
+
+  // 2. Phân quyền Nhóm Vận hành Chuỗi lạnh
+  const canUseHandovers =
+    hasPermission(user.role, 'handovers:create') ||
+    hasPermission(user.role, 'handovers:resolve')
+  const canUseColdChainOps =
+    hasPermission(user.role, 'shipments:create') ||
+    hasPermission(user.role, 'telemetry:ingest')
+  const canReadColdChain = hasPermission(user.role, 'shipments:read')
+  const canReadColdChainStats = hasPermission(user.role, 'telemetry:read')
+  const canManageDistLocations = canManageDistribution(user)
+  const showColdChainGroup =
+    canUseHandovers ||
+    canUseColdChainOps ||
+    canReadColdChain ||
+    canReadColdChainStats ||
+    canManageDistLocations
+
+  // 3. Phân quyền Nhóm Giám sát & Quản trị
+  const canVerifyIntegrity = hasPermission(user.role, 'events:verify')
+  const canViewSecurityLog = user.role === 'system_admin'
+  const canReadOrganization = hasPermission(user.role, 'organizations:read')
+  const showGovernanceGroup =
+    canVerifyIntegrity || canViewSecurityLog || canReadOrganization
 
   return (
     <aside
@@ -74,6 +105,7 @@ export function WorkspaceSidebar({
         </div>
 
         <nav className="sidebar-nav">
+          {/* Mục Trang chủ chung */}
           <div style={{ marginBottom: '14px' }}>
             <ul className="sidebar-nav-list">
               <li>
@@ -91,139 +123,217 @@ export function WorkspaceSidebar({
             </ul>
           </div>
 
-          <div>
-            <div className="sidebar-section-label">Phân hệ Nghiệp vụ</div>
-            <ul className="sidebar-nav-list">
-              {hasPermission(user.role, 'lots:read') && <li>
-                <button
-                  type="button"
-                  onClick={() => selectTab('lots')}
-                  className={`dashboard-nav-item ${
-                    activeTab === 'lots' ? 'dashboard-nav-item-active' : ''
-                  }`}
-                >
-                  <Package size={18} weight="duotone" aria-hidden="true" />
-                  <span>Danh sách lô</span>
-                </button>
-              </li>}
-              {hasPermission(user.role, 'products:read') && <li>
-                <button
-                  type="button"
-                  onClick={() => selectTab('products')}
-                  className={`dashboard-nav-item ${
-                    activeTab === 'products' ? 'dashboard-nav-item-active' : ''
-                  }`}
-                >
-                  <Carrot size={18} weight="duotone" aria-hidden="true" />
-                  <span>Nông sản</span>
-                </button>
-              </li>}
-              {(hasPermission(user.role, 'handovers:create') ||
-                hasPermission(user.role, 'handovers:resolve')) && <li>
-                <button
-                  type="button"
-                  onClick={() => selectTab('handovers')}
-                  className={`dashboard-nav-item ${
-                    activeTab === 'handovers' ? 'dashboard-nav-item-active' : ''
-                  }`}
-                >
-                  <Handshake size={18} weight="duotone" aria-hidden="true" />
-                  <span>Bàn giao</span>
-                  {pendingHandoverCount != null && pendingHandoverCount > 0 && (
-                    <span className="handover-pending-count" aria-label={`${pendingHandoverCount} yêu cầu cần xác nhận`}>
-                      {pendingHandoverCount}
-                    </span>
-                  )}
-                </button>
-              </li>}
-              {hasPermission(user.role, 'farms:read') && <li>
-                <button
-                  type="button"
-                  onClick={() => selectTab('overview')}
-                  className={`dashboard-nav-item ${
-                    activeTab === 'overview' ? 'dashboard-nav-item-active' : ''
-                  }`}
-                >
-                  <Plant size={18} weight="duotone" aria-hidden="true" />
-                  <span>Vùng trồng</span>
-                </button>
-              </li>}
-              {user.role === 'system_admin' && <li>
-                <button
-                  type="button"
-                  onClick={() => selectTab('security')}
-                  className={`dashboard-nav-item ${
-                    activeTab === 'security' ? 'dashboard-nav-item-active' : ''
-                  }`}
-                >
-                  <ClockCounterClockwise size={18} weight="duotone" aria-hidden="true" />
-                  <span>Nhật ký thao tác</span>
-                </button>
-              </li>}
-              {hasPermission(user.role, 'events:verify') && <li>
-                <button
-                  type="button"
-                  onClick={() => selectTab('integrity')}
-                  className={`dashboard-nav-item ${
-                    activeTab === 'integrity' ? 'dashboard-nav-item-active' : ''
-                  }`}
-                >
-                  <ShieldCheck size={18} weight="duotone" aria-hidden="true" />
-                  <span>Tính toàn vẹn</span>
-                </button>
-              </li>}
-              {hasPermission(user.role, 'telemetry:read') && <li>
-                <button
-                  type="button"
-                  onClick={() => selectTab('cold-chain-stats')}
-                  className={`dashboard-nav-item ${
-                    activeTab === 'cold-chain-stats' ? 'dashboard-nav-item-active' : ''
-                  }`}
-                >
-                  <ChartBar size={18} weight="duotone" aria-hidden="true" />
-                  <span>Thống kê chuỗi lạnh</span>
-                </button>
-              </li>}
-              {hasPermission(user.role, 'shipments:read') && <li>
-                <button
-                  type="button"
-                  onClick={() => selectTab('cold-chain')}
-                  className={`dashboard-nav-item ${
-                    activeTab === 'cold-chain' ? 'dashboard-nav-item-active' : ''
-                  }`}
-                >
-                  <ThermometerCold size={18} weight="duotone" aria-hidden="true" />
-                  <span>Chuỗi nhiệt độ</span>
-                </button>
-              </li>}
-              {(hasPermission(user.role, 'shipments:create') ||
-                hasPermission(user.role, 'telemetry:ingest')) && <li>
-                <button
-                  type="button"
-                  onClick={() => selectTab('cold-chain-ops')}
-                  className={`dashboard-nav-item ${
-                    activeTab === 'cold-chain-ops' ? 'dashboard-nav-item-active' : ''
-                  }`}
-                >
-                  <Truck size={18} weight="duotone" aria-hidden="true" />
-                  <span>Thao tác chuỗi lạnh</span>
-                </button>
-              </li>}
-              {hasPermission(user.role, 'organizations:read') && <li>
-                <button
-                  type="button"
-                  onClick={() => selectTab('organization')}
-                  className={`dashboard-nav-item ${
-                    activeTab === 'organization' ? 'dashboard-nav-item-active' : ''
-                  }`}
-                >
-                  <Buildings size={18} weight="duotone" aria-hidden="true" />
-                  <span>Quản trị tổ chức</span>
-                </button>
-              </li>}
-            </ul>
-          </div>
+          {/* NHÓM 1: Quản lý Nông sản */}
+          {showAgriGroup && (
+            <div style={{ marginBottom: '14px' }}>
+              <div className="sidebar-section-label">Quản lý Nông sản</div>
+              <ul className="sidebar-nav-list">
+                {canReadLots && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('lots')}
+                      className={`dashboard-nav-item ${
+                        activeTab === 'lots' ? 'dashboard-nav-item-active' : ''
+                      }`}
+                    >
+                      <Package size={18} weight="duotone" aria-hidden="true" />
+                      <span>Danh sách lô</span>
+                    </button>
+                  </li>
+                )}
+                {canReadFarms && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('overview')}
+                      className={`dashboard-nav-item ${
+                        activeTab === 'overview' ? 'dashboard-nav-item-active' : ''
+                      }`}
+                    >
+                      <Plant size={18} weight="duotone" aria-hidden="true" />
+                      <span>Vùng trồng</span>
+                    </button>
+                  </li>
+                )}
+                {canReadProducts && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('products')}
+                      className={`dashboard-nav-item ${
+                        activeTab === 'products' ? 'dashboard-nav-item-active' : ''
+                      }`}
+                    >
+                      <Carrot size={18} weight="duotone" aria-hidden="true" />
+                      <span>Nông sản</span>
+                    </button>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
 
+          {/* NHÓM 2: Vận hành Chuỗi lạnh */}
+          {showColdChainGroup && (
+            <div style={{ marginBottom: '14px' }}>
+              <div className="sidebar-section-label">Vận hành Chuỗi lạnh</div>
+              <ul className="sidebar-nav-list">
+                {canUseHandovers && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('handovers')}
+                      className={`dashboard-nav-item ${
+                        activeTab === 'handovers' ? 'dashboard-nav-item-active' : ''
+                      }`}
+                    >
+                      <Handshake size={18} weight="duotone" aria-hidden="true" />
+                      <span>Bàn giao</span>
+                      {pendingHandoverCount != null && pendingHandoverCount > 0 && (
+                        <span
+                          className="handover-pending-count"
+                          aria-label={`${pendingHandoverCount} yêu cầu cần xác nhận`}
+                        >
+                          {pendingHandoverCount}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                )}
+                {canUseColdChainOps && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('cold-chain-ops')}
+                      className={`dashboard-nav-item ${
+                        activeTab === 'cold-chain-ops'
+                          ? 'dashboard-nav-item-active'
+                          : ''
+                      }`}
+                    >
+                      <Truck size={18} weight="duotone" aria-hidden="true" />
+                      <span>Thao tác chuỗi lạnh</span>
+                    </button>
+                  </li>
+                )}
+                {canReadColdChain && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('cold-chain')}
+                      className={`dashboard-nav-item ${
+                        activeTab === 'cold-chain'
+                          ? 'dashboard-nav-item-active'
+                          : ''
+                      }`}
+                    >
+                      <ThermometerCold size={18} weight="duotone" aria-hidden="true" />
+                      <span>Chuỗi nhiệt độ</span>
+                    </button>
+                  </li>
+                )}
+                {canReadColdChainStats && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('cold-chain-stats')}
+                      className={`dashboard-nav-item ${
+                        activeTab === 'cold-chain-stats'
+                          ? 'dashboard-nav-item-active'
+                          : ''
+                      }`}
+                    >
+                      <ChartBar size={18} weight="duotone" aria-hidden="true" />
+                      <span>Thống kê chuỗi lạnh</span>
+                    </button>
+                  </li>
+                )}
+                {canManageDistLocations && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.history.pushState({}, '', '/lots?task=locations')
+                        selectTab('lots')
+                      }}
+                      className={`dashboard-nav-item ${
+                        activeTab === 'lots' &&
+                        typeof window !== 'undefined' &&
+                        window.location.search.includes('task=locations')
+                          ? 'dashboard-nav-item-active'
+                          : ''
+                      }`}
+                    >
+                      <Warehouse size={18} weight="duotone" aria-hidden="true" />
+                      <span>Điểm phân phối</span>
+                    </button>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+
+          {/* NHÓM 3: Giám sát & Quản trị */}
+          {showGovernanceGroup && (
+            <div>
+              <div className="sidebar-section-label">Giám sát & Quản trị</div>
+              <ul className="sidebar-nav-list">
+                {canVerifyIntegrity && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('integrity')}
+                      className={`dashboard-nav-item ${
+                        activeTab === 'integrity'
+                          ? 'dashboard-nav-item-active'
+                          : ''
+                      }`}
+                    >
+                      <ShieldCheck size={18} weight="duotone" aria-hidden="true" />
+                      <span>Tính toàn vẹn</span>
+                    </button>
+                  </li>
+                )}
+                {canViewSecurityLog && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('security')}
+                      className={`dashboard-nav-item ${
+                        activeTab === 'security'
+                          ? 'dashboard-nav-item-active'
+                          : ''
+                      }`}
+                    >
+                      <ClockCounterClockwise
+                        size={18}
+                        weight="duotone"
+                        aria-hidden="true"
+                      />
+                      <span>Nhật ký thao tác</span>
+                    </button>
+                  </li>
+                )}
+                {canReadOrganization && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => selectTab('organization')}
+                      className={`dashboard-nav-item ${
+                        activeTab === 'organization'
+                          ? 'dashboard-nav-item-active'
+                          : ''
+                      }`}
+                    >
+                      <Buildings size={18} weight="duotone" aria-hidden="true" />
+                      <span>Quản trị tổ chức</span>
+                    </button>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
         </nav>
       </div>
 

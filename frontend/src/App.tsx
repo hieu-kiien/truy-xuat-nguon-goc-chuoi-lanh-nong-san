@@ -84,7 +84,7 @@ function routeForTab(tab: WorkspaceTab): string {
 
 function tabForPath(pathname: string): WorkspaceTab {
   if (pathname === '/dashboard') return 'dashboard'
-  if (pathname === '/lots') return 'lots'
+  if (pathname === '/lots' || LOT_DETAIL_PATH.test(pathname)) return 'lots'
   if (pathname === '/farms') return 'overview'
   if (pathname === '/handovers') return 'handovers'
   if (pathname === '/products') return 'products'

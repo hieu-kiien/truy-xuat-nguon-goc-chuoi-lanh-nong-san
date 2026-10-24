@@ -6,26 +6,37 @@ interface LotCreateFormProps {
   products: Product[]
   loadingProducts: boolean
   onCreated: (lot: Lot) => void
+  onClose?: () => void
+  onNotify?: (message: string) => void
 }
 
 function localToday(): string {
-  const date = new Date()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${date.getFullYear()}-${month}-${day}`
+  const tzOffset = 7 * 60 // UTC+7 minutes
+  const now = new Date()
+  const local = new Date(now.getTime() + (tzOffset + now.getTimezoneOffset()) * 60000)
+  return local.toISOString().slice(0, 10)
 }
 
-export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreateFormProps) {
+export function LotCreateForm({
+  products,
+  loadingProducts,
+  onCreated,
+  onClose,
+  onNotify,
+}: LotCreateFormProps) {
   const [farms, setFarms] = useState<Farm[]>([])
   const [loadingFarms, setLoadingFarms] = useState(true)
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
   const [farmId, setFarmId] = useState('')
-  const [productId, setProductId] = useState('')
+  const [selectedProductId, setSelectedProductId] = useState('')
   const [harvestedOn, setHarvestedOn] = useState(localToday)
   const [quantity, setQuantity] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  // Tự động sử dụng nông sản đầu tiên khi có danh mục nếu người dùng chưa chọn
+  const productId = selectedProductId || (products.length > 0 ? products[0].id : '')
 
   useEffect(() => {
     let active = true
@@ -60,7 +71,9 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
     try {
       const lot = await createLot(payload)
       setQuantity('')
+      onNotify?.(`Ghi nhận thành công lô thu hoạch ${lot.lot_code ?? lot.id.slice(0, 8)}`)
       onCreated(lot)
+      onClose?.()
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
         setFieldErrors(err.fieldErrors)
@@ -73,6 +86,9 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
       setSaving(false)
     }
   }
+
+  const selectedProduct = products.find((item) => item.id === productId)
+  const unit = selectedProduct?.unit ?? 'kg'
 
   return (
     <section className="panel-box panel-card" aria-labelledby="lot-form-title">
@@ -97,7 +113,7 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
           </div>
           <div className="form-field">
             <label htmlFor="lot-product">Nông sản</label>
-            <select id="lot-product" value={productId} onChange={(event) => setProductId(event.target.value)} required>
+            <select id="lot-product" value={productId} onChange={(event) => setSelectedProductId(event.target.value)} required>
               <option value="" disabled>Chọn nông sản</option>
               {products.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.unit})</option>)}
             </select>
@@ -109,13 +125,34 @@ export function LotCreateForm({ products, loadingProducts, onCreated }: LotCreat
             {fieldErrors.harvested_on && <small className="form-field-error">{fieldErrors.harvested_on}</small>}
           </div>
           <div className="form-field">
-            <label htmlFor="lot-quantity">Khối lượng ({products.find((item) => item.id === productId)?.unit ?? 'đơn vị'})</label>
-            <input id="lot-quantity" type="number" min="0.001" step="0.001" value={quantity} aria-invalid={Boolean(fieldErrors.quantity)} onChange={(event) => setQuantity(event.target.value)} required placeholder="Ví dụ: 125.5" />
+            <label htmlFor="lot-quantity">Khối lượng ({unit})</label>
+            <input id="lot-quantity" type="number" min="0.001" step="0.001" value={quantity} aria-invalid={Boolean(fieldErrors.quantity)} onChange={(event) => setQuantity(event.target.value)} required placeholder={`Ví dụ: 100.000 (${unit})`} />
+            <div className="action-row" style={{ marginTop: '0.25rem' }}>
+              <small className="panel-sub">Gợi ý:</small>
+              {['50', '100', '200', '500'].map((val) => (
+                <button
+                  key={val}
+                  type="button"
+                  className="ds-button ds-button-secondary ds-button-sm"
+                  style={{ padding: '0.1rem 0.5rem', fontSize: '0.8rem' }}
+                  onClick={() => setQuantity(val)}
+                >
+                  +{val} {unit}
+                </button>
+              ))}
+            </div>
             {fieldErrors.quantity && <small className="form-field-error">{fieldErrors.quantity}</small>}
           </div>
-          <button className="ds-button ds-button-brand ds-button-sm" type="submit" disabled={saving || !farmId || !productId}>
-            {saving ? 'Đang ghi nhận...' : 'Tạo lô thu hoạch'}
-          </button>
+          <div className="action-row" style={{ marginTop: '0.75rem' }}>
+            {onClose && (
+              <button type="button" className="ds-button ds-button-secondary" onClick={onClose} disabled={saving}>
+                Hủy
+              </button>
+            )}
+            <button className="ds-button ds-button-brand ds-button-sm" type="submit" disabled={saving || !farmId || !productId}>
+              {saving ? 'Đang ghi nhận...' : 'Tạo lô thu hoạch'}
+            </button>
+          </div>
         </form>
       )}
       {error && <p className="alert-box alert-error alert-spaced" role="alert">{error}</p>}
