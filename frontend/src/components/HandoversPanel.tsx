@@ -6,6 +6,10 @@ import {
   getIncomingHandovers,
   getLots,
   getOutgoingHandovers,
+  peekCachedHandoverOrganizations,
+  peekCachedIncomingHandovers,
+  peekCachedLots,
+  peekCachedOutgoingHandovers,
   rejectHandover,
 } from '../services/api'
 import type { Handover, Lot, OrganizationOption } from '../types'
@@ -36,17 +40,26 @@ export function HandoversPanel({
 }: HandoversPanelProps) {
   const task = new URLSearchParams(window.location.search).get('task')
   const selectedId = new URLSearchParams(window.location.search).get('id')
-  const [incoming, setIncoming] = useState<Handover[]>([])
-  const [outgoing, setOutgoing] = useState<Handover[]>([])
-  const [organizations, setOrganizations] = useState<OrganizationOption[]>([])
-  const [lots, setLots] = useState<Lot[]>([])
+  const cachedIncoming = peekCachedIncomingHandovers()
+  const cachedOutgoing = peekCachedOutgoingHandovers()
+  const cachedOrgs = peekCachedHandoverOrganizations()
+  const cachedLots = peekCachedLots({ page_size: 100 })
+  const hasCachedInitial = Boolean(cachedIncoming && cachedOutgoing && cachedOrgs && cachedLots)
+  const [incoming, setIncoming] = useState<Handover[]>(() => cachedIncoming ?? [])
+  const [outgoing, setOutgoing] = useState<Handover[]>(() => cachedOutgoing ?? [])
+  const [organizations, setOrganizations] = useState<OrganizationOption[]>(() => cachedOrgs ?? [])
+  const [lots, setLots] = useState<Lot[]>(
+    () => (cachedLots?.items ?? []).filter((lot) => lot.status === 'active'),
+  )
   const [view, setView] = useState<HandoverView>('incoming')
-  const [lotId, setLotId] = useState('')
-  const [organizationId, setOrganizationId] = useState('')
+  const [lotId, setLotId] = useState(
+    () => (cachedLots?.items ?? []).find((lot) => lot.status === 'active')?.id || '',
+  )
+  const [organizationId, setOrganizationId] = useState(() => cachedOrgs?.[0]?.id || '')
   const [note, setNote] = useState('')
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [reason, setReason] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !hasCachedInitial)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)

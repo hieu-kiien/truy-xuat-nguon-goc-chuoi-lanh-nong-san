@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
 import {
+  clearApiCache,
   createFarm,
   createPiiAnonymizationRequest,
   executePiiAnonymizationRequest,
   getFarms,
   getIncomingHandovers,
   getPiiAnonymizationRequests,
+  peekCachedFarms,
+  peekCachedIncomingHandovers,
   updateFarm,
 } from '../services/api'
 import {
@@ -102,8 +105,11 @@ export function FarmWorkspace({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const [farms, setFarms] = useState<Farm[]>([])
-  const [loadingFarms, setLoadingFarms] = useState<boolean>(canReadFarms)
+  const initialCachedFarms = canReadFarms ? peekCachedFarms() : null
+  const [farms, setFarms] = useState<Farm[]>(() => initialCachedFarms ?? [])
+  const [loadingFarms, setLoadingFarms] = useState<boolean>(
+    () => canReadFarms && !initialCachedFarms,
+  )
   const [listError, setListError] = useState<string | null>(null)
 
   const [farmFormOpen, setFarmFormOpen] = useState(task === 'create' || task === 'edit')
@@ -119,9 +125,13 @@ export function FarmWorkspace({
     message: string
   } | null>(null)
 
-  const [pendingHandoverCount, setPendingHandoverCount] = useState<number | null>(
-    canResolveHandovers ? null : 0,
-  )
+  const [pendingHandoverCount, setPendingHandoverCount] = useState<number | null>(() => {
+    if (!canResolveHandovers) return 0
+    const cachedIncoming = peekCachedIncomingHandovers()
+    return cachedIncoming
+      ? cachedIncoming.filter((handover) => handover.status === 'pending').length
+      : null
+  })
   const contentRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -152,6 +162,7 @@ export function FarmWorkspace({
 
   const refreshFarms = useCallback(async () => {
     if (!canReadFarms) return
+    clearApiCache()
     setLoadingFarms(true)
     setListError(null)
     try {
@@ -527,8 +538,8 @@ export function FarmWorkspace({
                               <th scope="col">Thao tác</th>
                             </tr>
                           </thead>
-                          <tbody>
-                            {loadingFarms ? (
+                          <tbody className={loadingFarms && farms.length > 0 ? 'table-body-reloading' : undefined}>
+                            {loadingFarms && farms.length === 0 ? (
                               <tr>
                                 <td colSpan={5} className="cell-center">
                                   Đang tải danh sách vùng trồng...

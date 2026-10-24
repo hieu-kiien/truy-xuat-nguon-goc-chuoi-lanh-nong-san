@@ -83,6 +83,60 @@ export class ApiError extends Error {
 
 const SESSION_STORAGE_KEY = 'agrochain_session_token'
 
+interface ApiCacheEntry {
+  data: unknown
+  updatedAt: number
+  expiresAt: number
+}
+
+const API_FRESH_TTL_MS = 5_000
+const API_SWR_TTL_MS = 30_000
+const apiResponseCache = new Map<string, ApiCacheEntry>()
+const inFlightGetRequests = new Map<string, Promise<unknown>>()
+let lastFetchRef: typeof fetch | undefined =
+  typeof globalThis.fetch === 'function' ? globalThis.fetch : undefined
+
+function isBrowserCacheEnabled(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false
+  }
+  if (/jsdom/i.test(navigator.userAgent || '')) {
+    return false
+  }
+  if (globalThis.fetch !== lastFetchRef) {
+    lastFetchRef = globalThis.fetch
+    apiResponseCache.clear()
+    inFlightGetRequests.clear()
+  }
+  return true
+}
+
+function getCacheKey(path: string): string {
+  const token = getStoredSessionToken() ?? 'cookie'
+  return `${token}:${path}`
+}
+
+export function clearApiCache(): void {
+  apiResponseCache.clear()
+  inFlightGetRequests.clear()
+}
+
+export function peekApiCache<T>(path: string): T | null {
+  if (!isBrowserCacheEnabled()) {
+    return null
+  }
+  const key = getCacheKey(path)
+  const entry = apiResponseCache.get(key)
+  if (!entry) {
+    return null
+  }
+  if (Date.now() > entry.expiresAt) {
+    apiResponseCache.delete(key)
+    return null
+  }
+  return entry.data as T
+}
+
 export function getStoredSessionToken(): string | null {
   try {
     return sessionStorage.getItem(SESSION_STORAGE_KEY)
@@ -93,6 +147,10 @@ export function getStoredSessionToken(): string | null {
 
 export function setStoredSessionToken(token: string | null): void {
   try {
+    const previous = sessionStorage.getItem(SESSION_STORAGE_KEY)
+    if (previous !== token) {
+      clearApiCache()
+    }
     if (token) {
       sessionStorage.setItem(SESSION_STORAGE_KEY, token)
     } else {
@@ -180,9 +238,9 @@ function buildHeaders(options: RequestInit = {}): Headers {
   return headers
 }
 
-export async function request<T>(
+async function performRequest<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const headers = buildHeaders(options)
 
@@ -255,6 +313,62 @@ export async function request<T>(
   }
 }
 
+export async function request<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const method = (options.method ?? 'GET').toUpperCase()
+  const canCache =
+    isBrowserCacheEnabled() &&
+    method === 'GET' &&
+    !options.signal &&
+    path !== '/health'
+
+  if (!canCache) {
+    try {
+      const result = await performRequest<T>(path, options)
+      if (method !== 'GET' && isBrowserCacheEnabled()) {
+        clearApiCache()
+      }
+      return result
+    } catch (err) {
+      if (method !== 'GET' && isBrowserCacheEnabled()) {
+        clearApiCache()
+      }
+      throw err
+    }
+  }
+
+  const cacheKey = getCacheKey(path)
+  const now = Date.now()
+  const cached = apiResponseCache.get(cacheKey)
+  if (cached && now - cached.updatedAt < API_FRESH_TTL_MS) {
+    return cached.data as T
+  }
+
+  const existingInFlight = inFlightGetRequests.get(cacheKey)
+  if (existingInFlight) {
+    return existingInFlight as Promise<T>
+  }
+
+  const promise = performRequest<T>(path, options)
+    .then((data) => {
+      const finishedAt = Date.now()
+      apiResponseCache.set(cacheKey, {
+        data,
+        updatedAt: finishedAt,
+        expiresAt: finishedAt + API_SWR_TTL_MS,
+      })
+      return data
+    })
+    .finally(() => {
+      inFlightGetRequests.delete(cacheKey)
+    })
+
+  inFlightGetRequests.set(cacheKey, promise)
+  return promise
+}
+
 export const checkHealth = () =>
   request<HealthResponse>('/health')
 
@@ -275,6 +389,7 @@ export const logout = async (): Promise<void> => {
 }
 
 export const getFarms = () => request<Farm[]>('/api/v1/farms/')
+export const peekCachedFarms = () => peekApiCache<Farm[]>('/api/v1/farms/')
 
 export const createPiiAnonymizationRequest = (farmId: string, reason?: string) =>
   request<PiiAnonymizationRequest>('/api/v1/pii/anonymization-requests', {
@@ -304,7 +419,7 @@ function normalizeLotPage(response: unknown): LotPage {
   )
 }
 
-export const getLots = async (params: LotListParams = {}): Promise<LotPage> => {
+export function buildLotsQueryPath(params: LotListParams = {}): string {
   const query = new URLSearchParams()
   if (params.q?.trim()) query.set('q', params.q.trim())
   if (params.product_id) query.set('product_id', params.product_id)
@@ -313,12 +428,55 @@ export const getLots = async (params: LotListParams = {}): Promise<LotPage> => {
   if (params.harvested_to) query.set('harvested_to', params.harvested_to)
   if (params.cursor) query.set('cursor', params.cursor)
   query.set('page_size', String(params.page_size ?? 20))
-  const response = await request<unknown>(`/api/v1/lots/?${query.toString()}`)
+  return `/api/v1/lots/?${query.toString()}`
+}
+
+export function peekCachedLots(params: LotListParams = {}): LotPage | null {
+  const exact = peekApiCache<unknown>(buildLotsQueryPath(params))
+  if (exact) {
+    try {
+      return normalizeLotPage(exact)
+    } catch {
+      // ignore
+    }
+  }
+  const hasFilters = Boolean(
+    params.q?.trim() ||
+      params.product_id ||
+      params.farm_id ||
+      params.harvested_from ||
+      params.harvested_to ||
+      params.cursor,
+  )
+  if (!hasFilters) {
+    const targetSize = params.page_size ?? 20
+    const alternateSize = targetSize === 20 ? 100 : 20
+    const alt = peekApiCache<unknown>(buildLotsQueryPath({ page_size: alternateSize }))
+    if (alt) {
+      try {
+        const normalized = normalizeLotPage(alt)
+        return {
+          items: normalized.items.slice(0, targetSize),
+          next_cursor: normalized.next_cursor,
+        }
+      } catch {
+        return null
+      }
+    }
+  }
+  return null
+}
+
+export const getLots = async (params: LotListParams = {}): Promise<LotPage> => {
+  const response = await request<unknown>(buildLotsQueryPath(params))
   return normalizeLotPage(response)
 }
 
 export const getLot = (lotId: string) =>
   request<LotDetail>(`/api/v1/lots/${lotId}`)
+
+export const peekCachedLot = (lotId: string) =>
+  peekApiCache<LotDetail>(`/api/v1/lots/${lotId}`)
 
 export const getLineage = (lotId: string, direction: 'ancestors' | 'descendants') =>
   request<Lineage>(`/api/v1/lots/${lotId}/lineage?direction=${direction}`)
@@ -353,6 +511,7 @@ export const splitLot = (lotId: string, children: Array<{name: string; quantity:
   })
 
 export const getLocations = () => request<DistributionLocation[]>('/api/v1/locations/')
+export const peekCachedLocations = () => peekApiCache<DistributionLocation[]>('/api/v1/locations/')
 
 export const createLocation = (name: string, address: string) =>
   request<DistributionLocation>('/api/v1/locations/', {method: 'POST', body: JSON.stringify({name, address})})
@@ -369,6 +528,7 @@ export const mergeLots = (name: string, parents: Array<{lot_id: string; quantity
   })
 
 export const getProducts = () => request<Product[]>('/api/v1/products/')
+export const peekCachedProducts = () => peekApiCache<Product[]>('/api/v1/products/')
 
 export const createProduct = (payload: ProductPayload) =>
   request<Product>('/api/v1/products/', {
@@ -384,12 +544,18 @@ export const updateProduct = (productId: string, payload: Partial<ProductPayload
 
 export const getHandoverOrganizations = () =>
   request<OrganizationOption[]>('/api/v1/handovers/organizations')
+export const peekCachedHandoverOrganizations = () =>
+  peekApiCache<OrganizationOption[]>('/api/v1/handovers/organizations')
 
 export const getIncomingHandovers = () =>
   request<Handover[]>('/api/v1/handovers/incoming')
+export const peekCachedIncomingHandovers = () =>
+  peekApiCache<Handover[]>('/api/v1/handovers/incoming')
 
 export const getOutgoingHandovers = () =>
   request<Handover[]>('/api/v1/handovers/outgoing')
+export const peekCachedOutgoingHandovers = () =>
+  peekApiCache<Handover[]>('/api/v1/handovers/outgoing')
 
 export const createHandover = (payload: HandoverPayload) =>
   request<Handover>('/api/v1/handovers/', {
@@ -434,6 +600,8 @@ export const getIntegrityCheckHistory = (lotId: string) =>
 
 export const getIntegrityScanSummary = () =>
   request<IntegrityScanSummary>('/api/v1/events/integrity/summary')
+export const peekCachedIntegrityScanSummary = () =>
+  peekApiCache<IntegrityScanSummary>('/api/v1/events/integrity/summary')
 
 export const getLotInputLots = (lotId: string) =>
   request<LotInputLot[]>(`/api/v1/lots/${lotId}/input-lots`)
@@ -459,6 +627,18 @@ export const getColdChainViolationStats = (
   )
 }
 
+export const peekCachedColdChainViolationStats = (
+  params: { from?: string; to?: string } = {},
+): ColdChainViolationStats | null => {
+  const query = new URLSearchParams()
+  if (params.from) query.set('from', params.from)
+  if (params.to) query.set('to', params.to)
+  const suffix = query.toString() ? `?${query.toString()}` : ''
+  return peekApiCache<ColdChainViolationStats>(
+    `/api/v1/telemetry/violations/stats${suffix}`,
+  )
+}
+
 export const getNotifications = () =>
   request<NotificationList>('/api/v1/notifications')
 export const markNotificationRead = (notificationId: string) =>
@@ -474,6 +654,8 @@ export const markAllNotificationsRead = () =>
 
 export const getLotHistory = (lotId: string, after = 0) =>
   request<EventHistory>(`/api/v1/events/lots/${lotId}/history?page_size=10&after=${after}`)
+export const peekCachedLotHistory = (lotId: string, after = 0) =>
+  peekApiCache<EventHistory>(`/api/v1/events/lots/${lotId}/history?page_size=10&after=${after}`)
 
 export const createEvent = (payload: CreateEventRequest) =>
   request<LotEvent>('/api/v1/events/', {
@@ -517,6 +699,7 @@ export async function downloadLotReport(lotId: string): Promise<Blob> {
 // Events are strictly append-only.
 
 export const getShipments = () => request<Shipment[]>('/api/v1/shipments')
+export const peekCachedShipments = () => peekApiCache<Shipment[]>('/api/v1/shipments')
 
 export const getShipmentReadings = (
   shipmentId: string,

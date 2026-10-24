@@ -14,6 +14,12 @@ import {
   getLots,
   getOutgoingHandovers,
   getShipments,
+  peekCachedColdChainViolationStats,
+  peekCachedIncomingHandovers,
+  peekCachedIntegrityScanSummary,
+  peekCachedLots,
+  peekCachedOutgoingHandovers,
+  peekCachedShipments,
 } from '../services/api'
 import {
   hasPermission,
@@ -64,15 +70,33 @@ export function DashboardHomePanel({
   const canReadFarms = hasPermission(user.role, 'farms:read')
   const canReadOrg = hasPermission(user.role, 'organizations:read')
 
-  const [recentLots, setRecentLots] = useState<Lot[]>([])
-  const [loadingLots, setLoadingLots] = useState(() => canReadLots)
-  const [lotCount, setLotCount] = useState<number>(0)
-  const [activeLotCount, setActiveLotCount] = useState<number>(0)
+  const cachedLotsPage = canReadLots ? peekCachedLots({ page_size: 100 }) : null
+  const [recentLots, setRecentLots] = useState<Lot[]>(() => (cachedLotsPage?.items ?? []).slice(0, 5))
+  const [loadingLots, setLoadingLots] = useState(() => canReadLots && !cachedLotsPage)
+  const [lotCount, setLotCount] = useState<number>(() => cachedLotsPage?.items.length ?? 0)
+  const [activeLotCount, setActiveLotCount] = useState<number>(
+    () => (cachedLotsPage?.items ?? []).filter((item) => item.status === 'active').length,
+  )
 
-  const [handovers, setHandovers] = useState<Handover[]>([])
-  const [shipments, setShipments] = useState<Shipment[]>([])
-  const [coldStats, setColdStats] = useState<ColdChainViolationStats | null>(null)
-  const [integritySummary, setIntegritySummary] = useState<IntegrityScanSummary | null>(null)
+  const [handovers, setHandovers] = useState<Handover[]>(() => {
+    if (!canReadHandovers) return []
+    const inc = canResolveHandovers ? (peekCachedIncomingHandovers() ?? []) : []
+    const out = canCreateHandovers ? (peekCachedOutgoingHandovers() ?? []) : []
+    const map = new Map<string, Handover>()
+    for (const item of [...inc, ...out]) {
+      map.set(item.id, item)
+    }
+    return Array.from(map.values())
+  })
+  const [shipments, setShipments] = useState<Shipment[]>(
+    () => (canReadShipments ? (peekCachedShipments() ?? []) : []),
+  )
+  const [coldStats, setColdStats] = useState<ColdChainViolationStats | null>(
+    () => (canReadTelemetry ? peekCachedColdChainViolationStats({}) : null),
+  )
+  const [integritySummary, setIntegritySummary] = useState<IntegrityScanSummary | null>(
+    () => (canVerifyEvents ? peekCachedIntegrityScanSummary() : null),
+  )
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null)
 
   useEffect(() => {

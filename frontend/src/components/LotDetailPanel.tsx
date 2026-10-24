@@ -6,6 +6,11 @@ import {
   getLot,
   getLotHistory,
   getOutgoingHandovers,
+  peekCachedHandoverOrganizations,
+  peekCachedIncomingHandovers,
+  peekCachedLot,
+  peekCachedLotHistory,
+  peekCachedOutgoingHandovers,
 } from '../services/api'
 import type { EventHistory, Handover, Lot, LotDetail, OrganizationOption } from '../types'
 import { EventTimeline } from './EventTimeline'
@@ -75,12 +80,25 @@ export function LotDetailPanel({
   canRecordProcessingSteps = false,
   onBack,
 }: LotDetailPanelProps) {
-  const [lot, setLot] = useState<LotDetail | null>(null)
-  const [history, setHistory] = useState<EventHistory | null>(null)
-  const [organizations, setOrganizations] = useState<OrganizationOption[]>([])
-  const [handover, setHandover] = useState<Handover | null>(null)
-  const [loadedLotId, setLoadedLotId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const initialCachedLot = peekCachedLot(lotId)
+  const initialCachedHistory = canReadEvents ? peekCachedLotHistory(lotId) : null
+  const initialCachedOrgs = canCreateHandover ? (peekCachedHandoverOrganizations() ?? []) : []
+  const initialCachedHandover = (() => {
+    const out = canCreateHandover ? (peekCachedOutgoingHandovers() ?? []) : []
+    const inc = canResolveHandover ? (peekCachedIncomingHandovers() ?? []) : []
+    return (
+      [...out, ...inc]
+        .filter((item) => item.lot_id === lotId)
+        .sort((left, right) => right.created_at.localeCompare(left.created_at))[0] ?? null
+    )
+  })()
+
+  const [lot, setLot] = useState<LotDetail | null>(() => initialCachedLot)
+  const [history, setHistory] = useState<EventHistory | null>(() => initialCachedHistory)
+  const [organizations, setOrganizations] = useState<OrganizationOption[]>(() => initialCachedOrgs)
+  const [handover, setHandover] = useState<Handover | null>(() => initialCachedHandover)
+  const [loadedLotId, setLoadedLotId] = useState<string | null>(() => (initialCachedLot ? lotId : null))
+  const [loading, setLoading] = useState(() => !initialCachedLot)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [qrModalOpen, setQrModalOpen] = useState(false)
@@ -342,7 +360,7 @@ export function LotDetailPanel({
             ))}
           </nav>
 
-          <div id="lot-tab-content" role="tabpanel" aria-labelledby={`tab-${view}`} className="info-stack">
+          <div key={view} id="lot-tab-content" role="tabpanel" aria-labelledby={`tab-${view}`} className="info-stack detail-tab-panel-animate">
             {view === 'overview' && (
               <section className="panel-card panel-box">
                 <h2>Thao tác với lô</h2>

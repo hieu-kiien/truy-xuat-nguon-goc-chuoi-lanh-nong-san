@@ -3,7 +3,7 @@ import { hasPermission, type SessionUser, type Product, type ProductPayload, typ
 import { CsvImportPanel } from './CsvImportPanel'
 import { TaskLink } from './TaskLink'
 import { EditDialog } from './EditDialog'
-import { getProducts, createProduct, updateProduct, deleteProduct } from '../services/api'
+import { getProducts, createProduct, updateProduct, deleteProduct, peekCachedProducts } from '../services/api'
 
 const PRODUCT_UNITS: { value: ProductUnit; label: string }[] = [
   { value: 'kg', label: 'Kilôgam (kg)' },
@@ -20,9 +20,10 @@ export function ProductManager({ user }: ProductManagerProps) {
   const task = params.get('task')
   const editId = params.get('id')
   const canWriteProducts = hasPermission(user.role, 'products:write')
+  const initialCachedProducts = peekCachedProducts()
   const [refresh, setRefresh] = useState(0)
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+  const [products, setProducts] = useState<Product[]>(() => initialCachedProducts ?? [])
+  const [loading, setLoading] = useState(() => !initialCachedProducts)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(task === 'create')
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)

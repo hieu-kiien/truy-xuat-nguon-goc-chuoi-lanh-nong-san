@@ -5917,3 +5917,127 @@ html.dark .vf-cold-wave-title {
   gap: 14px;
 }
 
+/* ==========================================================================
+   SMOOTH UX ANIMATIONS, MODAL TRANSITIONS & ANTI-JANK MICRO-INTERACTIONS
+   ========================================================================== */
+
+@keyframes tabStageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes detailTabPanelEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dialogPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tableReloadShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.workspace-tab-stage {
+  animation: tabStageEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.detail-tab-panel-animate {
+  animation: detailTabPanelEnter 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.edit-dialog[open] {
+  animation: dialogPopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.edit-dialog::backdrop {
+  animation: backdropFadeIn 0.18s ease-out;
+  backdrop-filter: blur(3px);
+}
+
+.table-body-reloading tr:not(.table-loading-progress-row) {
+  opacity: 0.72;
+  transition: opacity 0.16s ease;
+}
+
+.table-loading-progress-row td.table-loading-progress-cell {
+  padding: 0 !important;
+  height: 3px;
+  border: 0 !important;
+  background: transparent;
+  overflow: hidden;
+  position: relative;
+}
+
+.table-reloading-bar {
+  width: 45%;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--brand), var(--accent-terracotta, #C85A32), transparent);
+  animation: tableReloadShimmer 0.9s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.data-table tbody tr {
+  transition: background-color 0.14s ease, opacity 0.16s ease;
+}
+
+.detail-tabs button {
+  transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
+}
+
+.detail-tabs button:active {
+  transform: scale(0.98);
+}
+
+.ds-button {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.ds-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-tab-stage,
+  .detail-tab-panel-animate,
+  .edit-dialog[open],
+  .edit-dialog::backdrop,
+  .table-reloading-bar {
+    animation: none !important;
+  }
+}

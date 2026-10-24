@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
-import { getFarms, getLots, getProducts } from '../services/api'
+import {
+  clearApiCache,
+  getFarms,
+  getLots,
+  getProducts,
+  peekCachedFarms,
+  peekCachedLots,
+  peekCachedProducts,
+} from '../services/api'
 import type { Farm, Lot, Product } from '../types'
 import { lotStatusLabel } from '../types'
 import { EditDialog } from './EditDialog'
@@ -29,12 +37,15 @@ export function LotsPanel({
   const task = new URLSearchParams(window.location.search).get('task')
   const [isCreateOpen, setIsCreateOpen] = useState(() => task === 'create')
   const [isMergeOpen, setIsMergeOpen] = useState(false)
-  const [lots, setLots] = useState<Lot[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [farms, setFarms] = useState<Farm[]>([])
-  const [loading, setLoading] = useState(canReadLots)
-  const [loadingProducts, setLoadingProducts] = useState(true)
-  const [loadingFarms, setLoadingFarms] = useState(() => Boolean(canReadFarms))
+  const initialLotsPage = canReadLots ? peekCachedLots({ page_size: 20 }) : null
+  const initialProducts = peekCachedProducts()
+  const initialFarms = canReadFarms ? peekCachedFarms() : null
+  const [lots, setLots] = useState<Lot[]>(() => initialLotsPage?.items ?? [])
+  const [products, setProducts] = useState<Product[]>(() => initialProducts ?? [])
+  const [farms, setFarms] = useState<Farm[]>(() => initialFarms ?? [])
+  const [loading, setLoading] = useState(() => canReadLots && !initialLotsPage)
+  const [loadingProducts, setLoadingProducts] = useState(() => !initialProducts)
+  const [loadingFarms, setLoadingFarms] = useState(() => Boolean(canReadFarms) && !initialFarms)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [productId, setProductId] = useState('')
@@ -43,7 +54,7 @@ export function LotsPanel({
   const [harvestedTo, setHarvestedTo] = useState('')
   const [cursor, setCursor] = useState<string | undefined>()
   const [previousCursors, setPreviousCursors] = useState<Array<string | undefined>>([])
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [nextCursor, setNextCursor] = useState<string | null>(() => initialLotsPage?.next_cursor ?? null)
   const [refresh, setRefresh] = useState(0)
   const [selected, setSelected] = useState<Lot[]>([])
 
@@ -143,6 +154,7 @@ export function LotsPanel({
             type="button"
             disabled={loading}
             onClick={() => {
+              clearApiCache()
               setLoading(true)
               setError(null)
               setRefresh((value) => value + 1)
@@ -272,8 +284,8 @@ export function LotsPanel({
               {canReadEvents && <th scope="col">Lịch sử</th>}
             </tr>
           </thead>
-          <tbody>
-            {loading ? (
+          <tbody className={loading && lots.length > 0 ? 'table-body-reloading' : undefined}>
+            {loading && lots.length === 0 ? (
               <tr>
                 <td colSpan={8} aria-busy="true">
                   Đang tải danh sách lô…
@@ -284,96 +296,123 @@ export function LotsPanel({
                 <td colSpan={8}>Không có lô phù hợp. Thử đổi bộ lọc hoặc tạo lô thu hoạch mới.</td>
               </tr>
             ) : (
-              lots.map((lot) => {
-                const code = lot.lot_code ?? lot.id.slice(0, 8)
-                const selectedHere = selected.some((item) => item.id === lot.id)
-                const displayName =
-                  lot.name && lot.name !== lot.product?.name ? lot.name : (lot.product?.name ?? lot.name)
-                const reason =
-                  lot.current_holder_organization_id !== organizationId
-                    ? 'Đơn vị của bạn không giữ lô này'
-                    : lot.status !== 'active' || Number(lot.remaining_quantity) <= 0
-                    ? 'Lô không còn lượng khả dụng'
-                    : selected.length && selected[0].product_id !== lot.product_id
-                    ? 'Sản phẩm khác với lô đã chọn'
-                    : selected.length >= 100 && !selectedHere
-                    ? 'Tối đa 100 lô mỗi lần gộp'
-                    : ''
-                return (
-                  <tr key={lot.id}>
-                    {canTransform && (
-                      <td data-label="Chọn" title={reason}>
-                        <input
-                          type="checkbox"
-                          aria-label={`Chọn ${code}${reason ? `: ${reason}` : ''}`}
-                          checked={selectedHere}
-                          disabled={!!reason && !selectedHere}
-                          onChange={(event) => {
-                            if (event.target.checked && selected.length === 0) {
-                              resetPage()
-                              setProductId(lot.product_id ?? '')
-                            }
-                            setSelected((current) =>
-                              event.target.checked
-                                ? [...current, lot]
-                                : current.filter((item) => item.id !== lot.id)
-                            )
-                          }}
-                        />
-                        {reason && !selectedHere && <small className="panel-sub">{reason}</small>}
-                      </td>
-                    )}
-                    <th scope="row" data-label="Nông sản">
-                      <div className="vf-lot-cell-brand">
-                        <SquircleIcon nameHint={displayName} size="sm" />
-                        <a
-                          className="lot-code-link"
-                          href={`/lots/${lot.id}`}
-                          onClick={(event) => {
-                            if (
-                              !event.ctrlKey &&
-                              !event.metaKey &&
-                              !event.shiftKey &&
-                              event.button === 0
-                            ) {
-                              event.preventDefault()
-                              onOpenLot(lot.id)
-                            }
-                          }}
-                        >
-                          {displayName}
-                        </a>
-                      </div>
-                    </th>
-                    <td data-label="Mã truy xuất">
-                      <code className="lot-code-tag">{code}</code>
+              <>
+                {loading && (
+                  <tr className="table-loading-progress-row" aria-hidden="true">
+                    <td colSpan={8} aria-busy="true" className="table-loading-progress-cell">
+                      <div className="table-reloading-bar" />
                     </td>
-                    <td data-label="Ngày thu hoạch">{lot.harvested_on ?? 'Lô dẫn xuất'}</td>
-                    <td data-label="Còn lại">
-                      <strong>
-                        {lot.remaining_quantity} {lot.product?.unit}
-                      </strong>
-                    </td>
-                    <td data-label="Trạng thái">
-                      <span
-                        className={`status-badge ${
-                          lot.status === 'active' ? 'status-done' : 'status-neutral'
-                        }`}
-                      >
-                        {lotStatusLabel(lot.status)}
-                      </span>
-                    </td>
-                    <td data-label="Địa điểm">{lot.current_location?.name ?? 'Chưa gán địa điểm'}</td>
-                    {canReadEvents && (
-                      <td data-label="Lịch sử">
-                        <a href={`/lots/${lot.id}?view=history`} className="ds-button ds-button-secondary">
-                          Xem lịch sử
-                        </a>
-                      </td>
-                    )}
                   </tr>
-                )
-              })
+                )}
+                {lots.map((lot) => {
+                  const code = lot.lot_code ?? lot.id.slice(0, 8)
+                  const selectedHere = selected.some((item) => item.id === lot.id)
+                  const displayName =
+                    lot.name && lot.name !== lot.product?.name ? lot.name : (lot.product?.name ?? lot.name)
+                  const reason =
+                    lot.current_holder_organization_id !== organizationId
+                      ? 'Đơn vị của bạn không giữ lô này'
+                      : lot.status !== 'active' || Number(lot.remaining_quantity) <= 0
+                      ? 'Lô không còn lượng khả dụng'
+                      : selected.length && selected[0].product_id !== lot.product_id
+                      ? 'Sản phẩm khác với lô đã chọn'
+                      : selected.length >= 100 && !selectedHere
+                      ? 'Tối đa 100 lô mỗi lần gộp'
+                      : ''
+                  return (
+                    <tr key={lot.id}>
+                      {canTransform && (
+                        <td data-label="Chọn" title={reason}>
+                          <input
+                            type="checkbox"
+                            aria-label={`Chọn ${code}${reason ? `: ${reason}` : ''}`}
+                            checked={selectedHere}
+                            disabled={!!reason && !selectedHere}
+                            onChange={(event) => {
+                              if (event.target.checked && selected.length === 0) {
+                                const nextProductId = lot.product_id ?? ''
+                                if (productId !== nextProductId || cursor !== undefined) {
+                                  resetPage()
+                                  setProductId(nextProductId)
+                                }
+                              }
+                              setSelected((current) =>
+                                event.target.checked
+                                  ? [...current, lot]
+                                  : current.filter((item) => item.id !== lot.id)
+                              )
+                            }}
+                          />
+                          {reason && !selectedHere && <small className="panel-sub">{reason}</small>}
+                        </td>
+                      )}
+                      <th scope="row" data-label="Nông sản">
+                        <div className="vf-lot-cell-brand">
+                          <SquircleIcon nameHint={displayName} size="sm" />
+                          <a
+                            className="lot-code-link"
+                            href={`/lots/${lot.id}`}
+                            onClick={(event) => {
+                              if (
+                                !event.ctrlKey &&
+                                !event.metaKey &&
+                                !event.shiftKey &&
+                                !event.button
+                              ) {
+                                event.preventDefault()
+                                onOpenLot(lot.id)
+                              }
+                            }}
+                          >
+                            {displayName}
+                          </a>
+                        </div>
+                      </th>
+                      <td data-label="Mã truy xuất">
+                        <code className="lot-code-tag">{code}</code>
+                      </td>
+                      <td data-label="Ngày thu hoạch">{lot.harvested_on ?? 'Lô dẫn xuất'}</td>
+                      <td data-label="Còn lại">
+                        <strong>
+                          {lot.remaining_quantity} {lot.product?.unit}
+                        </strong>
+                      </td>
+                      <td data-label="Trạng thái">
+                        <span
+                          className={`status-badge ${
+                            lot.status === 'active' ? 'status-done' : 'status-neutral'
+                          }`}
+                        >
+                          {lotStatusLabel(lot.status)}
+                        </span>
+                      </td>
+                      <td data-label="Địa điểm">{lot.current_location?.name ?? 'Chưa gán địa điểm'}</td>
+                      {canReadEvents && (
+                        <td data-label="Lịch sử">
+                          <a
+                            href={`/lots/${lot.id}?view=history`}
+                            className="ds-button ds-button-secondary"
+                            onClick={(event) => {
+                              if (
+                                !event.ctrlKey &&
+                                !event.metaKey &&
+                                !event.shiftKey &&
+                                !event.button
+                              ) {
+                                event.preventDefault()
+                                window.history.pushState({}, '', `/lots/${lot.id}?view=history`)
+                                window.dispatchEvent(new PopStateEvent('popstate'))
+                              }
+                            }}
+                          >
+                            Xem lịch sử
+                          </a>
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
+              </>
             )}
           </tbody>
         </table>
