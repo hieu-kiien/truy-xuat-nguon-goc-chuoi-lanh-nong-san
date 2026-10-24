@@ -264,7 +264,10 @@ export function LoginView({
               <div className="quick-trace-title-row">
                 <span className="quick-trace-label">Tra cứu nguồn gốc lô hàng công khai</span>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {(['XRVT7PXY', 'BZ84PFZ3', 'JQMB7MZ9'] as const).map((sample) => (
+                  {(typeof window !== 'undefined' && window.location?.hostname?.includes('onrender.com')
+                    ? (['4S594256', 'P8V8RDPM', 'WJS2JKHZ'] as const)
+                    : (['XRVT7PXY', 'BZ84PFZ3', 'JQMB7MZ9'] as const)
+                  ).map((sample) => (
                     <a
                       key={sample}
                       href={`/truy-xuat?code=${sample}`}

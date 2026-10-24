@@ -250,12 +250,20 @@ export function PublicTracePage() {
 
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px', alignItems: 'center' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Mã lô mẫu có sẵn:</span>
-              {[
-                { code: 'XRVT7PXY', label: 'XRVT7PXY (Bắp cải D1 + Bản đồ)' },
-                { code: 'BZ84PFZ3', label: 'BZ84PFZ3 (Dâu tây HTX + Chế biến)' },
-                { code: 'JQMB7MZ9', label: 'JQMB7MZ9 (Dâu tây Nông trại)' },
-                { code: 'DB99A7YK', label: 'DB99A7YK (Đã tiêu thụ)' },
-              ].map((item) => (
+              {(typeof window !== 'undefined' && window.location?.hostname?.includes('onrender.com')
+                ? [
+                    { code: '4S594256', label: '4S594256 (Bắp cải D1 + Bản đồ)' },
+                    { code: 'P8V8RDPM', label: 'P8V8RDPM (Dâu tây HTX 40kg)' },
+                    { code: 'WJS2JKHZ', label: 'WJS2JKHZ (Dâu tây Nông trại)' },
+                    { code: 'YEQTXCQ7', label: 'YEQTXCQ7 (Lô đang thu hồi)' },
+                  ]
+                : [
+                    { code: 'XRVT7PXY', label: 'XRVT7PXY (Bắp cải D1 + Bản đồ)' },
+                    { code: 'BZ84PFZ3', label: 'BZ84PFZ3 (Dâu tây HTX + Chế biến)' },
+                    { code: 'JQMB7MZ9', label: 'JQMB7MZ9 (Dâu tây Nông trại)' },
+                    { code: 'DB99A7YK', label: 'DB99A7YK (Đã tiêu thụ)' },
+                  ]
+              ).map((item) => (
                 <button
                   key={item.code}
                   type="button"
