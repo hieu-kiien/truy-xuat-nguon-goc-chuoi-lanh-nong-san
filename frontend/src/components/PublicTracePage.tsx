@@ -296,114 +296,121 @@ export function PublicTracePage() {
               )}
             </button>
           </form>
-
-          {trace && result && (
-            <div className="public-trace-result">
-              {result.warnings.map((warning) => (
-                <div
-                  key={warning.code}
-                  className="auth-alert-box"
-                  role={warning.level === 'danger' ? 'alert' : 'status'}
-                  style={
-                    warning.level === 'danger'
-                      ? undefined
-                      : {
-                          borderColor: 'rgba(217, 130, 43, 0.4)',
-                          background: 'rgba(217, 130, 43, 0.1)',
-                          color: 'var(--text-primary)',
-                        }
-                  }
-                >
-                  <WarningIcon level={warning.level} />
-                  <span>{warning.message}</span>
-                </div>
-              ))}
-
-              <div className="trace-lot-summary vf-trace-summary-with-icon">
-                <SquircleIcon nameHint={trace.product_name} size="lg" />
-                <div>
-                  <span className="trace-lot-chip">
-                    Mã lô <code>{trace.lot_code ?? '—'}</code>
-                  </span>
-                  <h3 className="trace-product-name">{trace.product_name ?? 'Sản phẩm'}</h3>
-                </div>
-              </div>
-
-              <div className="trace-fields-grid">
-                <div className="trace-field-tile">
-                  <SquircleIcon kind="basket" size="sm" />
-                  <div>
-                    <span className="trace-field-lbl">Quy cách</span>
-                    <span className="trace-field-val">
-                      {trace.product_unit ? `${trace.product_unit}` : 'Chưa cập nhật'}
-                    </span>
-                  </div>
-                </div>
-                <div className="trace-field-tile">
-                  <SquircleIcon kind="bokchoy" size="sm" />
-                  <div>
-                    <span className="trace-field-lbl">Ngày thu hoạch</span>
-                    <span className="trace-field-val">{trace.harvested_on ?? 'Chưa cập nhật'}</span>
-                  </div>
-                </div>
-                <div className="trace-field-tile">
-                  <SquircleIcon kind="seedling" size="sm" />
-                  <div>
-                    <span className="trace-field-lbl">Vùng trồng</span>
-                    <span className="trace-field-val">{trace.farm_name ?? 'Chưa cập nhật'}</span>
-                  </div>
-                </div>
-                <div className="trace-field-tile">
-                  <SquircleIcon kind="rice" size="sm" />
-                  <div>
-                    <span className="trace-field-lbl">Nguồn gốc</span>
-                    <span className="trace-field-val">
-                      {trace.origin_organization_type === 'farm'
-                        ? 'Nông trại sản xuất'
-                        : trace.origin_organization_type === 'cooperative'
-                          ? 'Hợp tác xã'
-                          : trace.origin_organization_type ?? '—'}
-                    </span>
-                  </div>
-                </div>
-                <div className="trace-field-tile">
-                  <SquircleIcon kind="frost" size="sm" />
-                  <div>
-                    <span className="trace-field-lbl">Trạng thái</span>
-                    <span className="trace-field-val">
-                      {trace.status === 'active'
-                        ? 'Đang lưu hành'
-                        : trace.status === 'pending_handover'
-                          ? 'Chờ bàn giao'
-                          : trace.status === 'consumed'
-                            ? 'Đã tiêu thụ'
-                            : trace.status ?? '—'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {trace.processing_summary ? (
-                <div className="trace-field-tile">
-                  <SquircleIcon kind="carrot" size="sm" />
-                  <div>
-                    <span className="trace-field-lbl">Công đoạn chế biến</span>
-                    <span className="trace-field-val">{trace.processing_summary}</span>
-                  </div>
-                </div>
-              ) : null}
-
-              <Suspense fallback={<div className="route-map" aria-busy="true" />}>
-                <RouteMap route={route} lotCode={trace.lot_code ?? ''} />
-              </Suspense>
-
-              <p className="public-trace-note">
-                🔒 Trang chỉ hiển thị các trường công khai nhằm bảo vệ thông tin kinh doanh
-                của đơn vị tham gia chuỗi.
-              </p>
-            </div>
-          )}
         </section>
+
+        {trace && result && (
+          <section className="public-trace-result public-trace-result-full">
+            {result.warnings.map((warning) => (
+              <div
+                key={warning.code}
+                className="auth-alert-box"
+                role={warning.level === 'danger' ? 'alert' : 'status'}
+                style={
+                  warning.level === 'danger'
+                    ? undefined
+                    : {
+                        borderColor: 'rgba(217, 130, 43, 0.4)',
+                        background: 'rgba(217, 130, 43, 0.1)',
+                        color: 'var(--text-primary)',
+                      }
+                }
+              >
+                <WarningIcon level={warning.level} />
+                <span>{warning.message}</span>
+              </div>
+            ))}
+
+            <div className={`public-trace-bento-body ${route && route.points.length > 0 ? 'has-route-map' : ''}`}>
+              <div className="public-trace-bento-left">
+                <div className="trace-lot-summary vf-trace-summary-with-icon">
+                  <SquircleIcon nameHint={trace.product_name} size="lg" />
+                  <div>
+                    <span className="trace-lot-chip">
+                      Mã lô <code>{trace.lot_code ?? '—'}</code>
+                    </span>
+                    <h3 className="trace-product-name">{trace.product_name ?? 'Sản phẩm'}</h3>
+                  </div>
+                </div>
+
+                <div className="trace-fields-grid">
+                  <div className="trace-field-tile">
+                    <SquircleIcon kind="basket" size="sm" />
+                    <div>
+                      <span className="trace-field-lbl">Quy cách</span>
+                      <span className="trace-field-val">
+                        {trace.product_unit ? `${trace.product_unit}` : 'Chưa cập nhật'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="trace-field-tile">
+                    <SquircleIcon kind="bokchoy" size="sm" />
+                    <div>
+                      <span className="trace-field-lbl">Ngày thu hoạch</span>
+                      <span className="trace-field-val">{trace.harvested_on ?? 'Chưa cập nhật'}</span>
+                    </div>
+                  </div>
+                  <div className="trace-field-tile">
+                    <SquircleIcon kind="seedling" size="sm" />
+                    <div>
+                      <span className="trace-field-lbl">Vùng trồng</span>
+                      <span className="trace-field-val">{trace.farm_name ?? 'Chưa cập nhật'}</span>
+                    </div>
+                  </div>
+                  <div className="trace-field-tile">
+                    <SquircleIcon kind="rice" size="sm" />
+                    <div>
+                      <span className="trace-field-lbl">Nguồn gốc</span>
+                      <span className="trace-field-val">
+                        {trace.origin_organization_type === 'farm'
+                          ? 'Nông trại sản xuất'
+                          : trace.origin_organization_type === 'cooperative'
+                            ? 'Hợp tác xã'
+                            : trace.origin_organization_type ?? '—'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="trace-field-tile">
+                    <SquircleIcon kind="frost" size="sm" />
+                    <div>
+                      <span className="trace-field-lbl">Trạng thái</span>
+                      <span className="trace-field-val">
+                        {trace.status === 'active'
+                          ? 'Đang lưu hành'
+                          : trace.status === 'pending_handover'
+                            ? 'Chờ bàn giao'
+                            : trace.status === 'consumed'
+                              ? 'Đã tiêu thụ'
+                              : trace.status ?? '—'}
+                      </span>
+                    </div>
+                  </div>
+                  {trace.processing_summary ? (
+                    <div className="trace-field-tile">
+                      <SquircleIcon kind="carrot" size="sm" />
+                      <div>
+                        <span className="trace-field-lbl">Công đoạn chế biến</span>
+                        <span className="trace-field-val">{trace.processing_summary}</span>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <p className="public-trace-note">
+                  🔒 Trang chỉ hiển thị các trường công khai nhằm bảo vệ thông tin kinh doanh
+                  của đơn vị tham gia chuỗi.
+                </p>
+              </div>
+
+              {route && route.points.length > 0 && (
+                <div className="public-trace-bento-right">
+                  <Suspense fallback={<div className="route-map" aria-busy="true" />}>
+                    <RouteMap route={route} lotCode={trace.lot_code ?? ''} />
+                  </Suspense>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   )

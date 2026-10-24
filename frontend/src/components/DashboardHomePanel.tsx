@@ -69,6 +69,8 @@ export function DashboardHomePanel({
   const canVerifyEvents = hasPermission(user.role, 'events:verify')
   const canReadFarms = hasPermission(user.role, 'farms:read')
   const canReadOrg = hasPermission(user.role, 'organizations:read')
+  const canManageOrg = hasPermission(user.role, 'organizations:manage')
+  const [featuredImgFailed, setFeaturedImgFailed] = useState(false)
 
   const cachedLotsPage = canReadLots ? peekCachedLots({ page_size: 100 }) : null
   const [recentLots, setRecentLots] = useState<Lot[]>(() => (cachedLotsPage?.items ?? []).slice(0, 5))
@@ -482,12 +484,17 @@ export function DashboardHomePanel({
         {/* Right Bento: Featured Produce Photo Card + Cold Wave Chart + 4-Step Journey */}
         <div className="vf-bento-right">
           <div className="vf-featured-produce-card">
-            <img
-              src={resolveFeaturedImage(featuredLot)}
-              alt={featuredLot?.name || 'Nông sản chuỗi lạnh'}
-              className="vf-featured-produce-img"
-              loading="lazy"
-            />
+            {!featuredImgFailed ? (
+              <img
+                src={resolveFeaturedImage(featuredLot)}
+                alt={featuredLot?.name || 'Nông sản chuỗi lạnh'}
+                className="vf-featured-produce-img"
+                loading="lazy"
+                onError={() => setFeaturedImgFailed(true)}
+              />
+            ) : (
+              <div className="vf-featured-produce-img vf-featured-produce-fallback" aria-hidden="true" />
+            )}
             <div className="vf-featured-produce-body">
               <span className="vf-featured-pill">
                 {featuredLot
@@ -825,7 +832,11 @@ export function DashboardHomePanel({
               <SquircleIcon kind="carrot" size="md" />
               <div className="module-tile-content">
                 <h4 className="module-tile-name">Quản trị Tổ chức</h4>
-                <p className="module-tile-desc">Mời thành viên, phân quyền vai trò và quản lý hồ sơ đơn vị.</p>
+                <p className="module-tile-desc">
+                  {canManageOrg
+                    ? 'Mời thành viên, phân quyền vai trò và quản lý hồ sơ đơn vị.'
+                    : 'Xem thông tin đơn vị, danh sách thành viên và đầu mối liên hệ.'}
+                </p>
               </div>
               <span className="tile-arrow">→</span>
             </button>

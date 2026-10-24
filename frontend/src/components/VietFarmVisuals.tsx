@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 export type SquircleAssetKey =
   | 'bokchoy'
   | 'carrot'
@@ -8,55 +10,102 @@ export type SquircleAssetKey =
   | 'truck'
   | 'frost'
 
-const ASSET_MAP: Record<SquircleAssetKey, { src: string; bg: string; border: string; label: string }> = {
+const ASSET_MAP: Record<SquircleAssetKey, { src: string; bg: string; border: string; accent: string; label: string }> = {
   bokchoy: {
     src: '/assets/vietfarm/bokchoy3d.png',
     bg: '#EDF3EB',
     border: '#D5E4D0',
+    accent: '#2F6F3E',
     label: 'Rau hữu cơ',
   },
   carrot: {
     src: '/assets/vietfarm/carrot3d.png',
     bg: '#FBECE6',
     border: '#F2D0C2',
+    accent: '#C85A32',
     label: 'Củ quả tươi',
   },
   rice: {
     src: '/assets/vietfarm/rice3d.png',
     bg: '#FAF5E8',
     border: '#EADBC0',
+    accent: '#B7791F',
     label: 'Lúa gạo & Ngũ cốc',
   },
   strawberry: {
     src: '/assets/vietfarm/strawberry.png',
     bg: '#FCEEEB',
     border: '#F3CEC7',
+    accent: '#C53030',
     label: 'Trái cây tươi',
   },
   seedling: {
     src: '/assets/vietfarm/seedling.png',
     bg: '#EDF3EB',
     border: '#D5E4D0',
+    accent: '#2F6F3E',
     label: 'Vùng trồng VietGAP',
   },
   basket: {
     src: '/assets/vietfarm/basket3d.png',
     bg: '#FDF3E7',
     border: '#EED6B8',
+    accent: '#B76E22',
     label: 'Giỏ thu hoạch',
   },
   truck: {
     src: '/assets/vietfarm/truck3d.png',
     bg: '#E3F5EE',
     border: '#BFE6D7',
+    accent: '#1F7A5C',
     label: 'Vận chuyển lạnh',
   },
   frost: {
     src: '/assets/vietfarm/frost3d.png',
     bg: '#E3F5EE',
     border: '#BFE6D7',
+    accent: '#1F7A5C',
     label: 'Bảo quản kho lạnh',
   },
+}
+
+function FallbackVectorGlyph({ kind, color }: { kind: SquircleAssetKey; color: string }) {
+  switch (kind) {
+    case 'truck':
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="1" y="3" width="15" height="13" rx="2" />
+          <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+          <circle cx="5.5" cy="18.5" r="2.5" />
+          <circle cx="18.5" cy="18.5" r="2.5" />
+        </svg>
+      )
+    case 'frost':
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="2" x2="12" y2="22" />
+          <line x1="2" y1="12" x2="22" y2="12" />
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+          <line x1="19.07" y1="4.93" x2="4.93" y2="19.07" />
+        </svg>
+      )
+    case 'basket':
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m5 11 4-7" />
+          <path d="m19 11-4-7" />
+          <path d="M2 11h20" />
+          <path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8c.9 0 1.8-.7 2-1.6l1.7-7.4" />
+        </svg>
+      )
+    default:
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+          <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+        </svg>
+      )
+  }
 }
 
 function resolveProduceKey(text?: string | null): SquircleAssetKey {
@@ -109,6 +158,7 @@ interface SquircleIconProps {
 export function SquircleIcon({ kind, nameHint, size = 'md', className = '' }: SquircleIconProps) {
   const key = kind ?? resolveProduceKey(nameHint)
   const meta = ASSET_MAP[key]
+  const [imgFailed, setImgFailed] = useState(false)
   const px = size === 'sm' ? 40 : size === 'lg' ? 60 : 48
   const radius = size === 'sm' ? 12 : size === 'lg' ? 18 : 14
 
@@ -124,21 +174,27 @@ export function SquircleIcon({ kind, nameHint, size = 'md', className = '' }: Sq
       }}
       aria-hidden="true"
     >
-      <img
-        src={meta.src}
-        alt=""
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          borderRadius: `${radius - 2}px`,
-        }}
-      />
+      {imgFailed ? (
+        <FallbackVectorGlyph kind={key} color={meta.accent} />
+      ) : (
+        <img
+          src={meta.src}
+          alt=""
+          onError={() => setImgFailed(true)}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            borderRadius: `${radius - 2}px`,
+          }}
+        />
+      )}
     </span>
   )
 }
 
 export function VietFarmJourneyStepper({ compact = false }: { compact?: boolean }) {
+  const [failedKeys, setFailedKeys] = useState<Record<string, boolean>>({})
   const steps: Array<{ key: SquircleAssetKey; title: string; sub: string; border: string }> = [
     { key: 'seedling', title: '1. Gieo hạt', sub: 'Vùng trồng VietGAP', border: '#4B6F44' },
     { key: 'basket', title: '2. Thu hoạch', sub: 'Ghi nhận lô gốc', border: '#D9822B' },
@@ -157,7 +213,16 @@ export function VietFarmJourneyStepper({ compact = false }: { compact?: boolean 
         {steps.map((step) => (
           <div key={step.key} className="vf-journey-node">
             <div className="vf-journey-icon-box" style={{ borderColor: step.border }}>
-              <img src={ASSET_MAP[step.key].src} alt="" loading="lazy" />
+              {failedKeys[step.key] ? (
+                <FallbackVectorGlyph kind={step.key} color={step.border} />
+              ) : (
+                <img
+                  src={ASSET_MAP[step.key].src}
+                  alt=""
+                  loading="lazy"
+                  onError={() => setFailedKeys((prev) => ({ ...prev, [step.key]: true }))}
+                />
+              )}
             </div>
             <span className="vf-journey-title">{step.title}</span>
             {!compact && <span className="vf-journey-sub">{step.sub}</span>}

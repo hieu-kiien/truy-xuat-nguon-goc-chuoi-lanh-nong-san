@@ -362,6 +362,7 @@ export function FarmWorkspace({
             {hasPermission(user.role, 'recalls:read') && (
               <RecallAlertBanner
                 organizationId={user.organization_id}
+                canConfirmRecall={hasPermission(user.role, 'recalls:confirm')}
                 onOpenLot={onOpenLot}
                 onNotify={onNotify}
               />
