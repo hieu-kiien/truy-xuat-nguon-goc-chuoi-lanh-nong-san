@@ -30,10 +30,10 @@ lưu, rồi xác minh checksum của bản mới nhất. Nếu checksum lệch t
 ### Cách chạy bằng GitHub Actions
 
 Workflow `.github/workflows/nightly-backup.yml` chạy lúc **02:15 UTC mỗi ngày**,
-tải bản sao lưu lên artifact (giữ 30 ngày) và có thể chạy tay qua
+tải bản sao lưu lên artifact (giữ 90 ngày) và có thể chạy tay qua
 `workflow_dispatch`.
 
-Cần khai báo các secret trong repository:
+Cần khai báo các secret trong repository khi kết nối tới cơ sở dữ liệu staging:
 
 | Secret | Ý nghĩa |
 | --- | --- |
@@ -113,16 +113,17 @@ lệch, nên diễn tập thất bại sẽ làm pipeline đỏ.
 
 ### Nhật ký diễn tập
 
-Ghi lại kết quả mỗi lần diễn tập vào bảng dưới đây và commit cùng tài liệu:
+Kết quả các lần diễn tập khôi phục (chi tiết xem tại [RESTORE-DRILLS.md](RESTORE-DRILLS.md)):
 
-| Ngày diễn tập | Bản sao lưu | Thời gian khôi phục | Số dòng khớp | Người thực hiện |
-| --- | --- | --- | --- | --- |
-| _(chưa diễn tập)_ | | | | |
+| Ngày diễn tập | Bản sao lưu | Thời gian khôi phục | Số dòng khớp | Kiểm tra chuỗi hash | Người thực hiện |
+| --- | --- | --- | --- | --- | --- |
+| `2026-10-21` (Lần 1 — Local Drill) | `agrochain-20261021T080054Z.dump` (`283.442` byte) | **`2,288` giây** | `9/9` bảng khớp (`mismatches = {}`) | `checked_lots = 29`, `broken_lots = 0` | Lâm Tiến Khởi |
+| `2026-10-21` (Lần 2 — S3 Round-trip Drill) | `agrochain-20261021T083651Z.dump` (`283.442` byte) | **`2,214` giây** | `9/9` bảng khớp (`mismatches = {}`) | `checked_lots = 29`, `broken_lots = 0` | Lâm Tiến Khởi |
 
 ## 6. Kiểm tra chuỗi hash sau khi khôi phục
 
 Bản sao lưu chỉ hữu ích khi chuỗi hash của lô hàng vẫn khớp. Sau khi khôi
-phục, chạy lại phép kiểm tra toàn vẹn trên một lô:
+phục, chạy lại phép kiểm tra toàn vẹn trên toàn bộ lô:
 
 ```sh
 cd backend

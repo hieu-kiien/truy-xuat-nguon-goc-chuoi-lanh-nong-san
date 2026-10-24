@@ -47,6 +47,10 @@ jobs:
           DB_ADMIN_USER: ${{ secrets.STAGING_DB_ADMIN_USER }}
           DB_ADMIN_PASSWORD: ${{ secrets.STAGING_DB_ADMIN_PASSWORD }}
         run: |
+          if [ -z "${DATABASE_URL_ENV}" ]; then
+            echo "::warning::Chưa cấu hình STAGING_DATABASE_URL trong GitHub Secrets — bỏ qua quét định kỳ trên staging."
+            exit 0
+          fi
           cd backend
           python -m app.jobs.integrity_scanner \
             --once \

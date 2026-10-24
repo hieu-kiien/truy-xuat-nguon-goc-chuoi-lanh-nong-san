@@ -58,6 +58,11 @@ jobs:
           DB_ADMIN_PASSWORD: ${{ secrets.STAGING_DB_ADMIN_PASSWORD }}
           BACKUP_DIR: ${{ github.workspace }}/backups
         run: |
+          if [ -z "${DATABASE_URL_ENV}" ]; then
+            echo "::warning::Chưa cấu hình STAGING_DATABASE_URL trong GitHub Secrets — bỏ qua sao lưu tự động trên staging."
+            mkdir -p "${BACKUP_DIR}"
+            exit 0
+          fi
           cd backend
           python scripts/backup.py backup \
             --directory "${BACKUP_DIR}" \
@@ -72,12 +77,16 @@ jobs:
           DB_ADMIN_USER: ${{ secrets.STAGING_DB_ADMIN_USER }}
           DB_ADMIN_PASSWORD: ${{ secrets.STAGING_DB_ADMIN_PASSWORD }}
         run: |
+          if [ -z "${DATABASE_URL_ENV}" ]; then
+            exit 0
+          fi
           cd backend
           NEWEST=$(ls -1t "${GITHUB_WORKSPACE}"/backups/agrochain-*.dump | head -n 1)
           python scripts/backup.py verify --dump "${NEWEST}"
 
       - name: Copy the dumps outside the application server
         env:
+          DATABASE_URL_ENV: ${{ secrets.STAGING_DATABASE_URL }}
           BACKUP_EXTERNAL_BUCKET: ${{ secrets.BACKUP_EXTERNAL_BUCKET }}
           BACKUP_EXTERNAL_ENDPOINT: ${{ secrets.BACKUP_EXTERNAL_ENDPOINT }}
           BACKUP_EXTERNAL_REGION: ${{ secrets.BACKUP_EXTERNAL_REGION }}
@@ -85,8 +94,8 @@ jobs:
           BACKUP_EXTERNAL_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_EXTERNAL_SECRET_ACCESS_KEY }}
           BACKUP_EXTERNAL_PREFIX: ${{ secrets.BACKUP_EXTERNAL_PREFIX }}
         run: |
-          if [ -z "${BACKUP_EXTERNAL_BUCKET}" ]; then
-            echo "::warning::Chưa cấu hình BACKUP_EXTERNAL_BUCKET. Bản sao lưu chỉ nằm trong artifact của Actions và sẽ hết hạn sau 30 ngày (N3-160, AC2 chưa đạt)."
+          if [ -z "${DATABASE_URL_ENV}" ] || [ -z "${BACKUP_EXTERNAL_BUCKET}" ]; then
+            echo "::warning::Chưa cấu hình STAGING_DATABASE_URL hoặc BACKUP_EXTERNAL_BUCKET. Bản sao lưu chỉ nằm trong artifact của Actions."
             exit 0
           fi
           cd backend
@@ -99,3 +108,4 @@ jobs:
           name: db-backups
           path: ${{ github.workspace }}/backups/
           retention-days: 90
+          if-no-files-found: ignore
